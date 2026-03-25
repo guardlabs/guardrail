@@ -1,2 +1,9 @@
 .superpowers/
 .worktrees/
+node_modules/
+.turbo/
+dist/
+coverage/
+*.tsbuildinfo
+.env
+.env.*

@@ -1,0 +1,24 @@
+{
+  "name": "@agent-wallet/backend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/server.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@agent-wallet/shared": "workspace:*",
+    "@fastify/cors": "^10.0.1",
+    "drizzle-orm": "^0.43.1",
+    "fastify": "^5.2.1",
+    "pg": "^8.14.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "drizzle-kit": "^0.31.4",
+    "tsx": "^4.19.3",
+    "vitest": "^3.0.9"
+  }
+}
