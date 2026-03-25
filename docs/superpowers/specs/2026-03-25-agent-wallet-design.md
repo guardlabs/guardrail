@@ -89,7 +89,7 @@ Runs in the browser via a URL returned by the backend.
 
 Responsibilities:
 
-- consume a provisioning link
+- consume a provisioning link (a backend URI + request id)
 - create the human passkey locally
 - derive the owner public identity needed by the smart wallet
 - display the counterfactual wallet address
@@ -182,7 +182,7 @@ Notes:
 - The project may operate a default orchestrator backend.
 - Other operators must be able to host a compatible orchestrator backend.
 - The CLI and frontend should be configurable to point to a custom backend.
-- The frontend should be open-source so a third party can redeploy it if the original project disappears.
+- The frontend and backend should be open-source so a third party can redeploy them if the original project disappears.
 - Existing wallets must remain manageable without the original backend once they are activated.
 
 This means provisioning is a service, but ownership and long-term wallet administration are not captive to that service.
@@ -192,7 +192,7 @@ This means provisioning is a service, but ownership and long-term wallet adminis
 - The passkey secret remains in the browser environment.
 - The session private key remains on the agent server.
 - The backend sees only the session public key and public owner artifacts.
-- Policy enforcement must happen at the smart wallet level, not only in backend logic.
+- Policy enforcement must happen at the smart wallet level, not in backend logic.
 - The backend is not trusted with durable wallet control.
 
 ## Error Handling
