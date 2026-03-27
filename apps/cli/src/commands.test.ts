@@ -402,4 +402,5 @@ describe("cli commands", () => {
       transactionHash: "0xtransactionhash",
     });
   });
+
 });
