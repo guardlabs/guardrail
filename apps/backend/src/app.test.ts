@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { FundingState, OwnerPublicArtifacts, WalletContext } from "@agent-wallet/shared";
 import { buildApp } from "./app.js";
 import type { AppConfig } from "./config.js";
@@ -462,6 +462,76 @@ describe("backend app", () => {
         minimumRequiredWei: testConfig.minFundingWei,
       },
     });
+
+    await app.close();
+  });
+
+  it("proxies supported chain JSON-RPC requests through the backend", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        jsonrpc: "2.0",
+        id: 1,
+        result: "0x1",
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const app = buildApp({
+      config: {
+        ...testConfig,
+        rpcUrlsByChain: {
+          84532: "https://rpc.example.test/base-sepolia",
+        },
+      },
+      repository: createTestRepository(),
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chains/84532/rpc",
+      payload: {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "eth_chainId",
+        params: [],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      jsonrpc: "2.0",
+      id: 1,
+      result: "0x1",
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://rpc.example.test/base-sepolia",
+      expect.objectContaining({
+        method: "POST",
+      }),
+    );
+
+    await app.close();
+  });
+
+  it("rejects chain proxy requests for unsupported chains", async () => {
+    const app = buildApp({
+      config: testConfig,
+      repository: createTestRepository(),
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chains/1/rpc",
+      payload: {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "eth_chainId",
+        params: [],
+      },
+    });
+
+    expect(response.statusCode).toBe(404);
 
     await app.close();
   });

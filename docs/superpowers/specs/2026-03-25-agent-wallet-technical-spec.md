@@ -121,6 +121,8 @@ Local environment loading:
 - local development may use a non-committed root `.env.local`
 - backend and CLI must autoload root `.env.local`, then root `.env`, via `dotenv`
 - frontend must load root `.env.local` and root `.env` through Vite config rooted at the monorepo root
+- the root `.env.local` is the single local-development env file for the monorepo; per-package `.env.local` files are not required for V1
+- CLI local env usage must stay minimal and non-sensitive; V1 CLI may read `AGENT_WALLET_BACKEND_URL` as a convenience, but must not require RPC or bundler secrets
 
 Recommended workspace layout:
 
@@ -824,6 +826,8 @@ CLI configuration requirement:
 - the CLI override flag name is `--backend-url`
 - the CLI environment variable name is `AGENT_WALLET_BACKEND_URL`
 - the root help and `create --help` output must document `--backend-url`
+- the distributed CLI must not require `AGENT_WALLET_PUBLIC_RPC_URL_<chainId>` or `AGENT_WALLET_BUNDLER_URL_<chainId>`
+- the CLI signs with the local session key, but reaches chain RPC and bundler infrastructure through backend proxy endpoints
 
 Example:
 

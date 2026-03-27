@@ -91,12 +91,6 @@ describe("kernel hydration", () => {
       {
         walletRequest: buildReadyWalletRequest(),
         localRequest: buildLocalWalletRequest(),
-        env: {
-          AGENT_WALLET_PUBLIC_RPC_URL_84532:
-            "https://base-sepolia.g.alchemy.com/v2/test",
-          AGENT_WALLET_BUNDLER_URL_84532:
-            "https://base-sepolia.g.alchemy.com/v2/test",
-        },
       },
       {
         createPublicClient,
@@ -152,19 +146,26 @@ describe("kernel hydration", () => {
       maxPriorityFeePerGas: 3n,
     });
     expect(estimateFeesPerGas).toHaveBeenCalledWith({ transport: "public" });
+    expect(http).toHaveBeenCalledWith(
+      "http://127.0.0.1:3000/v1/chains/84532/rpc",
+    );
+    expect(http).toHaveBeenCalledWith(
+      "http://127.0.0.1:3000/v1/chains/84532/bundler",
+    );
     expect(result.walletAddress).toBe(
       "0x2222222222222222222222222222222222222222",
     );
   });
 
-  it("fails fast when the chain runtime URLs are missing", async () => {
+  it("fails fast when the local backend URL is missing", async () => {
     await expect(
       hydrateReadyWalletRequest({
         walletRequest: buildReadyWalletRequest(),
-        localRequest: buildLocalWalletRequest(),
-        env: {},
+        localRequest: buildLocalWalletRequest({
+          backendBaseUrl: "",
+        }),
       }),
-    ).rejects.toThrow(/missing runtime configuration/i);
+    ).rejects.toThrow(/backend url/i);
   });
 
   it("calls a contract from a locally hydrated ready wallet", async () => {
@@ -191,12 +192,6 @@ describe("kernel hydration", () => {
           to: "0x1111111111111111111111111111111111111111",
           data: "0xa9059cbb",
           valueWei: "0",
-        },
-        env: {
-          AGENT_WALLET_PUBLIC_RPC_URL_84532:
-            "https://base-sepolia.g.alchemy.com/v2/test",
-          AGENT_WALLET_BUNDLER_URL_84532:
-            "https://base-sepolia.g.alchemy.com/v2/test",
         },
       },
       {

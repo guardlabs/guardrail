@@ -75,6 +75,8 @@ Working implementation configuration:
 - `AGENT_WALLET_MIN_FUNDING_WEI=500000000000000`
 - backend and CLI autoload root `.env.local`, then root `.env`, through `dotenv`
 - frontend Vite config resolves root `.env.local` and root `.env` from the monorepo root
+- the root `.env.local` is the single local-development env file for the monorepo
+- CLI local env usage is intentionally limited to `AGENT_WALLET_BACKEND_URL` as an optional convenience override
 - backend status model is simplified to `created`, `owner_bound`, `ready`, `failed`
 - persisted owner artifacts are minimal: `{ credentialId, publicKey }`
 - backend runtime requires `DATABASE_URL`; there is no in-memory fallback
@@ -92,6 +94,8 @@ Working implementation configuration:
 - `agent-wallet call` is the post-`ready` path that hydrates the local permission account and submits the first permitted user operation
 - the first permitted `call` is the place where the wallet is effectively deployed on-chain if it is still counterfactual
 - `agent-wallet call` must supply standard fee estimation for user operations so Alchemy bundlers work without ZeroDev-specific RPC methods
+- CLI no longer requires direct `AGENT_WALLET_PUBLIC_RPC_URL_<chainId>` or `AGENT_WALLET_BUNDLER_URL_<chainId>` configuration
+- backend now exposes `POST /v1/chains/:chainId/rpc` and `POST /v1/chains/:chainId/bundler` as proxy transports for CLI runtime hydration and calls
 - frontend design context is fixed:
   - audience: non-developers and users with limited Web3 familiarity
   - use case: securely grant an autonomous agent limited wallet rights

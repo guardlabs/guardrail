@@ -1,7 +1,7 @@
 import {
-  BASE_SEPOLIA_CHAIN_ID,
   PROJECT_DEFAULT_BACKEND_URL,
   PROJECT_DEFAULT_FRONTEND_URL,
+  SUPPORTED_CHAIN_IDS,
 } from "@agent-wallet/shared";
 
 export const DEFAULT_PORT = 3000;
@@ -22,7 +22,7 @@ export type AppConfig = {
 
 function parseSupportedChainIds(rawValue: string | undefined) {
   if (!rawValue) {
-    return [BASE_SEPOLIA_CHAIN_ID];
+    return [...SUPPORTED_CHAIN_IDS];
   }
 
   return rawValue

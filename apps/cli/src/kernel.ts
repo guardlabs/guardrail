@@ -18,22 +18,18 @@ function getChain(chainId: number): Chain {
   }
 }
 
-function resolveRuntimeConfiguration(
-  chainId: number,
-  env: NodeJS.ProcessEnv,
-) {
-  const rpcUrl = env[`AGENT_WALLET_PUBLIC_RPC_URL_${chainId}`];
-  const bundlerUrl = env[`AGENT_WALLET_BUNDLER_URL_${chainId}`];
-
-  if (!rpcUrl || !bundlerUrl) {
+function resolveRuntimeConfiguration(chainId: number, backendBaseUrl: string) {
+  if (!backendBaseUrl) {
     throw new Error(
-      `Missing runtime configuration for chain ${chainId}. Set AGENT_WALLET_PUBLIC_RPC_URL_${chainId} and AGENT_WALLET_BUNDLER_URL_${chainId}.`,
+      "Missing backend URL in local wallet state. Re-create the wallet or set a backend URL before calling it.",
     );
   }
 
+  const baseUrl = backendBaseUrl.replace(/\/+$/, "");
+
   return {
-    rpcUrl,
-    bundlerUrl,
+    rpcUrl: `${baseUrl}/v1/chains/${chainId}/rpc`,
+    bundlerUrl: `${baseUrl}/v1/chains/${chainId}/bundler`,
   };
 }
 
@@ -99,16 +95,18 @@ type HydratedKernelRuntime = {
 async function hydrateKernelRuntime(
   input: {
     chainId: number;
+    backendBaseUrl: string;
     walletAddress: string;
     serializedPermissionAccount: string;
     sessionPrivateKey: string;
-    env?: NodeJS.ProcessEnv;
   },
   dependencies: Partial<KernelHydrationDependencies> = {},
 ): Promise<HydratedKernelRuntime> {
-  const env = input.env ?? process.env;
   const chain = getChain(input.chainId);
-  const { rpcUrl, bundlerUrl } = resolveRuntimeConfiguration(input.chainId, env);
+  const { rpcUrl, bundlerUrl } = resolveRuntimeConfiguration(
+    input.chainId,
+    input.backendBaseUrl,
+  );
 
   const makeTransport = dependencies.http ?? http;
   const publicClient = ((dependencies.createPublicClient ??
@@ -164,7 +162,6 @@ export async function hydrateReadyWalletRequest(
   input: {
     walletRequest: WalletRequest;
     localRequest: LocalWalletRequest;
-    env?: NodeJS.ProcessEnv;
   },
   dependencies: Partial<KernelHydrationDependencies> = {},
 ) {
@@ -179,10 +176,10 @@ export async function hydrateReadyWalletRequest(
   const runtime = await hydrateKernelRuntime(
     {
       chainId: walletContext.chainId,
+      backendBaseUrl: input.localRequest.backendBaseUrl,
       walletAddress: walletContext.walletAddress,
       serializedPermissionAccount: walletContext.serializedPermissionAccount,
       sessionPrivateKey: input.localRequest.sessionPrivateKey,
-      env: input.env,
     },
     dependencies,
   );
@@ -201,7 +198,6 @@ export async function callReadyWalletTransaction(
       data: `0x${string}`;
       valueWei: string;
     };
-    env?: NodeJS.ProcessEnv;
   },
   dependencies: Partial<KernelHydrationDependencies> = {},
 ) {
@@ -216,10 +212,10 @@ export async function callReadyWalletTransaction(
   const runtime = await hydrateKernelRuntime(
     {
       chainId: input.localRequest.chainId,
+      backendBaseUrl: input.localRequest.backendBaseUrl,
       walletAddress: input.localRequest.walletAddress,
       serializedPermissionAccount: input.localRequest.serializedPermissionAccount,
       sessionPrivateKey: input.localRequest.sessionPrivateKey,
-      env: input.env,
     },
     dependencies,
   );

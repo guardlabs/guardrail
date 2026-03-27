@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   canTransitionStatus,
   createWalletRequestInputSchema,
@@ -10,6 +10,7 @@ import {
   type CreateWalletRequestInput,
 } from "@agent-wallet/shared";
 import type { AppConfig } from "./config.js";
+import type { ChainRelayService, RelayTarget } from "./chain-relay.js";
 import type { StoredWalletRequest, WalletRequestRepository } from "./repository.js";
 import { toPublicWalletRequest } from "./repository.js";
 import type { WalletProvisioningService } from "./wallet.js";
@@ -111,7 +112,46 @@ export function registerRoutes(
   repository: WalletRequestRepository,
   config: AppConfig,
   walletProvisioningService: WalletProvisioningService,
+  chainRelayService: ChainRelayService,
 ) {
+  async function relayChainRequest(
+    request: FastifyRequest,
+    reply: FastifyReply,
+    target: RelayTarget,
+  ) {
+    const params = request.params as { chainId: string };
+    const chainId = Number(params.chainId);
+
+    if (!Number.isInteger(chainId) || !config.supportedChainIds.includes(chainId)) {
+      return reply.status(404).send({
+        error: "unsupported_chain",
+      });
+    }
+
+    try {
+      const payload = await chainRelayService.relay({
+        chainId,
+        target,
+        payload: request.body,
+      });
+
+      return reply.send(payload);
+    } catch (error) {
+      return reply.status(502).send({
+        error: `${target}_relay_failed`,
+        message: error instanceof Error ? error.message : `Failed to relay ${target} request`,
+      });
+    }
+  }
+
+  app.post("/v1/chains/:chainId/rpc", async (request, reply) =>
+    relayChainRequest(request, reply, "rpc"),
+  );
+
+  app.post("/v1/chains/:chainId/bundler", async (request, reply) =>
+    relayChainRequest(request, reply, "bundler"),
+  );
+
   app.post("/v1/wallets", async (request, reply) => {
     const payload = createWalletRequestInputSchema.parse(request.body);
 

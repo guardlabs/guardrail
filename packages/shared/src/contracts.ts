@@ -1,8 +1,8 @@
 import { z } from "zod";
+import { BASE_SEPOLIA_CHAIN_ID } from "./chains.js";
 
 export const PROJECT_DEFAULT_BACKEND_URL = "http://127.0.0.1:3000";
 export const PROJECT_DEFAULT_FRONTEND_URL = "http://127.0.0.1:5173";
-export const BASE_SEPOLIA_CHAIN_ID = 84532;
 
 export const walletRequestStatusSchema = z.enum([
   "created",

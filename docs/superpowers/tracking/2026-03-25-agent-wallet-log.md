@@ -246,6 +246,17 @@
 - Re-ran full workspace `pnpm build` successfully.
 - Re-ran full workspace `pnpm test` successfully.
 
+### CLI Infra Proxy Refactor
+
+- Added centralized supported-chain metadata in `packages/shared` and kept Base Sepolia as the only V1 chain.
+- Added backend proxy endpoints at `/v1/chains/:chainId/rpc` and `/v1/chains/:chainId/bundler`.
+- Changed CLI Kernel hydration so it derives its runtime transports from the stored backend URL instead of local chain env vars.
+- Kept session-key signing local to the CLI host; the backend only proxies RPC and bundler traffic.
+- Narrowed CLI local env needs to `AGENT_WALLET_BACKEND_URL` as an optional convenience override.
+- Updated `.env.example` to make the backend-only chain secrets explicit.
+- Re-ran focused backend and CLI tests successfully, then re-ran full workspace `pnpm build` and `pnpm test` successfully.
+- Re-validated the live Base Sepolia `call` path through the backend proxies with transaction hash `0xe2203902730242b8d18da7f69509c702f2dfe4d737ca98bd26e7babe257bd01e`.
+
 ## How To Use This Log
 
 - Add a dated entry whenever meaningful work lands.

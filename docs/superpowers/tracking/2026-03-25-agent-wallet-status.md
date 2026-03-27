@@ -57,6 +57,8 @@ This document is the current implementation snapshot for the repo. It must be up
   - `AGENT_WALLET_PASSKEY_SERVER_URL=https://passkeys.zerodev.app/api/v3/ec78db7a-024e-42b8-a404-d78986033fca`
   - `AGENT_WALLET_MIN_FUNDING_WEI=500000000000000`
   - local root `.env.local` is supported for backend, CLI, and frontend local runtime configuration
+  - the root `.env.local` remains the single local-development env file for the monorepo
+  - CLI local env usage is limited to `AGENT_WALLET_BACKEND_URL` as an optional convenience override
   - backend status model is simplified to `created`, `owner_bound`, `ready`, `failed`
   - persisted owner artifacts are minimal: `{ credentialId, publicKey }`
   - the durable orchestration identifier is now `walletId` everywhere
@@ -86,6 +88,8 @@ The following work is implemented:
   - health endpoints
   - `POST /v1/wallets`
   - `GET /v1/wallets/:walletId`
+  - `POST /v1/chains/:chainId/rpc`
+  - `POST /v1/chains/:chainId/bundler`
   - `GET /v1/provisioning/:walletId?t=...`
   - `POST /v1/provisioning/:walletId/owner-artifacts?t=...`
   - PostgreSQL repository wiring with Drizzle
@@ -202,6 +206,8 @@ Verification result:
 - CLI can hydrate a ready wallet locally and submit the first permitted contract call, which is the path that deploys the wallet on first use if needed
 - manual provisioning and first permitted on-chain call have now both been exercised successfully against the real local stack plus Base Sepolia
 - the Alchemy bundler path now works because CLI `call` supplies standard EIP-1559 fee estimates instead of relying on ZeroDev-only bundler RPC methods
+- CLI no longer requires local chain RPC or bundler env vars; it now reaches both through backend proxy endpoints derived from the stored backend URL
+- backend proxy transport was re-validated live: `agent-wallet call` succeeded against Base Sepolia through `/v1/chains/84532/rpc` and `/v1/chains/84532/bundler`, returning transaction hash `0xe2203902730242b8d18da7f69509c702f2dfe4d737ca98bd26e7babe257bd01e`
 
 ## Next Recommended Work
 
