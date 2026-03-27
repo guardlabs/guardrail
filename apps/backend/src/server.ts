@@ -1,11 +1,16 @@
-import { DEFAULT_PORT } from "./config.js";
+import { readConfig } from "./config.js";
 import { buildApp } from "./app.js";
+import { loadEnvFiles } from "./env.js";
 
-const app = buildApp();
-const port = Number(process.env.PORT ?? DEFAULT_PORT);
+loadEnvFiles();
+
+const config = readConfig();
+const app = buildApp({
+  config,
+});
 
 app
-  .listen({ port, host: "0.0.0.0" })
+  .listen({ port: config.port, host: "0.0.0.0" })
   .catch((error) => {
     app.log.error(error);
     process.exitCode = 1;

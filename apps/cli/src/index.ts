@@ -1,15 +1,16 @@
 #!/usr/bin/env node
 import { fileURLToPath } from "node:url";
 import { Command, Option } from "commander";
+import { selectorSchema } from "@agent-wallet/shared";
 import {
-  createWalletRequestInputSchema,
-  selectorSchema,
-} from "@agent-wallet/shared";
-import { resolveBackendUrl } from "./backend.js";
+  registerAwaitCommand,
+  registerCallCommand,
+  registerCreateCommand,
+  registerStatusCommand,
+} from "./commands.js";
+import { loadEnvFiles } from "./env.js";
 
-function collectValues(value: string, previous: string[]) {
-  return [...previous, value];
-}
+loadEnvFiles();
 
 function addBackendOption(command: Command) {
   command.addOption(
@@ -28,7 +29,7 @@ export function buildProgram() {
 
   addBackendOption(program);
 
-  program
+  const createCommand = program
     .command("create")
     .description("Create a wallet provisioning request")
     .requiredOption("--chain-id <chainId>", "EIP-155 chain id")
@@ -50,100 +51,56 @@ export function buildProgram() {
       "after",
       `
 Example:
-  agent-wallet create --chain-id 8453 --target-contract 0x1111111111111111111111111111111111111111 --allowed-method 0xa9059cbb --backend-url https://agent-wallet.example.com
+  agent-wallet create --chain-id 84532 --target-contract 0x1111111111111111111111111111111111111111 --allowed-method 0xa9059cbb --backend-url http://127.0.0.1:3000
       `.trimEnd(),
-    )
-    .hook("preAction", (command) => {
-      addBackendOption(command);
-    })
-    .action((options) => {
-      const selectors = [
-        ...(options.allowedMethod ? [options.allowedMethod] : []),
-        ...((options.allowedMethods as string[] | undefined) ?? []),
-      ];
+    );
+  addBackendOption(createCommand);
+  registerCreateCommand(createCommand);
 
-      const payload = createWalletRequestInputSchema.parse({
-        chainId: Number(options.chainId),
-        targetContract: options.targetContract,
-        allowedMethods: selectors,
-        sessionPublicKey: "0x04bootstrap",
-      });
-
-      const backendUrl = resolveBackendUrl(options.backendUrl);
-
-      console.log(
-        JSON.stringify(
-          {
-            command: "create",
-            backendUrl,
-            validatedRequest: payload,
-            status: "not_implemented",
-          },
-          null,
-          2,
-        ),
-      );
-    });
-
-  program
+  const statusCommand = program
     .command("status")
-    .description("Inspect a wallet provisioning request")
-    .argument("<request-id>", "Wallet request id")
+    .description("Inspect a wallet")
+    .argument("<wallet-id>", "Wallet id")
     .addHelpText(
       "after",
       `
 Example:
-  agent-wallet status wr_123 --backend-url https://agent-wallet.example.com
+  agent-wallet status wal_123 --backend-url http://127.0.0.1:3000
       `.trimEnd(),
-    )
-    .hook("preAction", (command) => {
-      addBackendOption(command);
-    })
-    .action((requestId, options) => {
-      console.log(
-        JSON.stringify(
-          {
-            command: "status",
-            requestId,
-            backendUrl: resolveBackendUrl(options.backendUrl),
-            status: "not_implemented",
-          },
-          null,
-          2,
-        ),
-      );
-    });
+    );
+  addBackendOption(statusCommand);
+  registerStatusCommand(statusCommand);
 
-  program
+  const awaitCommand = program
     .command("await")
-    .description("Poll until a wallet request is ready or failed")
-    .argument("<request-id>", "Wallet request id")
+    .description("Poll until a wallet is ready or failed")
+    .argument("<wallet-id>", "Wallet id")
     .option("--interval-ms <ms>", "Polling interval in milliseconds", "5000")
     .addHelpText(
       "after",
       `
 Example:
-  agent-wallet await wr_123 --interval-ms 3000 --backend-url https://agent-wallet.example.com
+  agent-wallet await wal_123 --interval-ms 3000 --backend-url http://127.0.0.1:3000
       `.trimEnd(),
-    )
-    .hook("preAction", (command) => {
-      addBackendOption(command);
-    })
-    .action((requestId, options) => {
-      console.log(
-        JSON.stringify(
-          {
-            command: "await",
-            requestId,
-            intervalMs: Number(options.intervalMs),
-            backendUrl: resolveBackendUrl(options.backendUrl),
-            status: "not_implemented",
-          },
-          null,
-          2,
-        ),
-      );
-    });
+    );
+  addBackendOption(awaitCommand);
+  registerAwaitCommand(awaitCommand);
+
+  const callCommand = program
+    .command("call")
+    .description("Execute a contract call from a ready wallet")
+    .argument("<wallet-id>", "Wallet id")
+    .requiredOption("--to <address>", "Target contract address")
+    .requiredOption("--data <hex>", "Encoded calldata")
+    .option("--value-wei <wei>", "Native value attached to the call", "0")
+    .addHelpText(
+      "after",
+      `
+Example:
+  agent-wallet call wal_123 --to 0x1111111111111111111111111111111111111111 --data 0xa9059cbb --value-wei 0
+      `.trimEnd(),
+    );
+  registerCallCommand(callCommand);
 
   return program;
 }

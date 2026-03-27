@@ -5,20 +5,32 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run --environment jsdom --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@agent-wallet/shared": "workspace:*",
+    "@zerodev/passkey-validator": "5.6.0",
+    "@zerodev/permissions": "5.6.3",
+    "@zerodev/sdk": "5.5.8",
+    "@zerodev/webauthn-key": "^5.4.2",
+    "permissionless": "0.3.4",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "tslib": "^2.8.1",
+    "viem": "2.47.6",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^4.3.4",
+    "jsdom": "^29.0.1",
     "typescript": "^5.8.2",
     "vite": "^6.2.1",
+    "vite-plugin-node-polyfills": "^0.25.0",
     "vitest": "^3.0.9"
   }
 }

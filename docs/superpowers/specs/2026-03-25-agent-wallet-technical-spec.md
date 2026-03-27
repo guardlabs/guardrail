@@ -18,7 +18,7 @@ The design document remains the product source of truth. This document is the im
 
 ## Scope
 
-V1 covers one provisioning flow for one wallet request:
+V1 covers one provisioning flow for one wallet:
 
 - one explicit chain per request
 - one target contract per request
@@ -110,6 +110,18 @@ Funding threshold:
 - the current working value for V1 is `500000000000000`
 - this should be treated as a configured threshold, not as a USD-pegged value
 
+Passkey server:
+
+- passkey-backed owner creation uses ZeroDev's passkey service
+- `AGENT_WALLET_PASSKEY_SERVER_URL` is required for the real browser provisioning flow
+- the current working value is `https://passkeys.zerodev.app/api/v3/ec78db7a-024e-42b8-a404-d78986033fca`
+
+Local environment loading:
+
+- local development may use a non-committed root `.env.local`
+- backend and CLI must autoload root `.env.local`, then root `.env`, via `dotenv`
+- frontend must load root `.env.local` and root `.env` through Vite config rooted at the monorepo root
+
 Recommended workspace layout:
 
 ```text
@@ -132,6 +144,12 @@ Owns:
 - provisioning state machine
 - funding verification
 - wallet context finalization
+
+Funding refresh contract:
+
+- `GET /v1/wallets/:walletId` remains a pure read
+- `POST /v1/wallets/:walletId/refresh-funding` performs an explicit on-chain funding recheck
+- only the explicit refresh route may move a request from `owner_bound` to `ready` after the initial owner binding
 
 Must depend on:
 
@@ -166,6 +184,10 @@ Notes:
 - the frontend should not own wallet SDK orchestration beyond what is strictly required for local passkey creation
 - when implementing the real frontend UI, use the local skills `frontend-skill` and `frontend-design`
 - do not treat the current bootstrap shell as the final frontend implementation
+- the real provisioning UI targets non-developers and users with limited Web3 familiarity
+- the primary use case is securely granting an autonomous agent limited wallet rights
+- the UI tone should be reassuring, high-tech, simple, and secure
+- once a wallet address is generated and the request is `owner_bound`, the frontend must switch into a funding-wait state and poll `POST /v1/wallets/:walletId/refresh-funding`
 
 #### `apps/cli`
 
@@ -186,6 +208,13 @@ Stack choice:
 - Node.js
 - TypeScript
 - Commander
+
+Polling behavior:
+
+- `await` polls every `5000ms` by default
+- when the backend reports `owner_bound`, `await` must call `POST /v1/wallets/:walletId/refresh-funding` before the next sleep cycle
+- `await` should emit an immediate human or agent-readable waiting message on start without breaking the final JSON result on `stdout`
+- `create` should return structured next-step guidance for agents, including how to poll status, when to ask a human to fund the derived wallet, and how to continue toward `ready`
 
 ### Mandatory Shared Package
 
@@ -261,7 +290,7 @@ The CLI is the only entry point used by agent skills.
 
 Responsibilities:
 
-- accept a wallet request from local code or a CLI command
+- accept a wallet from local code or a CLI command
 - normalize and validate the requested scope
 - generate the session keypair locally
 - persist the session private key only on the agent machine
@@ -289,7 +318,7 @@ Inputs:
 
 Outputs:
 
-- `request_id`
+- `wallet_id`
 - `provisioning_url`
 - `session_public_key`
 - locally persisted `session_private_key`
@@ -298,7 +327,7 @@ Outputs:
 Local persistence requirements:
 
 - the session private key must never be sent over the network
-- the CLI must persist request metadata so polling can resume after restart
+- the CLI must persist wallet metadata so polling can resume after restart
 - filesystem permissions should be restricted to the local user
 - V1 may use a local file store; OS keychain integration is recommended but not required
 
@@ -306,7 +335,7 @@ Recommended local record:
 
 ```ts
 type LocalWalletRequest = {
-  requestId: string
+  walletId: string
   backendBaseUrl: string
   chainId: number
   targetContract: `0x${string}`
@@ -406,11 +435,8 @@ V1 should standardize the following types.
 ```ts
 type WalletRequestStatus =
   | 'created'
-  | 'link_opened'
   | 'owner_bound'
-  | 'funded'
   | 'ready'
-  | 'activated'
   | 'failed'
 
 type PermissionScope = {
@@ -420,15 +446,13 @@ type PermissionScope = {
 }
 
 type OwnerPublicArtifacts = {
-  ownerType: 'passkey'
   credentialId: string
-  credentialPublicKey: string
-  ownerIdentifier: string
-  attestationFormat?: string
+  publicKey: string
 }
 
 type FundingState = {
   status: 'unverified' | 'insufficient' | 'verified'
+  minimumRequiredWei: string
   balanceWei?: string
   checkedAt?: string
 }
@@ -441,7 +465,6 @@ type WalletContext = {
   owner: OwnerPublicArtifacts
   scope: PermissionScope
   policyDigest: string
-  activationState: 'counterfactual' | 'ready' | 'activated'
 }
 
 type WalletRequest = {
@@ -490,6 +513,7 @@ These rules are part of the compatibility contract.
 ### Owner Artifacts
 
 - The browser publishes only material needed to bind the passkey owner to the wallet.
+- In V1, the minimal persisted shape is `{ credentialId, publicKey }`.
 - Private passkey material must never be serialized or transmitted.
 
 ## Backend API
@@ -498,12 +522,12 @@ All endpoints are versioned under `/v1`.
 
 ### 1. Create Wallet Request
 
-`POST /v1/wallet-requests`
+`POST /v1/wallets`
 
 Purpose:
 
 - create a provisioning record from the CLI
-- return the request id and human-facing URL
+- return the wallet id and human-facing URL
 
 Request:
 
@@ -520,9 +544,9 @@ Response:
 
 ```json
 {
-  "requestId": "wr_123",
+  "walletId": "wal_123",
   "status": "created",
-  "provisioningUrl": "https://operator.example/w/wr_123?t=opaque_token",
+  "provisioningUrl": "https://operator.example/w/wal_123?t=opaque_token",
   "expiresAt": "2026-03-26T10:00:00.000Z"
 }
 ```
@@ -536,7 +560,7 @@ Validation:
 
 ### 2. Get Wallet Request Status for CLI
 
-`GET /v1/wallet-requests/:requestId`
+`GET /v1/wallets/:walletId`
 
 Purpose:
 
@@ -547,88 +571,65 @@ Response:
 
 ```json
 {
-  "id": "wr_123",
-  "status": "ready",
+  "walletId": "wal_123",
+  "status": "created",
   "scope": {
-    "chainId": 8453,
+    "chainId": 84532,
     "targetContract": "0x1234...",
     "allowedMethods": ["0xa9059cbb"]
   },
   "sessionPublicKey": "0x04...",
-  "counterfactualWalletAddress": "0xabcd...",
   "funding": {
-    "status": "verified",
-    "balanceWei": "1200000000000000",
-    "checkedAt": "2026-03-25T15:00:00.000Z"
-  },
-  "walletContext": {
-    "walletAddress": "0xabcd...",
-    "chainId": 8453,
-    "kernelVersion": "v1",
-    "sessionPublicKey": "0x04...",
-    "owner": {
-      "ownerType": "passkey",
-      "credentialId": "cred_1",
-      "credentialPublicKey": "0x...",
-      "ownerIdentifier": "owner_1"
-    },
-    "scope": {
-      "chainId": 8453,
-      "targetContract": "0x1234...",
-      "allowedMethods": ["0xa9059cbb"]
-    },
-    "policyDigest": "0xdeadbeef",
-    "activationState": "ready"
+    "status": "unverified",
+    "minimumRequiredWei": "500000000000000"
   }
 }
 ```
 
 ### 3. Resolve Request for Browser
 
-`GET /v1/provisioning/:requestId?t=:token`
+`GET /v1/provisioning/:walletId?t=:token`
 
 Purpose:
 
-- load the request in the browser
+- load the wallet in the browser
 - validate the provisioning token
 
 Response:
 
 ```json
 {
-  "id": "wr_123",
+  "walletId": "wal_123",
   "status": "created",
   "scope": {
-    "chainId": 8453,
+    "chainId": 84532,
     "targetContract": "0x1234...",
     "allowedMethods": ["0xa9059cbb"]
   },
   "counterfactualWalletAddress": null,
+  "funding": {
+    "status": "unverified",
+    "minimumRequiredWei": "500000000000000"
+  },
   "expiresAt": "2026-03-26T10:00:00.000Z"
 }
 ```
 
-Side effect:
-
-- first successful resolution may transition `created -> link_opened`
-
 ### 4. Publish Owner Artifacts
 
-`POST /v1/provisioning/:requestId/owner-artifacts?t=:token`
+`POST /v1/provisioning/:walletId/owner-artifacts?t=:token`
 
 Purpose:
 
-- bind the human owner identity to the request
+- bind the human owner identity to the wallet
 
 Request:
 
 ```json
 {
   "owner": {
-    "ownerType": "passkey",
     "credentialId": "cred_1",
-    "credentialPublicKey": "0x...",
-    "ownerIdentifier": "owner_1"
+    "publicKey": "0x..."
   }
 }
 ```
@@ -637,84 +638,30 @@ Response:
 
 ```json
 {
-  "status": "owner_bound",
-  "counterfactualWalletAddress": "0xabcd..."
+  "walletId": "wal_123",
+  "status": "owner_bound"
 }
 ```
 
 Rules:
 
 - the backend persists only public owner artifacts
-- the backend derives or confirms the counterfactual address
 - the request scope must remain unchanged
 
-### 5. Check Funding
+### 5. Funding Check and Finalization
 
-`POST /v1/wallet-requests/:requestId/funding-check`
+These endpoints remain planned but are not implemented in the current slice.
 
 Purpose:
 
 - verify funding on demand from CLI or browser
-
-Response:
-
-```json
-{
-  "status": "funded",
-  "funding": {
-    "status": "verified",
-    "balanceWei": "1200000000000000",
-    "checkedAt": "2026-03-25T15:00:00.000Z"
-  }
-}
-```
+- transition `owner_bound -> ready` once funding and wallet context are sufficient
 
 Rules:
 
 - no background watcher is required
 - the backend queries chain state on demand
-- `funded` means the current balance is sufficient for the configured activation path
-
-### 6. Finalize Wallet Context
-
-`POST /v1/wallet-requests/:requestId/finalize`
-
-Purpose:
-
-- compile the final public wallet configuration
-- transition to `ready` when owner artifacts and funding are sufficient
-
-Response:
-
-```json
-{
-  "status": "ready",
-  "walletContext": {
-    "walletAddress": "0xabcd...",
-    "chainId": 8453,
-    "kernelVersion": "v1",
-    "sessionPublicKey": "0x04...",
-    "owner": {
-      "ownerType": "passkey",
-      "credentialId": "cred_1",
-      "credentialPublicKey": "0x...",
-      "ownerIdentifier": "owner_1"
-    },
-    "scope": {
-      "chainId": 8453,
-      "targetContract": "0x1234...",
-      "allowedMethods": ["0xa9059cbb"]
-    },
-    "policyDigest": "0xdeadbeef",
-    "activationState": "ready"
-  }
-}
-```
-
-Rules:
-
-- finalization must be idempotent
-- the backend may call the chain adapter here, but it must not require a long-lived backend process afterward
+- `ready` is the last backend-managed success state in V1
 
 ## State Machine
 
@@ -722,12 +669,9 @@ Canonical lifecycle:
 
 | State | Meaning | Entry Condition | Exit Condition |
 | --- | --- | --- | --- |
-| `created` | request exists, browser has not loaded it yet | create request | browser resolves provisioning link |
-| `link_opened` | human opened the flow | valid link resolution | owner artifacts submitted |
-| `owner_bound` | passkey public owner is bound | owner artifacts stored | funding verified |
-| `funded` | counterfactual wallet balance is sufficient | on-demand funding check succeeds | finalization succeeds |
-| `ready` | wallet context is compiled and usable | finalization succeeds | first successful permitted operation activates wallet |
-| `activated` | wallet is initialized on-chain and session policy is active | first permitted user operation succeeds | terminal success |
+| `created` | wallet record exists and the agent can share a provisioning link | create wallet | owner artifacts submitted |
+| `owner_bound` | passkey public owner is bound | owner artifacts stored | funding and wallet finalization succeed |
+| `ready` | wallet context is compiled and usable | finalization succeeds | terminal success in the backend |
 | `failed` | request cannot proceed without intervention | explicit unrecoverable error | optional operator retry path |
 
 Transition rules:
@@ -735,6 +679,7 @@ Transition rules:
 - no transition may mutate `chainId`, `targetContract`, or `allowedMethods`
 - `failed` must preserve the last known public artifacts for diagnostics
 - polling must be safe and repeatable across restarts
+- the backend does not track a separate `activated` state in V1
 
 ## PostgreSQL Model
 
@@ -743,8 +688,8 @@ V1 should separate immutable request scope, mutable provisioning state, and audi
 Suggested table:
 
 ```sql
-create table wallet_requests (
-  id text primary key,
+create table wallets (
+  wallet_id text primary key,
   status text not null,
   chain_id integer not null,
   target_contract text not null,
@@ -776,7 +721,7 @@ Persistence rules:
 - `allowed_methods` is stored exactly as normalized at create time
 - `owner_public_artifacts` is nullable until the browser step completes
 - `wallet_context` is nullable until finalization
-- expired requests may be garbage-collected without affecting already activated wallets
+- expired requests may be garbage-collected without affecting already provisioned wallets
 
 ## Wallet Integration Boundary
 
@@ -839,7 +784,7 @@ type CreateWalletInput = {
 }
 
 type CreateWalletResult = {
-  requestId: string
+  walletId: string
   provisioningUrl: string
   sessionPublicKey: `0x${string}`
 }
@@ -853,8 +798,8 @@ type AwaitWalletResult =
 Command boundary:
 
 - `agent-wallet create`
-- `agent-wallet status <request-id>`
-- `agent-wallet await <request-id>`
+- `agent-wallet status <wallet-id>`
+- `agent-wallet await <wallet-id>`
 - `agent-wallet --help`
 - `agent-wallet <command> --help`
 
@@ -999,7 +944,7 @@ A third-party backend is considered compatible if it satisfies all of the follow
 The frontend is considered portable if it requires only:
 
 - backend base URL
-- request id
+- wallet id
 - provisioning token
 
 No frontend feature may depend on private operator state outside the documented API.

@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "db:generate": "drizzle-kit generate --config drizzle.config.ts",
+    "db:migrate": "tsx src/db/migrate.ts",
     "dev": "tsx watch src/server.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
@@ -11,12 +13,14 @@
   "dependencies": {
     "@agent-wallet/shared": "workspace:*",
     "@fastify/cors": "^10.0.1",
+    "dotenv": "^16.6.1",
     "drizzle-orm": "^0.43.1",
     "fastify": "^5.2.1",
     "pg": "^8.14.1"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",
+    "@types/pg": "^8.11.11",
     "drizzle-kit": "^0.31.4",
     "tsx": "^4.19.3",
     "vitest": "^3.0.9"

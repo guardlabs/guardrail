@@ -89,7 +89,7 @@ Runs in the browser via a URL returned by the backend.
 
 Responsibilities:
 
-- consume a provisioning link (a backend URI + request id)
+- consume a provisioning link (a backend URI + wallet id)
 - create the human passkey locally
 - derive the owner public identity needed by the smart wallet
 - display the counterfactual wallet address

@@ -1,10 +1,28 @@
 import cors from "@fastify/cors";
 import Fastify from "fastify";
+import { readConfig, type AppConfig } from "./config.js";
+import { createPostgresWalletRequestRepository } from "./postgres-repository.js";
+import type { WalletRequestRepository } from "./repository.js";
+import { registerRoutes } from "./routes.js";
+import {
+  createWalletProvisioningService,
+  type WalletProvisioningService,
+} from "./wallet.js";
 
-export function buildApp() {
+type BuildAppOptions = {
+  config?: AppConfig;
+  repository?: WalletRequestRepository;
+  walletProvisioningService?: WalletProvisioningService;
+};
+
+export function buildApp(options: BuildAppOptions = {}) {
+  const config = options.config ?? readConfig();
   const app = Fastify({
     logger: true,
   });
+  const repository = options.repository ?? createPostgresWalletRequestRepository(config.databaseUrl);
+  const walletProvisioningService =
+    options.walletProvisioningService ?? createWalletProvisioningService(config);
 
   app.register(cors, {
     origin: true,
@@ -19,6 +37,8 @@ export function buildApp() {
     status: "ok",
     version: "v1",
   }));
+
+  void registerRoutes(app, repository, config, walletProvisioningService);
 
   return app;
 }

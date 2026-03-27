@@ -7,13 +7,19 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "tsx src/index.ts --help",
+    "dev": "tsx src/index.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@agent-wallet/shared": "workspace:*",
-    "commander": "^13.1.0"
+    "@zerodev/permissions": "5.6.3",
+    "@zerodev/sdk": "5.5.8",
+    "commander": "^13.1.0",
+    "dotenv": "^16.6.1",
+    "permissionless": "0.3.4",
+    "tslib": "^2.8.1",
+    "viem": "2.47.6"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",
