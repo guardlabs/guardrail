@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { fileURLToPath } from "node:url";
 import { Command, Option } from "commander";
-import { selectorSchema } from "@agent-wallet/shared";
+import { selectorSchema, supportedChains } from "@agent-wallet/shared";
 import {
   registerAwaitCommand,
   registerCallCommand,
@@ -18,12 +18,19 @@ function addBackendOption(command: Command) {
   );
 }
 
+function formatSupportedChains() {
+  return supportedChains.map((chain) => `${chain.id} (${chain.name})`).join(", ");
+}
+
 export function buildProgram() {
   const program = new Command();
+  const supportedChainsText = formatSupportedChains();
 
   program
     .name("agent-wallet")
-    .description("Provision and manage an agent-scoped smart wallet")
+    .description(
+      `Provision and manage an agent-scoped smart wallet\n\nSupported chains:\n  ${supportedChainsText}`,
+    )
     .showHelpAfterError()
     .showSuggestionAfterError(true);
 
@@ -31,7 +38,9 @@ export function buildProgram() {
 
   const createCommand = program
     .command("create")
-    .description("Create a wallet provisioning request")
+    .description(
+      `Create a wallet provisioning request\n\nSupported chains:\n  ${supportedChainsText}`,
+    )
     .requiredOption("--chain-id <chainId>", "EIP-155 chain id")
     .requiredOption("--target-contract <address>", "Scoped target contract")
     .addOption(

@@ -1,4 +1,9 @@
-import type { LocalWalletRequest, WalletRequest } from "@agent-wallet/shared";
+import {
+  BASE_SEPOLIA_CHAIN_ID,
+  getSupportedChainById,
+  type LocalWalletRequest,
+  type WalletRequest,
+} from "@agent-wallet/shared";
 import { deserializePermissionAccount } from "@zerodev/permissions";
 import { toECDSASigner } from "@zerodev/permissions/signers";
 import { createKernelAccountClient } from "@zerodev/sdk";
@@ -9,13 +14,26 @@ import { estimateFeesPerGas } from "viem/actions";
 import { privateKeyToAccount } from "viem/accounts";
 import { baseSepolia } from "viem/chains";
 
+const viemChainsById: Record<number, Chain> = {
+  [BASE_SEPOLIA_CHAIN_ID]: baseSepolia,
+};
+
 function getChain(chainId: number): Chain {
-  switch (chainId) {
-    case 84532:
-      return baseSepolia;
-    default:
-      throw new Error(`Unsupported chain ${chainId} for CLI wallet hydration.`);
+  const supportedChain = getSupportedChainById(chainId);
+
+  if (!supportedChain) {
+    throw new Error(`Unsupported chain ${chainId} for CLI wallet hydration.`);
   }
+
+  const chain = viemChainsById[supportedChain.id];
+
+  if (!chain) {
+    throw new Error(
+      `Supported chain ${supportedChain.key} is missing a CLI viem mapping.`,
+    );
+  }
+
+  return chain;
 }
 
 function resolveRuntimeConfiguration(chainId: number, backendBaseUrl: string) {

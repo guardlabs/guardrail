@@ -1,4 +1,8 @@
-import type { PermissionScope } from "@agent-wallet/shared";
+import {
+  BASE_SEPOLIA_CHAIN_ID,
+  getSupportedChainById,
+  type PermissionScope,
+} from "@agent-wallet/shared";
 import {
   PasskeyValidatorContractVersion,
   toPasskeyValidator,
@@ -24,9 +28,19 @@ import { createPublicClient, http } from "viem";
 import { publicKeyToAddress } from "viem/accounts";
 import { baseSepolia } from "viem/chains";
 
+const viemChainsById = {
+  [BASE_SEPOLIA_CHAIN_ID]: baseSepolia,
+} as const;
+
 function getPublicRpcUrl(chainId: number) {
-  switch (chainId) {
-    case 84532:
+  const supportedChain = getSupportedChainById(chainId);
+
+  if (!supportedChain) {
+    return null;
+  }
+
+  switch (supportedChain.frontendRuntimeKey) {
+    case "BASE_SEPOLIA":
       return __BASE_SEPOLIA_RPC_URL__ ?? __BASE_SEPOLIA_BUNDLER_URL__;
     default:
       return null;
@@ -34,12 +48,21 @@ function getPublicRpcUrl(chainId: number) {
 }
 
 function getChain(chainId: number) {
-  switch (chainId) {
-    case 84532:
-      return baseSepolia;
-    default:
-      throw new Error(`Unsupported chain ${chainId} for frontend provisioning.`);
+  const supportedChain = getSupportedChainById(chainId);
+
+  if (!supportedChain) {
+    throw new Error(`Unsupported chain ${chainId} for frontend provisioning.`);
   }
+
+  const chain = viemChainsById[supportedChain.id as BASE_SEPOLIA_CHAIN_ID];
+
+  if (!chain) {
+    throw new Error(
+      `Supported chain ${supportedChain.key} is missing a frontend viem mapping.`,
+    );
+  }
+
+  return chain;
 }
 
 export type PasskeyClient = {

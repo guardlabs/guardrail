@@ -91,6 +91,9 @@ Chain handling:
 
 - `chainId` remains request-scoped and is always provided by the CLI request
 - the default chain used for local testing is Base Sepolia
+- the explicit supported-chain list must live in `packages/shared/src/chains.ts`
+- that shared chain registry is the single source of truth for backend, frontend, and CLI
+- V1 supported chains currently contain only Base Sepolia (`84532`)
 
 Backend URL:
 
@@ -826,6 +829,7 @@ CLI configuration requirement:
 - the CLI override flag name is `--backend-url`
 - the CLI environment variable name is `AGENT_WALLET_BACKEND_URL`
 - the root help and `create --help` output must document `--backend-url`
+- the root help and `create --help` output must also list the currently supported chains from the shared chain registry
 - the distributed CLI must not require `AGENT_WALLET_PUBLIC_RPC_URL_<chainId>` or `AGENT_WALLET_BUNDLER_URL_<chainId>`
 - the CLI signs with the local session key, but reaches chain RPC and bundler infrastructure through backend proxy endpoints
 

@@ -63,6 +63,8 @@ This document is the current implementation snapshot for the repo. It must be up
   - persisted owner artifacts are minimal: `{ credentialId, publicKey }`
   - the durable orchestration identifier is now `walletId` everywhere
   - HTTP API uses `/v1/wallets/...`
+  - supported-chain metadata now lives in `packages/shared/src/chains.ts`
+  - backend, frontend, and CLI must consume that shared chain registry as the single source of truth
 - Frontend design context is fixed for the real provisioning UI:
   - audience: non-developers and users with limited Web3 familiarity
   - use case: securely grant an autonomous agent limited wallet rights
@@ -83,6 +85,7 @@ The following work is implemented:
   - basic status transition helper
   - basic tests
   - shared response and local-store schemas renamed from `requestId` to `walletId`
+  - centralized supported-chain registry with Base Sepolia as the only V1 chain
 - `apps/backend`:
   - Fastify app skeleton
   - health endpoints

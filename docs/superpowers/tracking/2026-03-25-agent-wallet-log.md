@@ -257,6 +257,12 @@
 - Re-ran focused backend and CLI tests successfully, then re-ran full workspace `pnpm build` and `pnpm test` successfully.
 - Re-validated the live Base Sepolia `call` path through the backend proxies with transaction hash `0xe2203902730242b8d18da7f69509c702f2dfe4d737ca98bd26e7babe257bd01e`.
 
+### Shared Chain Registry
+
+- Kept the supported-chain list centralized in `packages/shared/src/chains.ts`.
+- Updated CLI help so `agent-wallet --help` and `agent-wallet create --help` explicitly list the supported chains from that shared registry.
+- Updated frontend and CLI runtime support checks to consume the shared chain registry instead of maintaining an independent hardcoded support list.
+
 ## How To Use This Log
 
 - Add a dated entry whenever meaningful work lands.

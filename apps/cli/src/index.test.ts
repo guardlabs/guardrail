@@ -10,6 +10,8 @@ describe("cli help", () => {
     expect(help).toContain("await");
     expect(help).toContain("call");
     expect(help).toContain("--backend-url");
+    expect(help).toContain("Supported chains");
+    expect(help).toContain("84532 (Base Sepolia)");
   });
 
   it("documents create usage with base sepolia and localhost", () => {
@@ -20,6 +22,7 @@ describe("cli help", () => {
     expect(createCommand?.helpInformation()).toContain("--chain-id");
     expect(createCommand?.helpInformation()).toContain("--backend-url");
     expect(createCommand?.helpInformation()).toContain("--allowed-method");
+    expect(createCommand?.helpInformation()).toContain("84532 (Base Sepolia)");
   });
 
   it("documents call usage for a ready wallet", () => {

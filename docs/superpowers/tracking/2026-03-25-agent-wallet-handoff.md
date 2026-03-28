@@ -84,6 +84,8 @@ Working implementation configuration:
 - backend funding checks currently use `AGENT_WALLET_PUBLIC_RPC_URL_<chainId>` with `AGENT_WALLET_BUNDLER_URL_<chainId>` as fallback
 - the durable orchestration identifier is `walletId`, not `requestId`
 - backend API uses `/v1/wallets/...`
+- supported-chain metadata lives in `packages/shared/src/chains.ts`
+- backend, frontend, and CLI must treat that shared chain registry as the single source of truth
 - `GET /v1/wallets/:walletId` is a pure read
 - `POST /v1/wallets/:walletId/refresh-funding` is the explicit funding recheck path
 - frontend polls funding refresh every 5 seconds while the wallet is `owner_bound`
