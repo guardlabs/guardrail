@@ -65,6 +65,7 @@ This document is the current implementation snapshot for the repo. It must be up
   - HTTP API uses `/v1/wallets/...`
   - supported-chain metadata now lives in `packages/shared/src/chains.ts`
   - backend, frontend, and CLI must consume that shared chain registry as the single source of truth
+  - the shared chain registry now also carries the non-sensitive `viem` chain objects used by frontend and CLI runtime code
 - Frontend design context is fixed for the real provisioning UI:
   - audience: non-developers and users with limited Web3 familiarity
   - use case: securely grant an autonomous agent limited wallet rights
@@ -86,6 +87,7 @@ The following work is implemented:
   - basic tests
   - shared response and local-store schemas renamed from `requestId` to `walletId`
   - centralized supported-chain registry with Base Sepolia as the only V1 chain
+  - direct `viem` dependency so the shared registry can export the runtime `viem` chain metadata
 - `apps/backend`:
   - Fastify app skeleton
   - health endpoints

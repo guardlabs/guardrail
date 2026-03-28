@@ -86,6 +86,7 @@ Working implementation configuration:
 - backend API uses `/v1/wallets/...`
 - supported-chain metadata lives in `packages/shared/src/chains.ts`
 - backend, frontend, and CLI must treat that shared chain registry as the single source of truth
+- `packages/shared` now owns the non-sensitive `viem` chain mapping too; do not reintroduce per-app chain maps unless there is a concrete runtime constraint
 - `GET /v1/wallets/:walletId` is a pure read
 - `POST /v1/wallets/:walletId/refresh-funding` is the explicit funding recheck path
 - frontend polls funding refresh every 5 seconds while the wallet is `owner_bound`

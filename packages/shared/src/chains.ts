@@ -1,3 +1,6 @@
+import type { Chain } from "viem";
+import { baseSepolia } from "viem/chains";
+
 export const BASE_SEPOLIA_CHAIN_ID = 84532;
 
 export type SupportedChain = {
@@ -5,6 +8,7 @@ export type SupportedChain = {
   key: string;
   name: string;
   frontendRuntimeKey: string;
+  viemChain: Chain;
 };
 
 export const supportedChains: SupportedChain[] = [
@@ -13,6 +17,7 @@ export const supportedChains: SupportedChain[] = [
     key: "base-sepolia",
     name: "Base Sepolia",
     frontendRuntimeKey: "BASE_SEPOLIA",
+    viemChain: baseSepolia,
   },
 ];
 

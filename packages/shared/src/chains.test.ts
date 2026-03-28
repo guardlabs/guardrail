@@ -15,6 +15,10 @@ describe("supported chains", () => {
       id: 84532,
       key: "base-sepolia",
       name: "Base Sepolia",
+      viemChain: {
+        id: 84532,
+        name: "Base Sepolia",
+      },
     });
   });
 

@@ -93,6 +93,7 @@ Chain handling:
 - the default chain used for local testing is Base Sepolia
 - the explicit supported-chain list must live in `packages/shared/src/chains.ts`
 - that shared chain registry is the single source of truth for backend, frontend, and CLI
+- that shared chain registry may include the non-sensitive `viem` chain objects needed by frontend and CLI runtime hydration
 - V1 supported chains currently contain only Base Sepolia (`84532`)
 
 Backend URL:

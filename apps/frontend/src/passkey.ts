@@ -1,5 +1,4 @@
 import {
-  BASE_SEPOLIA_CHAIN_ID,
   getSupportedChainById,
   type PermissionScope,
 } from "@agent-wallet/shared";
@@ -26,11 +25,6 @@ import { encodeWebAuthnPubKey } from "@zerodev/webauthn-key";
 import type { Hex } from "viem";
 import { createPublicClient, http } from "viem";
 import { publicKeyToAddress } from "viem/accounts";
-import { baseSepolia } from "viem/chains";
-
-const viemChainsById = {
-  [BASE_SEPOLIA_CHAIN_ID]: baseSepolia,
-} as const;
 
 function getPublicRpcUrl(chainId: number) {
   const supportedChain = getSupportedChainById(chainId);
@@ -54,15 +48,7 @@ function getChain(chainId: number) {
     throw new Error(`Unsupported chain ${chainId} for frontend provisioning.`);
   }
 
-  const chain = viemChainsById[supportedChain.id as BASE_SEPOLIA_CHAIN_ID];
-
-  if (!chain) {
-    throw new Error(
-      `Supported chain ${supportedChain.key} is missing a frontend viem mapping.`,
-    );
-  }
-
-  return chain;
+  return supportedChain.viemChain;
 }
 
 export type PasskeyClient = {

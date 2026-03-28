@@ -262,6 +262,8 @@
 - Kept the supported-chain list centralized in `packages/shared/src/chains.ts`.
 - Updated CLI help so `agent-wallet --help` and `agent-wallet create --help` explicitly list the supported chains from that shared registry.
 - Updated frontend and CLI runtime support checks to consume the shared chain registry instead of maintaining an independent hardcoded support list.
+- Moved the `viem` chain mapping itself into `packages/shared/src/chains.ts`, so frontend and CLI no longer keep separate runtime chain maps.
+- Confirmed the earlier `viem` resolution failure was caused by `packages/shared` not actually declaring `viem`; a stale lockfile/node_modules state had masked the real issue during earlier experiments.
 
 ## How To Use This Log
 
