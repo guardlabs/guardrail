@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  ERC20_TRANSFER_SELECTOR,
   canTransitionStatus,
+  getSpendLimitScopeValidationErrors,
   createWalletRequestResponseSchema,
   localWalletRequestSchema,
   normalizePermissionScope,
   selectorSchema,
+  toSpendLimitPeriodSeconds,
 } from "./contracts.js";
 
 describe("shared contracts", () => {
@@ -21,6 +24,48 @@ describe("shared contracts", () => {
   it("validates selector format", () => {
     expect(() => selectorSchema.parse("0xa9059cbb")).not.toThrow();
     expect(() => selectorSchema.parse("transfer(address,uint256)")).toThrow();
+  });
+
+  it("validates spend-limited scopes against direct transfer-only surfaces", () => {
+    const validScope = normalizePermissionScope({
+      chainId: 84532,
+      targetContract: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+      allowedMethods: [ERC20_TRANSFER_SELECTOR],
+      spendLimits: [
+        {
+          type: "erc20",
+          tokenAddress: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+          limitBaseUnits: "25000000",
+          period: "week",
+        },
+      ],
+    });
+
+    expect(getSpendLimitScopeValidationErrors(validScope)).toEqual([]);
+
+    const invalidScope = normalizePermissionScope({
+      chainId: 84532,
+      targetContract: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+      allowedMethods: [ERC20_TRANSFER_SELECTOR, "0x095ea7b3"],
+      spendLimits: [
+        {
+          type: "erc20",
+          tokenAddress: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+          limitBaseUnits: "25000000",
+          period: "week",
+        },
+      ],
+    });
+
+    expect(getSpendLimitScopeValidationErrors(invalidScope)).toContain(
+      "ERC20 spend-limited scopes must allow only transfer(address,uint256).",
+    );
+  });
+
+  it("converts supported spend-limit periods into seconds", () => {
+    expect(toSpendLimitPeriodSeconds("day")).toBe(86_400);
+    expect(toSpendLimitPeriodSeconds("week")).toBe(604_800);
+    expect(toSpendLimitPeriodSeconds("month")).toBe(2_592_000);
   });
 
   it("enforces the status graph", () => {
@@ -63,6 +108,14 @@ describe("shared contracts", () => {
         chainId: 84532,
         targetContract: "0x1111111111111111111111111111111111111111",
         allowedMethods: ["0xa9059cbb"],
+        spendLimits: [
+          {
+            type: "erc20",
+            tokenAddress: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+            limitBaseUnits: "25000000",
+            period: "week",
+          },
+        ],
         sessionPublicKey: "0x1234",
         sessionPrivateKey: "0xabcd",
         createdAt: new Date().toISOString(),

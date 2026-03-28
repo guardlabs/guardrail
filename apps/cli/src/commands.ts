@@ -3,8 +3,11 @@ import {
   createWalletRequestInputSchema,
   createWalletRequestResponseSchema,
   evmAddressSchema,
+  getSpendLimitScopeValidationErrors,
+  getSupportedChainById,
   getWalletRequestResponseSchema,
   hexStringSchema,
+  type SpendLimitPeriod,
   type CreateWalletRequestResponse,
   type WalletRequest,
 } from "@agent-wallet/shared";
@@ -16,6 +19,7 @@ import {
 } from "./kernel.js";
 import { readLocalWalletRequest, saveLocalWalletRequest } from "./local-store.js";
 import { generateSessionKeyPair } from "./session-key.js";
+import { parseUnits } from "viem";
 
 const DEFAULT_AWAIT_INTERVAL_MS = 5000;
 
@@ -74,17 +78,46 @@ export async function executeCreate(options: {
   targetContract: string;
   allowedMethod?: string;
   allowedMethods?: string[];
+  usdcLimit?: string;
+  usdcLimitPeriod?: SpendLimitPeriod;
   backendUrl?: string;
 }) {
   const backendUrl = resolveBackendUrl(options.backendUrl);
   const sessionKeyPair = generateSessionKeyPair();
+  const chainId = Number(options.chainId);
+  const supportedChain = getSupportedChainById(chainId);
+
+  if (options.usdcLimit && !supportedChain) {
+    throw new Error(`Unsupported chain ${chainId} for USDC spend limits.`);
+  }
+
+  const spendLimits =
+    options.usdcLimit && supportedChain
+      ? [
+          {
+            type: "erc20" as const,
+            tokenAddress: supportedChain.officialUsdcAddress,
+            limitBaseUnits: parseUnits(
+              options.usdcLimit,
+              supportedChain.officialUsdcDecimals,
+            ).toString(),
+            period: options.usdcLimitPeriod ?? "week",
+          },
+        ]
+      : undefined;
 
   const payload = createWalletRequestInputSchema.parse({
-    chainId: Number(options.chainId),
+    chainId,
     targetContract: options.targetContract,
     allowedMethods: collectAllowedMethods(options),
+    spendLimits,
     sessionPublicKey: sessionKeyPair.publicKey,
   });
+  const validationErrors = getSpendLimitScopeValidationErrors(payload);
+
+  if (validationErrors.length > 0) {
+    throw new Error(validationErrors.join(" "));
+  }
 
   const backendResponse = await fetchJson<CreateWalletRequestResponse>(
     `${backendUrl}/v1/wallets`,
@@ -120,6 +153,7 @@ export async function executeCreate(options: {
     chainId: payload.chainId,
     targetContract: payload.targetContract,
     allowedMethods: payload.allowedMethods,
+    spendLimits: payload.spendLimits,
     sessionPublicKey: sessionKeyPair.publicKey,
     sessionPrivateKey: sessionKeyPair.privateKey,
     createdAt: new Date().toISOString(),
@@ -274,6 +308,8 @@ export function registerCreateCommand(command: Command) {
       targetContract: options.targetContract,
       allowedMethod: options.allowedMethod,
       allowedMethods: options.allowedMethods,
+      usdcLimit: options.usdcLimit,
+      usdcLimitPeriod: options.usdcLimitPeriod,
       backendUrl: resolveCommandBackendUrl(command, options),
     });
 

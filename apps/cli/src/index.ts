@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 import { fileURLToPath } from "node:url";
 import { Command, Option } from "commander";
-import { selectorSchema, supportedChains } from "@agent-wallet/shared";
+import {
+  selectorSchema,
+  spendLimitPeriodSchema,
+  supportedChains,
+} from "@agent-wallet/shared";
 import {
   registerAwaitCommand,
   registerCallCommand,
@@ -54,6 +58,18 @@ export function buildProgram() {
         "--allowed-methods <selectors...>",
         "Allowed method selectors as a space-separated list",
       ),
+    )
+    .option(
+      "--usdc-limit <amount>",
+      "Optional cumulative USDC limit expressed in whole-token units.",
+    )
+    .addOption(
+      new Option(
+        "--usdc-limit-period <period>",
+        "Spend-limit period when --usdc-limit is set",
+      )
+        .choices(spendLimitPeriodSchema.options)
+        .default("week"),
     )
     .option("--operator-api-key <key>", "Operator API key")
     .addHelpText(

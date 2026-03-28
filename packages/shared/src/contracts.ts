@@ -16,6 +16,8 @@ export const selectorSchema = z
   .string()
   .regex(/^0x[a-fA-F0-9]{8}$/, "Allowed methods must be 4-byte selectors");
 
+export const ERC20_TRANSFER_SELECTOR = "0xa9059cbb" as const;
+
 export const hexStringSchema = z
   .string()
   .regex(/^0x[a-fA-F0-9]+$/, "Expected a 0x-prefixed hex string");
@@ -23,6 +25,26 @@ export const hexStringSchema = z
 export const evmAddressSchema = z
   .string()
   .regex(/^0x[a-fA-F0-9]{40}$/, "Expected a 20-byte EVM address");
+
+export const baseUnitsStringSchema = z
+  .string()
+  .regex(/^[0-9]+$/, "Expected a base-10 integer string");
+
+export const spendLimitPeriodSchema = z.enum(["day", "week", "month"]);
+
+export const spendLimitSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("erc20"),
+    tokenAddress: evmAddressSchema,
+    limitBaseUnits: baseUnitsStringSchema,
+    period: spendLimitPeriodSchema,
+  }),
+  z.object({
+    type: z.literal("native"),
+    limitBaseUnits: baseUnitsStringSchema,
+    period: spendLimitPeriodSchema,
+  }),
+]);
 
 function dedupeSelectors(selectors: string[]) {
   return [...new Set(selectors)];
@@ -33,6 +55,7 @@ export const permissionScopeSchema = z
     chainId: z.number().int().positive(),
     targetContract: evmAddressSchema,
     allowedMethods: z.array(selectorSchema).min(1),
+    spendLimits: z.array(spendLimitSchema).max(1).optional(),
   })
   .transform((scope) => ({
     ...scope,
@@ -82,6 +105,7 @@ export const createWalletRequestInputSchema = z.object({
   chainId: z.number().int().positive(),
   targetContract: evmAddressSchema,
   allowedMethods: z.array(selectorSchema).min(1).transform(dedupeSelectors),
+  spendLimits: z.array(spendLimitSchema).max(1).optional(),
   sessionPublicKey: hexStringSchema,
 });
 
@@ -133,6 +157,7 @@ export const localWalletRequestSchema = z.object({
   chainId: z.number().int().positive(),
   targetContract: evmAddressSchema,
   allowedMethods: z.array(selectorSchema).min(1),
+  spendLimits: z.array(spendLimitSchema).max(1).optional(),
   sessionPublicKey: hexStringSchema,
   sessionPrivateKey: hexStringSchema,
   walletAddress: evmAddressSchema.optional(),
@@ -161,7 +186,57 @@ export function normalizePermissionScope(
   return permissionScopeSchema.parse(input);
 }
 
+export function toSpendLimitPeriodSeconds(period: SpendLimitPeriod) {
+  switch (period) {
+    case "day":
+      return 86_400;
+    case "week":
+      return 604_800;
+    case "month":
+      return 2_592_000;
+  }
+}
+
+export function getSpendLimitScopeValidationErrors(
+  scope: PermissionScope,
+) {
+  if (!scope.spendLimits?.length) {
+    return [];
+  }
+
+  const [spendLimit] = scope.spendLimits;
+  const errors: string[] = [];
+
+  if (!spendLimit) {
+    return errors;
+  }
+
+  if (spendLimit.type === "native") {
+    errors.push("Native spend limits are not supported yet.");
+    return errors;
+  }
+
+  if (
+    scope.targetContract.toLowerCase() !== spendLimit.tokenAddress.toLowerCase()
+  ) {
+    errors.push("Spend-limited ERC20 scopes must target the limited token contract.");
+  }
+
+  if (
+    scope.allowedMethods.length !== 1 ||
+    scope.allowedMethods[0]?.toLowerCase() !== ERC20_TRANSFER_SELECTOR
+  ) {
+    errors.push(
+      "ERC20 spend-limited scopes must allow only transfer(address,uint256).",
+    );
+  }
+
+  return errors;
+}
+
 export type PermissionScope = z.infer<typeof permissionScopeSchema>;
+export type SpendLimit = z.infer<typeof spendLimitSchema>;
+export type SpendLimitPeriod = z.infer<typeof spendLimitPeriodSchema>;
 export type OwnerPublicArtifacts = z.infer<typeof ownerPublicArtifactsSchema>;
 export type FundingState = z.infer<typeof fundingStateSchema>;
 export type WalletContext = z.infer<typeof walletContextSchema>;

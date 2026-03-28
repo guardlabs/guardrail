@@ -145,6 +145,54 @@ describe("cli commands", () => {
     );
   });
 
+  it("encodes and persists an optional weekly USDC spend limit", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        walletId: "wal_limit",
+        status: "created",
+        provisioningUrl:
+          "http://127.0.0.1:5173/?walletId=wal_limit&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
+        expiresAt: new Date().toISOString(),
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await executeCreate({
+      chainId: "84532",
+      targetContract: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+      allowedMethod: "0xa9059cbb",
+      usdcLimit: "25",
+      usdcLimitPeriod: "week",
+      backendUrl: "http://127.0.0.1:3000",
+    });
+
+    const createCall = fetchMock.mock.calls[0];
+    expect(createCall?.[0]).toBe("http://127.0.0.1:3000/v1/wallets");
+    const requestInit = createCall?.[1] as RequestInit | undefined;
+    const body = JSON.parse(String(requestInit?.body)) as {
+      spendLimits?: Array<{
+        type: string;
+        tokenAddress: string;
+        limitBaseUnits: string;
+        period: string;
+      }>;
+    };
+
+    expect(body.spendLimits).toEqual([
+      {
+        type: "erc20",
+        tokenAddress: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+        limitBaseUnits: "25000000",
+        period: "week",
+      },
+    ]);
+
+    const persistedRequest = await readLocalWalletRequest("wal_limit");
+    expect(persistedRequest.spendLimits).toEqual(body.spendLimits);
+  });
+
   it("reads wallet status from the backend API", async () => {
     vi.stubGlobal(
       "fetch",

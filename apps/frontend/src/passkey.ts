@@ -1,12 +1,15 @@
 import {
+  getSpendLimitScopeValidationErrors,
   getSupportedChainById,
   type PermissionScope,
 } from "@agent-wallet/shared";
+import { toAgentSpendLimitPolicy } from "@agent-wallet/zerodev";
 import {
   PasskeyValidatorContractVersion,
   toPasskeyValidator,
 } from "@zerodev/passkey-validator";
 import {
+  type Policy,
   serializePermissionAccount,
   toPermissionValidator,
 } from "@zerodev/permissions";
@@ -22,7 +25,7 @@ import {
 import { createKernelAccount } from "@zerodev/sdk/accounts";
 import { getEntryPoint, KERNEL_V3_1 } from "@zerodev/sdk/constants";
 import { encodeWebAuthnPubKey } from "@zerodev/webauthn-key";
-import type { Hex } from "viem";
+import type { Address, Hex } from "viem";
 import { createPublicClient, http } from "viem";
 import { publicKeyToAddress } from "viem/accounts";
 
@@ -49,6 +52,69 @@ function getChain(chainId: number) {
   }
 
   return supportedChain.viemChain;
+}
+
+function getSpendLimitPolicyAddress(chainId: number): Address | null {
+  const supportedChain = getSupportedChainById(chainId);
+
+  if (!supportedChain) {
+    return null;
+  }
+
+  switch (supportedChain.frontendRuntimeKey) {
+    case "BASE_SEPOLIA":
+      return __BASE_SEPOLIA_SPEND_LIMIT_POLICY_ADDRESS__ as Address | null;
+    default:
+      return null;
+  }
+}
+
+function buildPermissionPolicies(scope: PermissionScope) {
+  const validationErrors = getSpendLimitScopeValidationErrors(scope);
+
+  if (validationErrors.length > 0) {
+    throw new Error(validationErrors.join(" "));
+  }
+
+  const policies: Policy[] = [
+    toCallPolicy({
+      policyVersion: CallPolicyVersion.V0_0_5,
+      permissions: scope.allowedMethods.map((selector) => ({
+        target: scope.targetContract as `0x${string}`,
+        selector: selector as Hex,
+        valueLimit: 0n,
+      })),
+    }),
+  ];
+
+  const spendLimit = scope.spendLimits?.[0];
+
+  if (!spendLimit) {
+    return policies;
+  }
+
+  if (spendLimit.type !== "erc20") {
+    throw new Error("Only ERC20 spend limits are currently supported.");
+  }
+
+  const policyAddress = getSpendLimitPolicyAddress(scope.chainId);
+
+  if (!policyAddress) {
+    throw new Error(
+      `Missing AGENT_WALLET_SPEND_LIMIT_POLICY_ADDRESS_${scope.chainId} in frontend build.`,
+    );
+  }
+
+  policies.push(
+    toAgentSpendLimitPolicy({
+      policyAddress,
+      tokenAddress: spendLimit.tokenAddress as Address,
+      limitBaseUnits: spendLimit.limitBaseUnits,
+      period: spendLimit.period,
+    }),
+  );
+
+  return policies;
 }
 
 export type PasskeyClient = {
@@ -107,16 +173,7 @@ export const browserPasskeyClient: PasskeyClient = {
       entryPoint,
       kernelVersion: KERNEL_V3_1,
       signer: emptySessionSigner,
-      policies: [
-        toCallPolicy({
-          policyVersion: CallPolicyVersion.V0_0_5,
-          permissions: scope.allowedMethods.map((selector) => ({
-            target: scope.targetContract as `0x${string}`,
-            selector: selector as Hex,
-            valueLimit: 0n,
-          })),
-        }),
-      ],
+      policies: buildPermissionPolicies(scope),
     });
 
     const account = await createKernelAccount(publicClient, {

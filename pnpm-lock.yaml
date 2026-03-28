@@ -57,6 +57,9 @@ importers:
       '@agent-wallet/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@agent-wallet/zerodev':
+        specifier: workspace:*
+        version: link:../../packages/zerodev
       '@zerodev/permissions':
         specifier: 5.6.3
         version: 5.6.3(@zerodev/sdk@5.5.8(viem@2.47.6(typescript@5.9.3)(zod@3.25.76)))(@zerodev/webauthn-key@5.5.0(viem@2.47.6(typescript@5.9.3)(zod@3.25.76)))(viem@2.47.6(typescript@5.9.3)(zod@3.25.76))
@@ -94,6 +97,9 @@ importers:
       '@agent-wallet/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@agent-wallet/zerodev':
+        specifier: workspace:*
+        version: link:../../packages/zerodev
       '@zerodev/passkey-validator':
         specifier: 5.6.0
         version: 5.6.0(@zerodev/sdk@5.5.8(viem@2.47.6(typescript@5.9.3)(zod@3.25.76)))(@zerodev/webauthn-key@5.5.0(viem@2.47.6(typescript@5.9.3)(zod@3.25.76)))(viem@2.47.6(typescript@5.9.3)(zod@3.25.76))
@@ -165,6 +171,31 @@ importers:
         specifier: ^3.24.2
         version: 3.25.76
     devDependencies:
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.9
+        version: 3.2.4(@types/node@22.19.15)(jsdom@29.0.1(@noble/hashes@1.8.0))(tsx@4.21.0)
+
+  packages/zerodev:
+    dependencies:
+      '@agent-wallet/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@zerodev/permissions':
+        specifier: 5.6.3
+        version: 5.6.3(@zerodev/sdk@5.5.8(viem@2.47.6(typescript@5.9.3)(zod@3.25.76)))(@zerodev/webauthn-key@5.5.0(viem@2.47.6(typescript@5.9.3)(zod@3.25.76)))(viem@2.47.6(typescript@5.9.3)(zod@3.25.76))
+      '@zerodev/sdk':
+        specifier: 5.5.8
+        version: 5.5.8(viem@2.47.6(typescript@5.9.3)(zod@3.25.76))
+      viem:
+        specifier: 2.47.6
+        version: 2.47.6(typescript@5.9.3)(zod@3.25.76)
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.10
+        version: 22.19.15
       typescript:
         specifier: ^5.8.2
         version: 5.9.3

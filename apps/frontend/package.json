@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@agent-wallet/shared": "workspace:*",
+    "@agent-wallet/zerodev": "workspace:*",
     "@zerodev/passkey-validator": "5.6.0",
     "@zerodev/permissions": "5.6.3",
     "@zerodev/sdk": "5.5.8",

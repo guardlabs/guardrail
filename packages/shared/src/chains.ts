@@ -7,6 +7,7 @@ export type SupportedChain = {
   name: string;
   frontendRuntimeKey: string;
   officialUsdcAddress: string;
+  officialUsdcDecimals: number;
   viemChain: Chain;
 };
 
@@ -17,6 +18,7 @@ export const supportedChains: SupportedChain[] = [
     name: "Base Sepolia",
     frontendRuntimeKey: "BASE_SEPOLIA",
     officialUsdcAddress: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    officialUsdcDecimals: 6,
     viemChain: baseSepolia,
   },
 ];

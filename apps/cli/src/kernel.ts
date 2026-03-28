@@ -3,7 +3,7 @@ import {
   type LocalWalletRequest,
   type WalletRequest,
 } from "@agent-wallet/shared";
-import { deserializePermissionAccount } from "@zerodev/permissions";
+import { deserializePermissionAccount } from "@agent-wallet/zerodev/permission-account";
 import { toECDSASigner } from "@zerodev/permissions/signers";
 import { createKernelAccountClient } from "@zerodev/sdk";
 import { getEntryPoint, KERNEL_V3_1 } from "@zerodev/sdk/constants";
