@@ -10,8 +10,12 @@ describe("frontend api", () => {
         status: "owner_bound",
         scope: {
           chainId: 84532,
-          targetContract: "0x1111111111111111111111111111111111111111",
-          allowedMethods: ["0xa9059cbb"],
+          contractPermissions: [
+            {
+              targetContract: "0x1111111111111111111111111111111111111111",
+              allowedMethods: ["0xa9059cbb"],
+            },
+          ],
         },
         sessionPublicKey: "0x1234",
         counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
@@ -32,8 +36,12 @@ describe("frontend api", () => {
           },
           scope: {
             chainId: 84532,
-            targetContract: "0x1111111111111111111111111111111111111111",
-            allowedMethods: ["0xa9059cbb"],
+            contractPermissions: [
+              {
+                targetContract: "0x1111111111111111111111111111111111111111",
+                allowedMethods: ["0xa9059cbb"],
+              },
+            ],
           },
           policyDigest: "0x12345678",
           serializedPermissionAccount: "approval_123",

@@ -163,8 +163,12 @@ describe("backend app", () => {
       url: "/v1/wallets",
       payload: {
         chainId: 84532,
-        targetContract: "0x1111111111111111111111111111111111111111",
-        allowedMethods: ["0xa9059cbb"],
+        contractPermissions: [
+          {
+            targetContract: "0x1111111111111111111111111111111111111111",
+            allowedMethods: ["0xa9059cbb"],
+          },
+        ],
         sessionPublicKey: "0x1234",
       },
     });
@@ -217,8 +221,12 @@ describe("backend app", () => {
           },
           scope: {
             chainId: 84532,
-            targetContract: "0x1111111111111111111111111111111111111111",
-            allowedMethods: ["0xa9059cbb"],
+            contractPermissions: [
+              {
+                targetContract: "0x1111111111111111111111111111111111111111",
+                allowedMethods: ["0xa9059cbb"],
+              },
+            ],
           },
           policyDigest: "0x12345678",
           serializedPermissionAccount: "approval_123",
@@ -231,8 +239,12 @@ describe("backend app", () => {
       url: "/v1/wallets",
       payload: {
         chainId: 84532,
-        targetContract: "0x1111111111111111111111111111111111111111",
-        allowedMethods: ["0xa9059cbb"],
+        contractPermissions: [
+          {
+            targetContract: "0x1111111111111111111111111111111111111111",
+            allowedMethods: ["0xa9059cbb"],
+          },
+        ],
         sessionPublicKey: "0x1234",
       },
     });
@@ -297,8 +309,12 @@ describe("backend app", () => {
           },
           scope: {
             chainId: 84532,
-            targetContract: "0x1111111111111111111111111111111111111111",
-            allowedMethods: ["0xa9059cbb"],
+            contractPermissions: [
+              {
+                targetContract: "0x1111111111111111111111111111111111111111",
+                allowedMethods: ["0xa9059cbb"],
+              },
+            ],
           },
           policyDigest: "0x12345678",
           serializedPermissionAccount: "approval_123",
@@ -311,8 +327,12 @@ describe("backend app", () => {
       url: "/v1/wallets",
       payload: {
         chainId: 84532,
-        targetContract: "0x1111111111111111111111111111111111111111",
-        allowedMethods: ["0xa9059cbb"],
+        contractPermissions: [
+          {
+            targetContract: "0x1111111111111111111111111111111111111111",
+            allowedMethods: ["0xa9059cbb"],
+          },
+        ],
         sessionPublicKey: "0x1234",
       },
     });
@@ -412,8 +432,12 @@ describe("backend app", () => {
       url: "/v1/wallets",
       payload: {
         chainId: 84532,
-        targetContract: "0x1111111111111111111111111111111111111111",
-        allowedMethods: ["0xa9059cbb"],
+        contractPermissions: [
+          {
+            targetContract: "0x1111111111111111111111111111111111111111",
+            allowedMethods: ["0xa9059cbb"],
+          },
+        ],
         sessionPublicKey: "0x1234",
       },
     });

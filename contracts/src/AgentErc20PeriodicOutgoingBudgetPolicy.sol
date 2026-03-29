@@ -25,7 +25,7 @@ interface IPolicy {
         returns (uint256);
 }
 
-contract AgentErc20PeriodicSpendLimitPolicy is IPolicy {
+contract AgentErc20PeriodicOutgoingBudgetPolicy is IPolicy {
     bytes4 private constant EXECUTE_SELECTOR = bytes4(keccak256("execute(bytes32,bytes)"));
     bytes4 private constant EXECUTE_USER_OP_SELECTOR =
         bytes4(
@@ -34,8 +34,11 @@ contract AgentErc20PeriodicSpendLimitPolicy is IPolicy {
             )
         );
     bytes4 private constant ERC20_TRANSFER_SELECTOR = 0xa9059cbb;
+    bytes4 private constant ERC20_APPROVE_SELECTOR = 0x095ea7b3;
     uint8 private constant CALLTYPE_SINGLE = 0x00;
     uint8 private constant CALLTYPE_BATCH = 0x01;
+    uint8 private constant TRANSFER_FLOW = 0x01;
+    uint8 private constant APPROVE_FLOW = 0x02;
     uint48 private constant DAY = 86_400;
     uint48 private constant WEEK = 604_800;
     uint48 private constant MONTH = 2_592_000;
@@ -50,7 +53,9 @@ contract AgentErc20PeriodicSpendLimitPolicy is IPolicy {
         address token;
         uint256 limit;
         uint48 periodSeconds;
+        uint8 flowMask;
         bool initialized;
+        address[] allowedCounterparties;
     }
 
     struct Bucket {
@@ -62,6 +67,12 @@ contract AgentErc20PeriodicSpendLimitPolicy is IPolicy {
         address target;
         uint256 value;
         bytes callData;
+    }
+
+    struct OutgoingAction {
+        address counterparty;
+        uint256 amount;
+        uint8 flow;
     }
 
     mapping(address account => uint256 installations) private installationCount;
@@ -77,9 +88,10 @@ contract AgentErc20PeriodicSpendLimitPolicy is IPolicy {
         }
 
         bytes32 permissionId = bytes32(data[0:32]);
-        (address token, uint256 limit, uint48 periodSeconds) = abi.decode(data[32:], (address, uint256, uint48));
+        (address token, uint256 limit, uint48 periodSeconds, uint8 flowMask, address[] memory allowedCounterparties) =
+            abi.decode(data[32:], (address, uint256, uint48, uint8, address[]));
 
-        if (token == address(0) || limit == 0 || periodSeconds == 0) {
+        if (token == address(0) || limit == 0 || flowMask == 0) {
             revert InvalidPolicyConfig();
         }
 
@@ -90,10 +102,21 @@ contract AgentErc20PeriodicSpendLimitPolicy is IPolicy {
             installationCount[msg.sender] += 1;
         }
 
+        delete config.allowedCounterparties;
+
         config.token = token;
         config.limit = limit;
         config.periodSeconds = periodSeconds;
+        config.flowMask = flowMask;
         config.initialized = true;
+
+        for (uint256 i = 0; i < allowedCounterparties.length; i++) {
+            if (allowedCounterparties[i] == address(0)) {
+                revert InvalidPolicyConfig();
+            }
+
+            config.allowedCounterparties.push(allowedCounterparties[i]);
+        }
     }
 
     function onUninstall(bytes calldata data) external payable override {
@@ -131,13 +154,9 @@ contract AgentErc20PeriodicSpendLimitPolicy is IPolicy {
             return 1;
         }
 
-        (bool supported, uint256 amount) = _extractSpendAmount(userOp.callData, config.token);
+        (bool supported, uint256 amount) = _extractOutgoingAmount(config, userOp.callData);
 
-        if (!supported) {
-            return 1;
-        }
-
-        if (amount > type(uint208).max) {
+        if (!supported || amount > type(uint208).max) {
             return 1;
         }
 
@@ -149,7 +168,7 @@ contract AgentErc20PeriodicSpendLimitPolicy is IPolicy {
             return 1;
         }
 
-        if (!_recordSpend(msg.sender, id, currentBucketStart, bucketSize, bucketCount, amount)) {
+        if (!_recordOutgoingAmount(msg.sender, id, currentBucketStart, bucketSize, bucketCount, amount)) {
             return 1;
         }
 
@@ -195,9 +214,9 @@ contract AgentErc20PeriodicSpendLimitPolicy is IPolicy {
         return bucket.bucketStartTimestamp == bucketStartTimestamp ? bucket.amount : 0;
     }
 
-    function _extractSpendAmount(bytes calldata accountCallData, address expectedToken)
+    function _extractOutgoingAmount(PolicyConfig storage config, bytes calldata accountCallData)
         private
-        pure
+        view
         returns (bool supported, uint256 amount)
     {
         if (accountCallData.length < 4) {
@@ -222,19 +241,19 @@ contract AgentErc20PeriodicSpendLimitPolicy is IPolicy {
         uint8 callType = uint8(bytes1(execMode));
 
         if (callType == CALLTYPE_SINGLE) {
-            return _extractSingleExecutionSpend(executionCalldata, expectedToken);
+            return _extractSingleExecutionOutgoingAmount(config, executionCalldata);
         }
 
         if (callType == CALLTYPE_BATCH) {
-            return _extractBatchExecutionSpend(executionCalldata, expectedToken);
+            return _extractBatchExecutionOutgoingAmount(config, executionCalldata);
         }
 
         return (false, 0);
     }
 
-    function _extractSingleExecutionSpend(bytes memory executionCalldata, address expectedToken)
+    function _extractSingleExecutionOutgoingAmount(PolicyConfig storage config, bytes memory executionCalldata)
         private
-        pure
+        view
         returns (bool supported, uint256 amount)
     {
         if (executionCalldata.length < 56) {
@@ -255,12 +274,12 @@ contract AgentErc20PeriodicSpendLimitPolicy is IPolicy {
             tokenCallData[i - 52] = executionCalldata[i];
         }
 
-        return _extractTokenTransferSpend(target, value, tokenCallData, expectedToken);
+        return _extractTokenOutgoingAmount(config, target, value, tokenCallData);
     }
 
-    function _extractBatchExecutionSpend(bytes memory executionCalldata, address expectedToken)
+    function _extractBatchExecutionOutgoingAmount(PolicyConfig storage config, bytes memory executionCalldata)
         private
-        pure
+        view
         returns (bool supported, uint256 amount)
     {
         Execution[] memory executions = abi.decode(executionCalldata, (Execution[]));
@@ -272,12 +291,8 @@ contract AgentErc20PeriodicSpendLimitPolicy is IPolicy {
         uint256 totalAmount = 0;
 
         for (uint256 i = 0; i < executions.length; i++) {
-            (bool isSupported, uint256 executionAmount) = _extractTokenTransferSpend(
-                executions[i].target,
-                executions[i].value,
-                executions[i].callData,
-                expectedToken
-            );
+            (bool isSupported, uint256 executionAmount) =
+                _extractTokenOutgoingAmount(config, executions[i].target, executions[i].value, executions[i].callData);
 
             if (!isSupported) {
                 return (false, 0);
@@ -289,26 +304,63 @@ contract AgentErc20PeriodicSpendLimitPolicy is IPolicy {
         return (true, totalAmount);
     }
 
-    function _extractTokenTransferSpend(address target, uint256 value, bytes memory tokenCallData, address expectedToken)
-        private
-        pure
-        returns (bool supported, uint256 amount)
-    {
-        if (target != expectedToken || value != 0 || tokenCallData.length < 68) {
+    function _extractTokenOutgoingAmount(
+        PolicyConfig storage config,
+        address target,
+        uint256 value,
+        bytes memory tokenCallData
+    ) private view returns (bool supported, uint256 amount) {
+        if (target != config.token || value != 0 || tokenCallData.length < 68) {
             return (false, 0);
         }
 
+        OutgoingAction memory action;
         bytes4 selector;
         assembly {
             selector := mload(add(tokenCallData, 32))
         }
 
-        if (selector != ERC20_TRANSFER_SELECTOR) {
+        if (selector == ERC20_TRANSFER_SELECTOR) {
+            if ((config.flowMask & TRANSFER_FLOW) == 0) {
+                return (false, 0);
+            }
+
+            (action.counterparty, action.amount) = abi.decode(_slice(tokenCallData, 4), (address, uint256));
+            action.flow = TRANSFER_FLOW;
+        } else if (selector == ERC20_APPROVE_SELECTOR) {
+            if ((config.flowMask & APPROVE_FLOW) == 0) {
+                return (false, 0);
+            }
+
+            (action.counterparty, action.amount) = abi.decode(_slice(tokenCallData, 4), (address, uint256));
+            action.flow = APPROVE_FLOW;
+        } else {
             return (false, 0);
         }
 
-        (, amount) = abi.decode(_slice(tokenCallData, 4), (address, uint256));
-        return (true, amount);
+        if (!_isAllowedCounterparty(config, action.counterparty)) {
+            return (false, 0);
+        }
+
+        return (true, action.amount);
+    }
+
+    function _isAllowedCounterparty(PolicyConfig storage config, address counterparty) private view returns (bool) {
+        if (counterparty == address(0)) {
+            return false;
+        }
+
+        if (config.allowedCounterparties.length == 0) {
+            return true;
+        }
+
+        for (uint256 i = 0; i < config.allowedCounterparties.length; i++) {
+            if (config.allowedCounterparties[i] == counterparty) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     function _resolveBucketWindow(uint48 periodSeconds) private pure returns (uint48 bucketSize, uint16 bucketCount) {
@@ -357,7 +409,7 @@ contract AgentErc20PeriodicSpendLimitPolicy is IPolicy {
         }
     }
 
-    function _recordSpend(
+    function _recordOutgoingAmount(
         address account,
         bytes32 permissionId,
         uint48 currentBucketStart,

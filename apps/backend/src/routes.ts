@@ -60,8 +60,8 @@ function buildInitialRequest(
       status: "created",
       scope: {
         chainId: payload.chainId,
-        targetContract: payload.targetContract,
-        allowedMethods: payload.allowedMethods,
+        contractPermissions: payload.contractPermissions,
+        outgoingBudgets: payload.outgoingBudgets,
       },
       sessionPublicKey: payload.sessionPublicKey,
       provisioningTokenHash: hashProvisioningToken(provisioningToken),

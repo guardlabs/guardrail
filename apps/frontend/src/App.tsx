@@ -247,12 +247,12 @@ export function App({
               <strong>Base Sepolia ({request?.scope.chainId ?? "pending"})</strong>
             </div>
             <div className="detail-line">
-              <span>Target contract</span>
-              <code>{request?.scope.targetContract ?? "Loading..."}</code>
+              <span>Contract permissions</span>
+              <strong>{request?.scope.contractPermissions?.length ?? 0}</strong>
             </div>
             <div className="detail-line">
-              <span>Allowed methods</span>
-              <strong>{request?.scope.allowedMethods.length ?? 0}</strong>
+              <span>Outgoing budgets</span>
+              <strong>{request?.scope.outgoingBudgets?.length ?? 0}</strong>
             </div>
             <div className="detail-line">
               <span>Funding</span>

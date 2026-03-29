@@ -36,8 +36,8 @@ export default defineConfig(({ mode }) => {
       __BASE_SEPOLIA_BUNDLER_URL__: JSON.stringify(
         env.AGENT_WALLET_BUNDLER_URL_84532 ?? null,
       ),
-      __BASE_SEPOLIA_SPEND_LIMIT_POLICY_ADDRESS__: JSON.stringify(
-        env.AGENT_WALLET_SPEND_LIMIT_POLICY_ADDRESS_84532 ?? null,
+      __BASE_SEPOLIA_OUTGOING_BUDGET_POLICY_ADDRESS__: JSON.stringify(
+        env.AGENT_WALLET_OUTGOING_BUDGET_POLICY_ADDRESS_84532 ?? null,
       ),
     },
   };

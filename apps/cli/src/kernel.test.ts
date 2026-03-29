@@ -14,8 +14,12 @@ function buildLocalWalletRequest(
     provisioningUrl:
       "http://127.0.0.1:5173/?walletId=wal_123&token=token_123&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
     chainId: 84532,
-    targetContract: "0x1111111111111111111111111111111111111111",
-    allowedMethods: ["0xa9059cbb"],
+    contractPermissions: [
+      {
+        targetContract: "0x1111111111111111111111111111111111111111",
+        allowedMethods: ["0xa9059cbb"],
+      },
+    ],
     sessionPublicKey: "0x04bfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabf",
     sessionPrivateKey:
       "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -33,8 +37,12 @@ function buildReadyWalletRequest(
     status: "ready",
     scope: {
       chainId: 84532,
-      targetContract: "0x1111111111111111111111111111111111111111",
-      allowedMethods: ["0xa9059cbb"],
+      contractPermissions: [
+        {
+          targetContract: "0x1111111111111111111111111111111111111111",
+          allowedMethods: ["0xa9059cbb"],
+        },
+      ],
     },
     sessionPublicKey:
       "0x04bfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabf",
@@ -57,8 +65,12 @@ function buildReadyWalletRequest(
       },
       scope: {
         chainId: 84532,
-        targetContract: "0x1111111111111111111111111111111111111111",
-        allowedMethods: ["0xa9059cbb"],
+        contractPermissions: [
+          {
+            targetContract: "0x1111111111111111111111111111111111111111",
+            allowedMethods: ["0xa9059cbb"],
+          },
+        ],
       },
       policyDigest: "0x12345678",
       serializedPermissionAccount: "approval_123",

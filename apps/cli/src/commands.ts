@@ -1,13 +1,16 @@
 import type { Command } from "commander";
 import {
   createWalletRequestInputSchema,
-  createWalletRequestResponseSchema,
   evmAddressSchema,
-  getSpendLimitScopeValidationErrors,
+  getOutgoingBudgetScopeValidationErrors,
+  createWalletRequestResponseSchema,
   getSupportedChainById,
   getWalletRequestResponseSchema,
   hexStringSchema,
-  type SpendLimitPeriod,
+  selectorSchema,
+  type ContractPermission,
+  type OutgoingBudgetFlow,
+  type OutgoingBudgetPeriod,
   type CreateWalletRequestResponse,
   type WalletRequest,
 } from "@agent-wallet/shared";
@@ -22,6 +25,46 @@ import { generateSessionKeyPair } from "./session-key.js";
 import { parseUnits } from "viem";
 
 const DEFAULT_AWAIT_INTERVAL_MS = 5000;
+
+function hasOutgoingBudgetConfiguration(options: {
+  usdcOutgoingLimit?: string;
+  usdcOutgoingPeriod?: OutgoingBudgetPeriod;
+  usdcOutgoingFlow?: OutgoingBudgetFlow[];
+  usdcOutgoingCounterparty?: string[];
+}) {
+  return Boolean(
+    options.usdcOutgoingLimit ||
+      options.usdcOutgoingPeriod ||
+      options.usdcOutgoingFlow?.length ||
+      options.usdcOutgoingCounterparty?.length,
+  );
+}
+
+function parseContractPermission(value: string): ContractPermission {
+  const [targetContract, selectorsText, ...rest] = value.split(":");
+
+  if (!targetContract || !selectorsText || rest.length > 0) {
+    throw new Error(
+      `Invalid --contract-permission "${value}". Expected <address>:<selector>[,<selector>...]`,
+    );
+  }
+
+  const selectors = selectorsText
+    .split(",")
+    .filter(Boolean)
+    .map((selector) => selectorSchema.parse(selector));
+
+  if (selectors.length === 0) {
+    throw new Error(
+      `Invalid --contract-permission "${value}". At least one selector is required.`,
+    );
+  }
+
+  return {
+    targetContract: evmAddressSchema.parse(targetContract),
+    allowedMethods: selectors,
+  };
+}
 
 function rewriteProvisioningUrlBackend(
   provisioningUrl: string,
@@ -63,23 +106,17 @@ function resolveCommandBackendUrl(
   return options.backendUrl ?? commandOptions.backendUrl;
 }
 
-function collectAllowedMethods(options: {
-  allowedMethod?: string;
-  allowedMethods?: string[];
-}) {
-  return [
-    ...(options.allowedMethod ? [options.allowedMethod] : []),
-    ...(options.allowedMethods ?? []),
-  ];
+function parseContractPermissions(contractPermissions?: string[]) {
+  return contractPermissions?.map(parseContractPermission);
 }
 
 export async function executeCreate(options: {
   chainId: string;
-  targetContract: string;
-  allowedMethod?: string;
-  allowedMethods?: string[];
-  usdcLimit?: string;
-  usdcLimitPeriod?: SpendLimitPeriod;
+  contractPermissions?: string[];
+  usdcOutgoingLimit?: string;
+  usdcOutgoingPeriod?: OutgoingBudgetPeriod;
+  usdcOutgoingFlow?: OutgoingBudgetFlow[];
+  usdcOutgoingCounterparty?: string[];
   backendUrl?: string;
 }) {
   const backendUrl = resolveBackendUrl(options.backendUrl);
@@ -87,33 +124,44 @@ export async function executeCreate(options: {
   const chainId = Number(options.chainId);
   const supportedChain = getSupportedChainById(chainId);
 
-  if (options.usdcLimit && !supportedChain) {
-    throw new Error(`Unsupported chain ${chainId} for USDC spend limits.`);
+  if (hasOutgoingBudgetConfiguration(options) && !options.usdcOutgoingLimit) {
+    throw new Error(
+      "USDC outgoing budget configuration requires --usdc-outgoing-limit.",
+    );
   }
 
-  const spendLimits =
-    options.usdcLimit && supportedChain
+  if (options.usdcOutgoingLimit && !supportedChain) {
+    throw new Error(`Unsupported chain ${chainId} for USDC outgoing budgets.`);
+  }
+
+  const outgoingBudgets =
+    options.usdcOutgoingLimit && supportedChain
       ? [
           {
             type: "erc20" as const,
             tokenAddress: supportedChain.officialUsdcAddress,
             limitBaseUnits: parseUnits(
-              options.usdcLimit,
+              options.usdcOutgoingLimit,
               supportedChain.officialUsdcDecimals,
             ).toString(),
-            period: options.usdcLimitPeriod ?? "week",
+            period: options.usdcOutgoingPeriod ?? "week",
+            allowedFlows:
+              options.usdcOutgoingFlow?.length
+                ? options.usdcOutgoingFlow
+                : ["transfer"],
+            allowedCounterparties: options.usdcOutgoingCounterparty,
           },
         ]
       : undefined;
+  const contractPermissions = parseContractPermissions(options.contractPermissions);
 
   const payload = createWalletRequestInputSchema.parse({
     chainId,
-    targetContract: options.targetContract,
-    allowedMethods: collectAllowedMethods(options),
-    spendLimits,
+    contractPermissions,
+    outgoingBudgets,
     sessionPublicKey: sessionKeyPair.publicKey,
   });
-  const validationErrors = getSpendLimitScopeValidationErrors(payload);
+  const validationErrors = getOutgoingBudgetScopeValidationErrors(payload);
 
   if (validationErrors.length > 0) {
     throw new Error(validationErrors.join(" "));
@@ -151,9 +199,8 @@ export async function executeCreate(options: {
     backendBaseUrl: backendUrl,
     provisioningUrl: response.provisioningUrl,
     chainId: payload.chainId,
-    targetContract: payload.targetContract,
-    allowedMethods: payload.allowedMethods,
-    spendLimits: payload.spendLimits,
+    contractPermissions: payload.contractPermissions,
+    outgoingBudgets: payload.outgoingBudgets,
     sessionPublicKey: sessionKeyPair.publicKey,
     sessionPrivateKey: sessionKeyPair.privateKey,
     createdAt: new Date().toISOString(),
@@ -305,11 +352,11 @@ export function registerCreateCommand(command: Command) {
   command.action(async (options) => {
     const result = await executeCreate({
       chainId: options.chainId,
-      targetContract: options.targetContract,
-      allowedMethod: options.allowedMethod,
-      allowedMethods: options.allowedMethods,
-      usdcLimit: options.usdcLimit,
-      usdcLimitPeriod: options.usdcLimitPeriod,
+      contractPermissions: options.contractPermission,
+      usdcOutgoingLimit: options.usdcOutgoingLimit,
+      usdcOutgoingPeriod: options.usdcOutgoingPeriod,
+      usdcOutgoingFlow: options.usdcOutgoingFlow,
+      usdcOutgoingCounterparty: options.usdcOutgoingCounterparty,
       backendUrl: resolveCommandBackendUrl(command, options),
     });
 

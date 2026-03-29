@@ -58,8 +58,9 @@ describe("cli commands", () => {
 
     const result = await executeCreate({
       chainId: "84532",
-      targetContract: "0x1111111111111111111111111111111111111111",
-      allowedMethod: "0xa9059cbb",
+      contractPermissions: [
+        "0x1111111111111111111111111111111111111111:0xa9059cbb",
+      ],
       backendUrl: "http://127.0.0.1:3000",
     });
 
@@ -123,8 +124,9 @@ describe("cli commands", () => {
 
     const result = await executeCreate({
       chainId: "84532",
-      targetContract: "0x1111111111111111111111111111111111111111",
-      allowedMethod: "0xa9059cbb",
+      contractPermissions: [
+        "0x1111111111111111111111111111111111111111:0xa9059cbb",
+      ],
       backendUrl: "http://localhost:3000",
     });
 
@@ -145,7 +147,7 @@ describe("cli commands", () => {
     );
   });
 
-  it("encodes and persists an optional weekly USDC spend limit", async () => {
+  it("encodes and persists contract permissions plus an optional weekly USDC outgoing budget", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -161,10 +163,16 @@ describe("cli commands", () => {
 
     await executeCreate({
       chainId: "84532",
-      targetContract: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-      allowedMethod: "0xa9059cbb",
-      usdcLimit: "25",
-      usdcLimitPeriod: "week",
+      contractPermissions: [
+        "0x9999999999999999999999999999999999999999:0x12345678,0xabcdef01",
+      ],
+      usdcOutgoingLimit: "25",
+      usdcOutgoingPeriod: "week",
+      usdcOutgoingFlow: ["transfer", "approve"],
+      usdcOutgoingCounterparty: [
+        "0x3333333333333333333333333333333333333333",
+        "0x4444444444444444444444444444444444444444",
+      ],
       backendUrl: "http://127.0.0.1:3000",
     });
 
@@ -172,25 +180,43 @@ describe("cli commands", () => {
     expect(createCall?.[0]).toBe("http://127.0.0.1:3000/v1/wallets");
     const requestInit = createCall?.[1] as RequestInit | undefined;
     const body = JSON.parse(String(requestInit?.body)) as {
-      spendLimits?: Array<{
+      contractPermissions?: Array<{
+        targetContract: string;
+        allowedMethods: string[];
+      }>;
+      outgoingBudgets?: Array<{
         type: string;
         tokenAddress: string;
         limitBaseUnits: string;
         period: string;
+        allowedFlows: string[];
+        allowedCounterparties?: string[];
       }>;
     };
 
-    expect(body.spendLimits).toEqual([
+    expect(body.contractPermissions).toEqual([
+      {
+        targetContract: "0x9999999999999999999999999999999999999999",
+        allowedMethods: ["0x12345678", "0xabcdef01"],
+      },
+    ]);
+    expect(body.outgoingBudgets).toEqual([
       {
         type: "erc20",
         tokenAddress: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
         limitBaseUnits: "25000000",
         period: "week",
+        allowedFlows: ["transfer", "approve"],
+        allowedCounterparties: [
+          "0x3333333333333333333333333333333333333333",
+          "0x4444444444444444444444444444444444444444",
+        ],
       },
     ]);
 
     const persistedRequest = await readLocalWalletRequest("wal_limit");
-    expect(persistedRequest.spendLimits).toEqual(body.spendLimits);
+    expect(persistedRequest.contractPermissions).toEqual(body.contractPermissions);
+    expect(persistedRequest.outgoingBudgets).toEqual(body.outgoingBudgets);
   });
 
   it("reads wallet status from the backend API", async () => {
@@ -203,8 +229,12 @@ describe("cli commands", () => {
           status: "created",
           scope: {
             chainId: 84532,
-            targetContract: "0x1111111111111111111111111111111111111111",
-            allowedMethods: ["0xa9059cbb"],
+            contractPermissions: [
+              {
+                targetContract: "0x1111111111111111111111111111111111111111",
+                allowedMethods: ["0xa9059cbb"],
+              },
+            ],
           },
           sessionPublicKey: "0x1234",
           funding: {
@@ -256,8 +286,12 @@ describe("cli commands", () => {
             status: "created",
             scope: {
               chainId: 84532,
-              targetContract: "0x1111111111111111111111111111111111111111",
-              allowedMethods: ["0xa9059cbb"],
+              contractPermissions: [
+                {
+                  targetContract: "0x1111111111111111111111111111111111111111",
+                  allowedMethods: ["0xa9059cbb"],
+                },
+              ],
             },
             sessionPublicKey: "0x1234",
             funding: {
@@ -276,8 +310,12 @@ describe("cli commands", () => {
             status: "owner_bound",
             scope: {
               chainId: 84532,
-              targetContract: "0x1111111111111111111111111111111111111111",
-              allowedMethods: ["0xa9059cbb"],
+              contractPermissions: [
+                {
+                  targetContract: "0x1111111111111111111111111111111111111111",
+                  allowedMethods: ["0xa9059cbb"],
+                },
+              ],
             },
             sessionPublicKey: "0x1234",
             counterfactualWalletAddress:
@@ -299,8 +337,12 @@ describe("cli commands", () => {
               },
               scope: {
                 chainId: 84532,
-                targetContract: "0x1111111111111111111111111111111111111111",
-                allowedMethods: ["0xa9059cbb"],
+                contractPermissions: [
+                  {
+                    targetContract: "0x1111111111111111111111111111111111111111",
+                    allowedMethods: ["0xa9059cbb"],
+                  },
+                ],
               },
               policyDigest: "0x12345678",
               serializedPermissionAccount: "approval_123",
@@ -317,8 +359,12 @@ describe("cli commands", () => {
             status: "ready",
             scope: {
               chainId: 84532,
-              targetContract: "0x1111111111111111111111111111111111111111",
-              allowedMethods: ["0xa9059cbb"],
+              contractPermissions: [
+                {
+                  targetContract: "0x1111111111111111111111111111111111111111",
+                  allowedMethods: ["0xa9059cbb"],
+                },
+              ],
             },
             sessionPublicKey: "0x1234",
             counterfactualWalletAddress:
@@ -340,8 +386,12 @@ describe("cli commands", () => {
               },
               scope: {
                 chainId: 84532,
-                targetContract: "0x1111111111111111111111111111111111111111",
-                allowedMethods: ["0xa9059cbb"],
+                contractPermissions: [
+                  {
+                    targetContract: "0x1111111111111111111111111111111111111111",
+                    allowedMethods: ["0xa9059cbb"],
+                  },
+                ],
               },
               policyDigest: "0x12345678",
               serializedPermissionAccount: "approval_123",
@@ -356,8 +406,9 @@ describe("cli commands", () => {
 
     await executeCreate({
       chainId: "84532",
-      targetContract: "0x1111111111111111111111111111111111111111",
-      allowedMethod: "0xa9059cbb",
+      contractPermissions: [
+        "0x1111111111111111111111111111111111111111:0xa9059cbb",
+      ],
       backendUrl: "http://127.0.0.1:3000",
     });
 
@@ -411,8 +462,12 @@ describe("cli commands", () => {
       provisioningUrl:
         "http://127.0.0.1:5173/?walletId=wal_ready&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
       chainId: 84532,
-      targetContract: "0x1111111111111111111111111111111111111111",
-      allowedMethods: ["0xa9059cbb"],
+      contractPermissions: [
+        {
+          targetContract: "0x1111111111111111111111111111111111111111",
+          allowedMethods: ["0xa9059cbb"],
+        },
+      ],
       sessionPublicKey:
         "0x04bfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabf",
       sessionPrivateKey:

@@ -21,8 +21,11 @@ describe("cli help", () => {
 
     expect(createCommand?.helpInformation()).toContain("--chain-id");
     expect(createCommand?.helpInformation()).toContain("--backend-url");
-    expect(createCommand?.helpInformation()).toContain("--allowed-method");
-    expect(createCommand?.helpInformation()).toContain("--usdc-limit-period");
+    expect(createCommand?.helpInformation()).toContain("--contract-permission");
+    expect(createCommand?.helpInformation()).toContain("--usdc-outgoing-limit");
+    expect(createCommand?.helpInformation()).toContain("--usdc-outgoing-period");
+    expect(createCommand?.helpInformation()).toContain("--usdc-outgoing-flow");
+    expect(createCommand?.helpInformation()).toContain("--usdc-outgoing-counterparty");
     expect(createCommand?.helpInformation()).toContain("84532 (Base Sepolia)");
   });
 

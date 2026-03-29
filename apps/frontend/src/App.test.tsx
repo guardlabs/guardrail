@@ -12,8 +12,12 @@ function buildProvisioningResponse(
     status: "created",
     scope: {
       chainId: 84532,
-      targetContract: "0x1111111111111111111111111111111111111111",
-      allowedMethods: ["0xa9059cbb"],
+      contractPermissions: [
+        {
+          targetContract: "0x1111111111111111111111111111111111111111",
+          allowedMethods: ["0xa9059cbb"],
+        },
+      ],
     },
     sessionPublicKey: "0x1234",
     ownerPublicArtifacts: undefined,
@@ -35,8 +39,12 @@ function buildWalletRequest(
     status: "ready",
     scope: {
       chainId: 84532,
-      targetContract: "0x1111111111111111111111111111111111111111",
-      allowedMethods: ["0xa9059cbb"],
+      contractPermissions: [
+        {
+          targetContract: "0x1111111111111111111111111111111111111111",
+          allowedMethods: ["0xa9059cbb"],
+        },
+      ],
     },
     sessionPublicKey: "0x1234",
     counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
@@ -57,8 +65,12 @@ function buildWalletRequest(
       },
       scope: {
         chainId: 84532,
-        targetContract: "0x1111111111111111111111111111111111111111",
-        allowedMethods: ["0xa9059cbb"],
+        contractPermissions: [
+          {
+            targetContract: "0x1111111111111111111111111111111111111111",
+            allowedMethods: ["0xa9059cbb"],
+          },
+        ],
       },
       policyDigest: "0x12345678",
       serializedPermissionAccount: "approval_123",
@@ -128,8 +140,12 @@ describe("frontend app", () => {
         displayName: "Agent Wallet",
         scope: {
           chainId: 84532,
-          targetContract: "0x1111111111111111111111111111111111111111",
-          allowedMethods: ["0xa9059cbb"],
+          contractPermissions: [
+            {
+              targetContract: "0x1111111111111111111111111111111111111111",
+              allowedMethods: ["0xa9059cbb"],
+            },
+          ],
         },
         sessionPublicKey: "0x1234",
       });
@@ -229,8 +245,12 @@ describe("frontend app", () => {
             },
             scope: {
               chainId: 84532,
-              targetContract: "0x1111111111111111111111111111111111111111",
-              allowedMethods: ["0xa9059cbb"],
+              contractPermissions: [
+                {
+                  targetContract: "0x1111111111111111111111111111111111111111",
+                  allowedMethods: ["0xa9059cbb"],
+                },
+              ],
             },
             policyDigest: "0x12345678",
             serializedPermissionAccount: "approval_123",

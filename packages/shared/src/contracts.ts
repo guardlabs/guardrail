@@ -17,6 +17,7 @@ export const selectorSchema = z
   .regex(/^0x[a-fA-F0-9]{8}$/, "Allowed methods must be 4-byte selectors");
 
 export const ERC20_TRANSFER_SELECTOR = "0xa9059cbb" as const;
+export const ERC20_APPROVE_SELECTOR = "0x095ea7b3" as const;
 
 export const hexStringSchema = z
   .string()
@@ -30,37 +31,57 @@ export const baseUnitsStringSchema = z
   .string()
   .regex(/^[0-9]+$/, "Expected a base-10 integer string");
 
-export const spendLimitPeriodSchema = z.enum(["day", "week", "month"]);
+export const outgoingBudgetPeriodSchema = z.enum(["day", "week", "month"]);
+export const outgoingBudgetFlowSchema = z.enum(["transfer", "approve"]);
 
-export const spendLimitSchema = z.discriminatedUnion("type", [
-  z.object({
+function dedupe<T>(values: T[]) {
+  return [...new Set(values)];
+}
+
+export const contractPermissionSchema = z
+  .object({
+    targetContract: evmAddressSchema,
+    allowedMethods: z.array(selectorSchema).min(1),
+  })
+  .transform((permission) => ({
+    ...permission,
+    allowedMethods: dedupe(permission.allowedMethods),
+  }));
+
+export const outgoingBudgetSchema = z
+  .object({
     type: z.literal("erc20"),
     tokenAddress: evmAddressSchema,
     limitBaseUnits: baseUnitsStringSchema,
-    period: spendLimitPeriodSchema,
-  }),
-  z.object({
-    type: z.literal("native"),
-    limitBaseUnits: baseUnitsStringSchema,
-    period: spendLimitPeriodSchema,
-  }),
-]);
-
-function dedupeSelectors(selectors: string[]) {
-  return [...new Set(selectors)];
-}
+    period: outgoingBudgetPeriodSchema,
+    allowedFlows: z.array(outgoingBudgetFlowSchema).min(1),
+    allowedCounterparties: z.array(evmAddressSchema).min(1).optional(),
+  })
+  .transform((budget) => ({
+    ...budget,
+    allowedFlows: dedupe(budget.allowedFlows),
+    allowedCounterparties: budget.allowedCounterparties
+      ? dedupe(budget.allowedCounterparties)
+      : undefined,
+  }));
 
 export const permissionScopeSchema = z
   .object({
     chainId: z.number().int().positive(),
-    targetContract: evmAddressSchema,
-    allowedMethods: z.array(selectorSchema).min(1),
-    spendLimits: z.array(spendLimitSchema).max(1).optional(),
+    contractPermissions: z.array(contractPermissionSchema).optional(),
+    outgoingBudgets: z.array(outgoingBudgetSchema).max(1).optional(),
   })
-  .transform((scope) => ({
-    ...scope,
-    allowedMethods: dedupeSelectors(scope.allowedMethods),
-  }));
+  .superRefine((scope, ctx) => {
+    if (
+      (scope.contractPermissions?.length ?? 0) === 0 &&
+      (scope.outgoingBudgets?.length ?? 0) === 0
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "At least one contract permission or outgoing budget is required.",
+      });
+    }
+  });
 
 export const ownerPublicArtifactsSchema = z.object({
   credentialId: z.string().min(1),
@@ -103,10 +124,19 @@ export const walletRequestSchema = z.object({
 
 export const createWalletRequestInputSchema = z.object({
   chainId: z.number().int().positive(),
-  targetContract: evmAddressSchema,
-  allowedMethods: z.array(selectorSchema).min(1).transform(dedupeSelectors),
-  spendLimits: z.array(spendLimitSchema).max(1).optional(),
+  contractPermissions: z.array(contractPermissionSchema).optional(),
+  outgoingBudgets: z.array(outgoingBudgetSchema).max(1).optional(),
   sessionPublicKey: hexStringSchema,
+}).superRefine((input, ctx) => {
+  if (
+    (input.contractPermissions?.length ?? 0) === 0 &&
+    (input.outgoingBudgets?.length ?? 0) === 0
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "At least one contract permission or outgoing budget is required.",
+    });
+  }
 });
 
 export const createWalletRequestResponseSchema = z.object({
@@ -155,15 +185,24 @@ export const localWalletRequestSchema = z.object({
   backendBaseUrl: z.string().url(),
   provisioningUrl: z.string().url(),
   chainId: z.number().int().positive(),
-  targetContract: evmAddressSchema,
-  allowedMethods: z.array(selectorSchema).min(1),
-  spendLimits: z.array(spendLimitSchema).max(1).optional(),
+  contractPermissions: z.array(contractPermissionSchema).optional(),
+  outgoingBudgets: z.array(outgoingBudgetSchema).max(1).optional(),
   sessionPublicKey: hexStringSchema,
   sessionPrivateKey: hexStringSchema,
   walletAddress: evmAddressSchema.optional(),
   serializedPermissionAccount: z.string().min(1).optional(),
   createdAt: z.string().min(1),
   lastKnownStatus: walletRequestStatusSchema,
+}).superRefine((request, ctx) => {
+  if (
+    (request.contractPermissions?.length ?? 0) === 0 &&
+    (request.outgoingBudgets?.length ?? 0) === 0
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "At least one contract permission or outgoing budget is required.",
+    });
+  }
 });
 
 const transitions = {
@@ -186,7 +225,7 @@ export function normalizePermissionScope(
   return permissionScopeSchema.parse(input);
 }
 
-export function toSpendLimitPeriodSeconds(period: SpendLimitPeriod) {
+export function toOutgoingBudgetPeriodSeconds(period: OutgoingBudgetPeriod) {
   switch (period) {
     case "day":
       return 86_400;
@@ -197,46 +236,27 @@ export function toSpendLimitPeriodSeconds(period: SpendLimitPeriod) {
   }
 }
 
-export function getSpendLimitScopeValidationErrors(
+export function getOutgoingBudgetScopeValidationErrors(
   scope: PermissionScope,
 ) {
-  if (!scope.spendLimits?.length) {
+  const [outgoingBudget] = scope.outgoingBudgets ?? [];
+
+  if (!outgoingBudget) {
     return [];
   }
 
-  const [spendLimit] = scope.spendLimits;
-  const errors: string[] = [];
-
-  if (!spendLimit) {
-    return errors;
+  if (outgoingBudget.allowedFlows.length === 0) {
+    return ["Outgoing budgets must enable at least one flow."];
   }
 
-  if (spendLimit.type === "native") {
-    errors.push("Native spend limits are not supported yet.");
-    return errors;
-  }
-
-  if (
-    scope.targetContract.toLowerCase() !== spendLimit.tokenAddress.toLowerCase()
-  ) {
-    errors.push("Spend-limited ERC20 scopes must target the limited token contract.");
-  }
-
-  if (
-    scope.allowedMethods.length !== 1 ||
-    scope.allowedMethods[0]?.toLowerCase() !== ERC20_TRANSFER_SELECTOR
-  ) {
-    errors.push(
-      "ERC20 spend-limited scopes must allow only transfer(address,uint256).",
-    );
-  }
-
-  return errors;
+  return [];
 }
 
+export type ContractPermission = z.infer<typeof contractPermissionSchema>;
 export type PermissionScope = z.infer<typeof permissionScopeSchema>;
-export type SpendLimit = z.infer<typeof spendLimitSchema>;
-export type SpendLimitPeriod = z.infer<typeof spendLimitPeriodSchema>;
+export type OutgoingBudget = z.infer<typeof outgoingBudgetSchema>;
+export type OutgoingBudgetPeriod = z.infer<typeof outgoingBudgetPeriodSchema>;
+export type OutgoingBudgetFlow = z.infer<typeof outgoingBudgetFlowSchema>;
 export type OwnerPublicArtifacts = z.infer<typeof ownerPublicArtifactsSchema>;
 export type FundingState = z.infer<typeof fundingStateSchema>;
 export type WalletContext = z.infer<typeof walletContextSchema>;

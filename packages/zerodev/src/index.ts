@@ -1,1 +1,1 @@
-export * from "./agent-spend-limit-policy.js";
+export * from "./agent-outgoing-budget-policy.js";

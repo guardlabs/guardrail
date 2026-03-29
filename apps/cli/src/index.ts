@@ -2,8 +2,9 @@
 import { fileURLToPath } from "node:url";
 import { Command, Option } from "commander";
 import {
-  selectorSchema,
-  spendLimitPeriodSchema,
+  evmAddressSchema,
+  outgoingBudgetFlowSchema,
+  outgoingBudgetPeriodSchema,
   supportedChains,
 } from "@agent-wallet/shared";
 import {
@@ -26,6 +27,10 @@ function formatSupportedChains() {
   return supportedChains.map((chain) => `${chain.id} (${chain.name})`).join(", ");
 }
 
+function collectOptionValue(value: string, previous: string[] = []) {
+  return [...previous, value];
+}
+
 export function buildProgram() {
   const program = new Command();
   const supportedChainsText = formatSupportedChains();
@@ -46,37 +51,47 @@ export function buildProgram() {
       `Create a wallet provisioning request\n\nSupported chains:\n  ${supportedChainsText}`,
     )
     .requiredOption("--chain-id <chainId>", "EIP-155 chain id")
-    .requiredOption("--target-contract <address>", "Scoped target contract")
     .addOption(
       new Option(
-        "--allowed-method <selector>",
-        "Allowed method selector. Repeat the flag to authorize multiple methods",
-      ).argParser((value) => selectorSchema.parse(value)),
-    )
-    .addOption(
-      new Option(
-        "--allowed-methods <selectors...>",
-        "Allowed method selectors as a space-separated list",
-      ),
+        "--contract-permission <address:selectors>",
+        "Repeatable contract permission in the form <targetContract>:<selector>[,<selector>...]",
+      ).argParser(collectOptionValue),
     )
     .option(
-      "--usdc-limit <amount>",
+      "--usdc-outgoing-limit <amount>",
       "Optional cumulative USDC limit expressed in whole-token units.",
     )
     .addOption(
       new Option(
-        "--usdc-limit-period <period>",
-        "Spend-limit period when --usdc-limit is set",
+        "--usdc-outgoing-period <period>",
+        "Outgoing-budget period when --usdc-outgoing-limit is set",
       )
-        .choices(spendLimitPeriodSchema.options)
+        .choices(outgoingBudgetPeriodSchema.options)
         .default("week"),
+    )
+    .addOption(
+      new Option(
+        "--usdc-outgoing-flow <flow>",
+        "Repeatable outgoing flow covered by the USDC budget",
+      )
+        .choices(outgoingBudgetFlowSchema.options)
+        .argParser(collectOptionValue),
+    )
+    .addOption(
+      new Option(
+        "--usdc-outgoing-counterparty <address>",
+        "Optional repeatable whitelist entry for USDC transfer recipients and approve spenders",
+      ).argParser((value, previous: string[] = []) => [
+        ...previous,
+        evmAddressSchema.parse(value),
+      ]),
     )
     .option("--operator-api-key <key>", "Operator API key")
     .addHelpText(
       "after",
       `
 Example:
-  agent-wallet create --chain-id 84532 --target-contract 0x1111111111111111111111111111111111111111 --allowed-method 0xa9059cbb --backend-url http://127.0.0.1:3000
+  agent-wallet create --chain-id 84532 --contract-permission 0x1111111111111111111111111111111111111111:0xa9059cbb --usdc-outgoing-limit 25 --usdc-outgoing-flow transfer --backend-url http://127.0.0.1:3000
       `.trimEnd(),
     );
   addBackendOption(createCommand);

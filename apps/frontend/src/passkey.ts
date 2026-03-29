@@ -1,9 +1,12 @@
 import {
-  getSpendLimitScopeValidationErrors,
+  ERC20_APPROVE_SELECTOR,
+  ERC20_TRANSFER_SELECTOR,
+  getOutgoingBudgetScopeValidationErrors,
   getSupportedChainById,
+  type OutgoingBudget,
   type PermissionScope,
 } from "@agent-wallet/shared";
-import { toAgentSpendLimitPolicy } from "@agent-wallet/zerodev";
+import { toAgentOutgoingBudgetPolicy } from "@agent-wallet/zerodev";
 import {
   PasskeyValidatorContractVersion,
   toPasskeyValidator,
@@ -54,7 +57,7 @@ function getChain(chainId: number) {
   return supportedChain.viemChain;
 }
 
-function getSpendLimitPolicyAddress(chainId: number): Address | null {
+function getOutgoingBudgetPolicyAddress(chainId: number): Address | null {
   const supportedChain = getSupportedChainById(chainId);
 
   if (!supportedChain) {
@@ -63,54 +66,81 @@ function getSpendLimitPolicyAddress(chainId: number): Address | null {
 
   switch (supportedChain.frontendRuntimeKey) {
     case "BASE_SEPOLIA":
-      return __BASE_SEPOLIA_SPEND_LIMIT_POLICY_ADDRESS__ as Address | null;
+      return __BASE_SEPOLIA_OUTGOING_BUDGET_POLICY_ADDRESS__ as Address | null;
     default:
       return null;
   }
 }
 
+function getOutgoingBudgetSelectors(outgoingBudget: OutgoingBudget) {
+  if (outgoingBudget.type !== "erc20") {
+    return [];
+  }
+
+  return outgoingBudget.allowedFlows.map((flow) =>
+    flow === "transfer" ? ERC20_TRANSFER_SELECTOR : ERC20_APPROVE_SELECTOR,
+  );
+}
+
 function buildPermissionPolicies(scope: PermissionScope) {
-  const validationErrors = getSpendLimitScopeValidationErrors(scope);
+  const validationErrors = getOutgoingBudgetScopeValidationErrors(scope);
 
   if (validationErrors.length > 0) {
     throw new Error(validationErrors.join(" "));
   }
 
-  const policies: Policy[] = [
-    toCallPolicy({
-      policyVersion: CallPolicyVersion.V0_0_5,
-      permissions: scope.allowedMethods.map((selector) => ({
-        target: scope.targetContract as `0x${string}`,
+  const callPermissions = [
+    ...(scope.contractPermissions ?? []).flatMap((permission) =>
+      permission.allowedMethods.map((selector) => ({
+        target: permission.targetContract as `0x${string}`,
         selector: selector as Hex,
         valueLimit: 0n,
       })),
+    ),
+    ...(scope.outgoingBudgets ?? []).flatMap((outgoingBudget) =>
+      getOutgoingBudgetSelectors(outgoingBudget).map((selector) => ({
+        target: outgoingBudget.tokenAddress as `0x${string}`,
+        selector: selector as Hex,
+        valueLimit: 0n,
+      })),
+    ),
+  ];
+
+  const policies: Policy[] = [
+    toCallPolicy({
+      policyVersion: CallPolicyVersion.V0_0_5,
+      permissions: callPermissions,
     }),
   ];
 
-  const spendLimit = scope.spendLimits?.[0];
+  const outgoingBudget = scope.outgoingBudgets?.[0];
 
-  if (!spendLimit) {
+  if (!outgoingBudget) {
     return policies;
   }
 
-  if (spendLimit.type !== "erc20") {
-    throw new Error("Only ERC20 spend limits are currently supported.");
+  if (outgoingBudget.type !== "erc20") {
+    throw new Error("Only ERC20 outgoing budgets are currently supported.");
   }
 
-  const policyAddress = getSpendLimitPolicyAddress(scope.chainId);
+  const policyAddress = getOutgoingBudgetPolicyAddress(scope.chainId);
 
   if (!policyAddress) {
     throw new Error(
-      `Missing AGENT_WALLET_SPEND_LIMIT_POLICY_ADDRESS_${scope.chainId} in frontend build.`,
+      `Missing AGENT_WALLET_OUTGOING_BUDGET_POLICY_ADDRESS_${scope.chainId} in frontend build.`,
     );
   }
 
   policies.push(
-    toAgentSpendLimitPolicy({
+    toAgentOutgoingBudgetPolicy({
       policyAddress,
-      tokenAddress: spendLimit.tokenAddress as Address,
-      limitBaseUnits: spendLimit.limitBaseUnits,
-      period: spendLimit.period,
+      tokenAddress: outgoingBudget.tokenAddress as Address,
+      limitBaseUnits: outgoingBudget.limitBaseUnits,
+      period: outgoingBudget.period,
+      allowedFlows: outgoingBudget.allowedFlows,
+      allowedCounterparties: outgoingBudget.allowedCounterparties as
+        | Address[]
+        | undefined,
     }),
   );
 

@@ -23,9 +23,9 @@ import type {
 import type { EntryPointVersion } from "viem/account-abstraction";
 import { privateKeyToAccount } from "viem/accounts";
 import {
-  isAgentSpendLimitPolicyParams,
-  toAgentSpendLimitPolicy,
-} from "./agent-spend-limit-policy.js";
+  isAgentOutgoingBudgetPolicyParams,
+  toAgentOutgoingBudgetPolicy,
+} from "./agent-outgoing-budget-policy.js";
 
 function deserializePermissionAccountParams(params: string) {
   return JSON.parse(
@@ -36,12 +36,14 @@ function deserializePermissionAccountParams(params: string) {
 export async function createPolicyFromParams(policy: Policy) {
   const customPolicyParams = policy.policyParams as unknown;
 
-  if (isAgentSpendLimitPolicyParams(customPolicyParams)) {
-    return toAgentSpendLimitPolicy({
+  if (isAgentOutgoingBudgetPolicyParams(customPolicyParams)) {
+    return toAgentOutgoingBudgetPolicy({
       policyAddress: customPolicyParams.policyAddress,
       tokenAddress: customPolicyParams.tokenAddress,
       limitBaseUnits: customPolicyParams.limitBaseUnits,
       period: customPolicyParams.period,
+      allowedFlows: customPolicyParams.allowedFlows,
+      allowedCounterparties: customPolicyParams.allowedCounterparties,
       policyFlag: customPolicyParams.policyFlag,
     });
   }
