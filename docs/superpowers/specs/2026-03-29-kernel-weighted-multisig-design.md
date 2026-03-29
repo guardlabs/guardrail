@@ -94,6 +94,7 @@ Inspection of `@zerodev/weighted-ecdsa-validator@5.4.4` confirms:
 - `createWeightedECDSAValidator(...)` is the official helper
 - it is not install-only; it also performs runtime signing
 - it expects `signers: Array<Signer>`
+- it sorts signers by address in descending order and uses that sorted order as the canonical signing order
 - for `signUserOperation(...)`, signers do not all sign the same payload:
   - the first `n - 1` signers sign `Approve(callDataAndNonceHash)`
   - the last signer signs the final `userOpHash`
@@ -154,6 +155,17 @@ The weighted validator runtime should live on the agent side:
   - a local signer for the agent EOA
   - a remote signer for the backend EOA
 
+Canonical signer-order rules:
+
+- the implementation must treat the helper's internal descending-address sort as the source of truth
+- the implementation must not rely on the unsorted caller-provided array order for business logic
+- the backend remote signer must support both:
+  - `signTypedData`
+  - `signMessage`
+- this is required because, after sorting, the backend may end up being either:
+  - one of the early typed-data signers
+  - or the final `userOpHash` signer
+
 The backend should not manually reimplement weighted-signature assembly if the official helper can be used directly through a remote signer transport.
 
 ## Provisioning Flow
@@ -181,6 +193,47 @@ The backend should not manually reimplement weighted-signature assembly if the o
 9. The frontend returns wallet artifacts to the backend.
 10. The backend persists the final wallet metadata and marks the request `owner_bound` or `ready` depending on funding.
 
+Provisioning artifacts are defined as:
+
+- `owner` public passkey artifacts
+- `counterfactualWalletAddress`
+- any wallet metadata needed to reconstruct the mode-B wallet context
+
+Status semantics for mode B:
+
+- `created`: backend record exists, but browser provisioning has not completed
+- `owner_bound`: the passkey owner exists, the wallet address is known, and the backend has enough metadata to continue; funding or weighted-validator readiness may still be pending
+- `ready`: the wallet has the expected mode-B validator configuration and enough funding for runtime use
+- `failed`: provisioning can no longer continue without operator intervention
+
+Provisioning implementation preference and fallback:
+
+- preferred path:
+  - the frontend creates the Kernel account directly with both:
+    - `sudo = passkey`
+    - `regular = weighted validator`
+  - it uses provisioning-only fake signers if the official weighted helper accepts them for install/config encoding
+- fallback path:
+  - the frontend creates the Kernel account with `sudo = passkey`
+  - the frontend initiates the second step, because it is the only surface that has access to the passkey sudo signer
+  - the frontend produces a passkey-signed `regularValidatorInitArtifact` for the weighted regular validator
+  - that artifact is sent to the backend together with:
+    - `walletAddress`
+    - `agentAddress`
+    - `backendAddress`
+    - weighted validator config
+  - `regularValidatorInitArtifact` must contain the exact data needed for one later enablement transaction:
+    - `validatorAddress`
+    - `enableData`
+    - `pluginEnableSignature`
+  - the backend persists the artifact and marks the wallet `owner_bound`
+  - after funding is verified, the backend is the single owner of the one-time validator-enable transaction and executes it using the persisted artifact
+  - the wallet becomes `ready` only after:
+    - the weighted regular validator is actually enabled
+    - and the wallet is funded enough for runtime use
+
+The implementation must try the preferred path first and use the fallback path only if the installed SDK/helper behavior makes direct creation impossible.
+
 ## Runtime Transaction Flow
 
 1. The agent wants to execute a transaction.
@@ -194,6 +247,13 @@ The backend should not manually reimplement weighted-signature assembly if the o
 7. The Kernel client uses the weighted validator signature to send the user operation.
 
 The implementation should rely on the official helper's behavior for signer ordering and user operation signing semantics.
+
+The runtime should pass the available signers naturally:
+
+- local agent signer
+- backend remote signer
+
+but all implementation logic and tests must reason about the helper's sorted canonical order, not the original caller-supplied order.
 
 ## Runtime Off-Chain Signature Flow
 
@@ -210,6 +270,8 @@ For off-chain requests, replay protection must be provided by the backend using:
 
 - `requestId`
 - `expiresAt`
+
+As with user operations, the weighted helper's sorted signer order is canonical for signature concatenation.
 
 ## Backend Remote Signer Authentication
 
@@ -288,6 +350,7 @@ New responsibilities:
 - expose backend remote signer endpoints
 - authenticate agent requests for signing
 - provide replay protection for off-chain signing requests
+- execute the fallback validator-enable step if direct weighted provisioning is not possible
 
 Mode-A-specific provisioning state should be removed from backend records once the migration is complete.
 
@@ -324,18 +387,20 @@ Must become the source of truth for:
 
 ### `packages/zerodev`
 
-Should be reevaluated after migration.
+Should be repurposed rather than removed.
 
-Expected options:
+Its new role should be limited to small wrappers around:
 
-- either remove the package if the repo only needs direct official ZeroDev helpers
-- or repurpose it for small wrappers around:
-  - weighted validator runtime creation
-  - backend remote signer compatibility helpers
+- weighted validator runtime creation
+- backend remote signer compatibility helpers
+- any minimal install-time helper needed to bridge the frontend provisioning path to the official SDK without reimplementing validator behavior
+- fallback validator-enable artifact helpers if the direct frontend provisioning path is not available
 
 ### `contracts`
 
-The outgoing-budget policy is no longer part of the critical mode-B path. The migration should remove mode-A-specific contracts and tests if no remaining feature still depends on them.
+The outgoing-budget policy is no longer part of the critical mode-B path. The migration should remove the mode-A-specific contracts and tests introduced for the session-key permissions flow.
+
+If no remaining feature depends on the `contracts` workspace after that cleanup, the workspace should be removed from the repo in this migration.
 
 ## Cleanup List
 
@@ -348,6 +413,17 @@ Expected removals or rewrites:
 - mode-A-only fields in `packages/shared/src/contracts.ts`
 - mode-A tests in CLI, frontend, backend, shared, and zerodev package
 - mode-A custom outgoing-budget policy if no longer used
+
+Mode-A persisted data migration strategy:
+
+- no backward-compatible persisted-record migration is required
+- the repo is currently in development only
+- backend wallet-request records and local CLI wallet files from mode A may be treated as incompatible and dropped
+- schema and local-state migrations should therefore prefer clarity over compatibility shims
+- the new shared schemas must include an explicit wallet mode or schema version field for mode B records
+- backend read paths must reject legacy records that do not match the new mode-B schema
+- CLI local-state read paths must reject legacy wallet files that do not match the new mode-B schema
+- startup and read-time failures should produce explicit errors instructing the operator to recreate the wallet request or delete the old local file
 
 ## Validation Targets
 
@@ -374,7 +450,15 @@ Two implementation-time validations remain mandatory:
      - `regular = weighted validator`
    - or whether the weighted validator must instead be enabled in a second step signed by the passkey
 
-These do not change the target architecture, but they determine the exact provisioning implementation.
+These do not change the target architecture, but they determine whether the implementation takes the preferred provisioning path or the explicit fallback path defined above.
+
+If the fallback path is required, the implementation contract is:
+
+1. the frontend creates the passkey sudo wallet state and publishes the validator-enable artifact
+2. the backend stores that artifact in the wallet record
+3. the wallet remains `owner_bound` until both funding and validator enablement are complete
+4. the backend executes the enablement transaction
+5. only then may the request transition to `ready`
 
 ## Recommended Migration Sequence
 
@@ -387,4 +471,10 @@ These do not change the target architecture, but they determine the exact provis
    - local agent signer
    - backend remote signer
 7. Add off-chain signing primitive and replay protection.
-8. Remove remaining mode-A code, tests, and contracts.
+8. Add an explicit mode-B schema/version marker and reject legacy mode-A backend and local records at read time.
+9. If direct weighted provisioning fails in the installed SDK, implement the fallback validator-enable artifact flow and gate `ready` on successful enablement.
+10. Remove remaining mode-A code and tests.
+11. Remove the `contracts` workspace only after all of the following are true:
+    - no non-doc files reference the outgoing-budget policy or session-key permission contracts
+    - repo build and tests pass without the workspace
+    - no remaining mode-B feature depends on that workspace
