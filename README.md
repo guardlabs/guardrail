@@ -10,15 +10,13 @@
   <img src="https://img.shields.io/badge/chain-Base%20Sepolia-0052FF" alt="Chain: Base Sepolia" />
 </p>
 
-## Overview
+## 🧭 Overview
 
-Conduit Wallet is an EVM wallet for autonomous agents that avoids putting a long-lived EOA private key on disk. Instead of letting the agent fully control a wallet key, Conduit keeps the wallet owned by a human passkey and requires runtime actions to be approved through a backend co-signer.
+Conduit Wallet is an EVM wallet for autonomous agents that avoids storing a long-lived EOA private key on disk.
 
-In practice, the agent gets a runtime key, the backend gets its own co-signer key, and transactions triggered by the agent only go through when the backend agrees. This is the place where Conduit can enforce policies such as allowed contracts, allowed methods, and spending limits.
+The wallet is owned by a human passkey, and agent-triggered actions require backend co-signing so Conduit can enforce policies before execution.
 
-Today, the repository already covers wallet provisioning, backend-assisted co-signing, local agent runtime, and a small provisioning frontend. Full policy enforcement by the backend is the next major step.
-
-## Quickstart
+## 🚀 Quickstart
 
 These commands use placeholders for the future public deployment. Replace them with your real package name and hosted URLs once they exist.
 
@@ -69,7 +67,7 @@ npx @your-scope/conduit-wallet sign-typed-data wal_xxx \
   --typed-data-file ./typed-data.json
 ```
 
-## Technical Design
+## 🛠️ Technical Design
 
 Conduit Wallet currently builds on [Kernel](https://github.com/zerodevapp/kernel), the modular ERC-4337 smart account, and uses [ZeroDev](https://zerodev.app/) plus the [ZeroDev SDK](https://docs.zerodev.app/) for provisioning and validator integration.
 
@@ -85,9 +83,11 @@ The high-level flow is:
 3. A human opens the hosted frontend, creates a passkey, and binds the wallet.
 4. Once funded and ready, the CLI can use the wallet to send transactions or sign typed data.
 
+Today, the repository already covers wallet provisioning, backend-assisted co-signing, local agent runtime, and a small provisioning frontend. Full policy enforcement by the backend is the next major step.
+
 The current implementation targets Base Sepolia.
 
-## Supported Chains
+## ⛓️ Supported Chains
 
 Conduit Wallet currently supports a single chain:
 
@@ -97,21 +97,21 @@ Conduit Wallet currently supports a single chain:
 
 Chain support is defined centrally in the shared package and is currently limited to Base Sepolia.
 
-## Local Development
+## 💻 Local Development
 
-### Prerequisites
+### ✅ Prerequisites
 
 - Node.js 22+
 - `pnpm` 10+
 - Docker
 
-### Install
+### 📦 Install
 
 ```bash
 pnpm install
 ```
 
-### Environment
+### ⚙️ Environment
 
 Create a local env file from the example:
 
@@ -131,19 +131,19 @@ At minimum, check these values in `.env.local`:
 
 The backend needs chain-specific RPC and bundler URLs. The frontend needs a passkey server URL.
 
-### Start Postgres
+### 🐘 Start Postgres
 
 ```bash
 docker compose up -d postgres
 ```
 
-### Run Database Migrations
+### 🗃️ Run Database Migrations
 
 ```bash
 pnpm db:migrate
 ```
 
-### Run the Full Workspace
+### ▶️ Run the Full Workspace
 
 ```bash
 pnpm dev
@@ -151,7 +151,7 @@ pnpm dev
 
 This starts the monorepo dev processes through Turbo.
 
-### Run Each App Individually
+### 🧩 Run Each App Individually
 
 Backend:
 
@@ -176,7 +176,7 @@ Useful local URLs:
 - frontend: `http://localhost:5173`
 - backend: `http://localhost:3000`
 
-### Local End-to-End Flow
+### 🔄 Local End-to-End Flow
 
 Create a wallet request locally:
 
@@ -199,7 +199,7 @@ Local wallet state is stored under:
 ~/.conduit/wallets
 ```
 
-## Testing and Typechecking
+## 🧪 Testing and Typechecking
 
 Run the whole workspace:
 
@@ -226,7 +226,7 @@ pnpm --filter @conduit/shared typecheck
 pnpm --filter @conduit/zerodev typecheck
 ```
 
-## Repository Layout
+## 🗂️ Repository Layout
 
 - `apps/backend`: Fastify backend, wallet request lifecycle, backend signing, chain relays, Postgres persistence
 - `apps/frontend`: provisioning UI used by the human operator to create the passkey owner
@@ -234,7 +234,7 @@ pnpm --filter @conduit/zerodev typecheck
 - `packages/shared`: shared contracts, schemas, chain metadata, and wallet config helpers
 - `packages/zerodev`: ZeroDev and Kernel runtime helpers for provisioning and execution
 
-## Current Status
+## 🚧 Current Status
 
 This repository is still pre-deployment:
 
