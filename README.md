@@ -22,9 +22,11 @@ For more detail, see [How It Works](#how-it-works).
 
 ## 🚀 Quickstart
 
-These commands use placeholders for the future public deployment. Replace them with your real package name and hosted URLs once they exist.
+> These commands use placeholders for the future public deployment. Replace them with your real package name and hosted URLs once they exist.
+>
+> The published CLI is expected to use the hosted backend by default, so the examples below do not pass `--backend-url`.
 
-The published CLI is expected to use the hosted backend by default, so the examples below do not pass `--backend-url`.
+Create a wallet request:
 
 ```bash
 npx @your-scope/conduit-wallet create \
@@ -32,10 +34,11 @@ npx @your-scope/conduit-wallet create \
 ```
 
 The command returns:
-- a `walletId`,
-- a provisioning URL for the human,
-- local wallet state stored on disk,
-- the agent signer address.
+
+- a `walletId`
+- a provisioning URL for the human
+- local wallet state stored on disk
+- the agent signer address
 
 Share the provisioning URL with the human operator:
 
@@ -77,13 +80,20 @@ npx @your-scope/conduit-wallet sign-typed-data wal_xxx \
 
 Conduit Wallet is designed so an agent can act autonomously without controlling a fully privileged wallet key.
 
-The human stays the owner through a passkey. In normal operation, the human is only needed for the initial wallet setup and later policy changes, not for each transaction. The agent can still trigger actions on its own, but those actions are only valid when Conduit also approves them. Conduit is the place where runtime policies are enforced, such as which contracts the agent may call, which methods are allowed, and how much value can be moved over time.
+The ownership model is split:
+
+- the human stays the owner through a passkey
+- the agent can trigger actions on its own
+- Conduit must still approve runtime actions before they execute
+
+In normal operation, the human is only needed for the initial wallet setup and later policy changes, not for each transaction. Conduit is the place where runtime policies are enforced, such as which contracts the agent may call, which methods are allowed, and how much value can be moved over time.
 
 This is what makes the model safer than giving the agent a hot EOA key. If the agent key leaks, that key alone is still not enough to drain the wallet or execute arbitrary actions. It can only be used for actions that Conduit is willing to co-sign under the configured policy.
 
 A wallet can be created with policies from the start, such as target contracts or spending limits. That means an autonomous agent or skill can request a dedicated wallet for a specific task, tell the human to fund it, and then use that wallet autonomously within those predefined constraints without any risk.
 
 The high-level flow is:
+
 1. The CLI creates a wallet request and generates an agent key locally.
 2. The backend creates a matching Conduit co-signer and returns a provisioning link.
 3. A human opens the hosted frontend, creates a passkey, and becomes the wallet owner.
@@ -97,10 +107,17 @@ The high-level flow is:
 Conduit Wallet currently builds on [Kernel](https://github.com/zerodevapp/kernel), the modular ERC-4337 smart account, and uses [ZeroDev](https://zerodev.app/) plus the [ZeroDev SDK](https://docs.zerodev.app/) for provisioning and validator integration.
 
 The wallet uses two validator layers:
-- a human passkey as the `sudo` validator, created in the browser with ZeroDev's [passkey flow](https://docs.zerodev.app/sdk/permissions/signers/passkeys),
-- a weighted ECDSA validator for runtime use, implemented with ZeroDev's [multisig signer tooling](https://docs.zerodev.app/sdk/permissions/signers/multisig).
 
-In the current setup, the runtime validator is a `2-of-2` weighted signer set: one key for the agent and one key for the Conduit backend, each with weight `1` and a threshold of `2`. That means runtime operations require both signatures. The passkey remains the human-controlled admin path, while the backend co-signer is the place where Conduit can enforce policies before approving agent-triggered transactions.
+- a human passkey as the `sudo` validator, created in the browser with ZeroDev's [passkey flow](https://docs.zerodev.app/sdk/permissions/signers/passkeys)
+- a weighted ECDSA validator for runtime use, implemented with ZeroDev's [multisig signer tooling](https://docs.zerodev.app/sdk/permissions/signers/multisig)
+
+In the current setup, the runtime validator is a `2-of-2` weighted signer set: one key for the agent and one key for the Conduit backend, each with weight `1` and a threshold of `2`.
+
+That means:
+
+- runtime operations require both signatures
+- the passkey remains the human-controlled admin path
+- the backend co-signer is the place where Conduit can enforce policies before approving agent-triggered transactions
 
 Today, the repository already covers wallet provisioning, backend-assisted co-signing, local agent runtime, and a small provisioning frontend. Full policy enforcement by the backend is the next major step.
 
@@ -124,13 +141,13 @@ Chain support is defined centrally in the shared package and is currently limite
 - `pnpm` 10+
 - Docker
 
-### 📦 Install
+### 1. Install Dependencies
 
 ```bash
 pnpm install
 ```
 
-### ⚙️ Environment
+### 2. Configure Environment
 
 Create a local env file from the example:
 
@@ -150,19 +167,21 @@ At minimum, check these values in `.env.local`:
 
 The backend needs chain-specific RPC and bundler URLs. The frontend needs a passkey server URL.
 
-### 🐘 Start Postgres
+### 3. Start Postgres
 
 ```bash
 docker compose up -d postgres
 ```
 
-### 🗃️ Run Database Migrations
+### 4. Run Database Migrations
 
 ```bash
 pnpm db:migrate
 ```
 
-### ▶️ Run the Full Workspace
+### 5. Start the Workspace
+
+Run the full workspace:
 
 ```bash
 pnpm dev
@@ -170,7 +189,7 @@ pnpm dev
 
 This starts the monorepo dev processes through Turbo.
 
-### 🧩 Run Each App Individually
+Run each app individually if needed:
 
 Backend:
 
@@ -227,7 +246,7 @@ pnpm test
 pnpm typecheck
 ```
 
-Run individual packages:
+Run individual package test commands:
 
 ```bash
 pnpm --filter @conduit/backend test
@@ -236,6 +255,8 @@ pnpm --filter @conduit/cli test
 pnpm --filter @conduit/shared test
 pnpm --filter @conduit/zerodev test
 ```
+
+Run individual package typecheck commands:
 
 ```bash
 pnpm --filter @conduit/backend typecheck
@@ -257,8 +278,8 @@ pnpm --filter @conduit/zerodev typecheck
 
 This repository is still pre-deployment:
 
-- the hosted URLs in this README are placeholders,
-- the npm package name is a placeholder,
-- the repository badges are intentionally static until the public repo and package coordinates are finalized,
-- Base Sepolia is the only supported chain,
-- backend policy enforcement is planned and not fully implemented yet.
+- the hosted URLs in this README are placeholders
+- the npm package name is a placeholder
+- the repository badges are intentionally static until the public repo and package coordinates are finalized
+- Base Sepolia is the only supported chain
+- backend policy enforcement is planned and not fully implemented yet
