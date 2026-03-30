@@ -24,7 +24,7 @@
 - Locked the backend override contract:
   - `--backend-url`
   - `AGENT_WALLET_BACKEND_URL`
-  - `AGENT_WALLET_DEFAULT_BACKEND_URL`
+  - `AGENT_WALLET_PUBLIC_BACKEND_URL`
 
 ### Frontend Constraint
 

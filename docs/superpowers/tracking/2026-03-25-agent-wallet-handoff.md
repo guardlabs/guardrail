@@ -62,7 +62,7 @@ Backend override contract:
 
 - CLI flag: `--backend-url`
 - CLI env: `AGENT_WALLET_BACKEND_URL`
-- frontend env: `AGENT_WALLET_DEFAULT_BACKEND_URL`
+- frontend env: `AGENT_WALLET_PUBLIC_BACKEND_URL`
 
 Working implementation configuration:
 

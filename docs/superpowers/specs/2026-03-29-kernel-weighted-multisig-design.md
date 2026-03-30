@@ -232,7 +232,7 @@ Provisioning implementation preference and fallback:
     - the weighted regular validator is actually enabled
     - and the wallet is funded enough for runtime use
 
-The implementation must try the preferred path first and use the fallback path only if the installed SDK/helper behavior makes direct creation impossible.
+The implementation must try the preferred path first and use the fallback path only if the installed SDK/helper behavior makes direct creation impossible. Before using the fallback path, notify the user and explain your findings.
 
 ## Runtime Transaction Flow
 
@@ -442,7 +442,7 @@ Minimum validation for the migration:
 Two implementation-time validations remain mandatory:
 
 1. `createWeightedECDSAValidator(...)` provisioning path
-   - verify whether provisioning-only fake signers are sufficient when creating the frontend-side regular validator object
+   - verify whether provisioning-only fake signers (i.e. signers where signing methods are no op or throw, but with the right address) are sufficient when creating the frontend-side regular validator object
 
 2. direct creation vs secondary enablement
    - verify whether the Kernel account can be created counterfactually with both:

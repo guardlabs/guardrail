@@ -47,7 +47,7 @@ This document is the current implementation snapshot for the repo. It must be up
 - Backend override contract is fixed:
   - CLI flag: `--backend-url`
   - CLI env: `AGENT_WALLET_BACKEND_URL`
-  - frontend env: `AGENT_WALLET_DEFAULT_BACKEND_URL`
+  - frontend env: `AGENT_WALLET_PUBLIC_BACKEND_URL`
 - Working implementation configuration:
   - chain remains request-scoped via CLI
   - Base Sepolia is the default local test chain

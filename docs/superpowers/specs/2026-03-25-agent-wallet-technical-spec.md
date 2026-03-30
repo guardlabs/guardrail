@@ -70,7 +70,7 @@ Configuration names:
 
 - CLI flag: `--backend-url`
 - CLI environment variable: `AGENT_WALLET_BACKEND_URL`
-- frontend environment variable: `AGENT_WALLET_DEFAULT_BACKEND_URL`
+- frontend environment variable: `AGENT_WALLET_PUBLIC_BACKEND_URL`
 
 Resolution order:
 
@@ -388,7 +388,7 @@ Frontend configuration requirement:
 
 - the frontend deployment must have one configured default backend base URL pointing to the project-operated orchestrator
 - that default must be overrideable when the frontend is redeployed by a third party
-- the frontend environment variable name is `AGENT_WALLET_DEFAULT_BACKEND_URL`
+- the frontend environment variable name is `AGENT_WALLET_PUBLIC_BACKEND_URL`
 
 ### Block C. Orchestration Backend
 
