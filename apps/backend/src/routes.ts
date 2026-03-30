@@ -132,6 +132,57 @@ function assertSupportedChain(chainId: number, config: AppConfig) {
   }
 }
 
+const ALLOWED_RPC_RELAY_METHODS = new Set([
+  "eth_blockNumber",
+  "eth_call",
+  "eth_chainId",
+  "eth_gasPrice",
+  "eth_getBlockByNumber",
+  "eth_getCode",
+  "eth_getTransactionByHash",
+  "eth_getTransactionReceipt",
+  "eth_maxPriorityFeePerGas",
+]);
+
+const ALLOWED_BUNDLER_RELAY_METHODS = new Set([
+  "eth_estimateUserOperationGas",
+  "eth_getUserOperationReceipt",
+  "eth_sendUserOperation",
+]);
+
+function extractRelayMethods(payload: unknown): string[] | null {
+  const requests = Array.isArray(payload) ? payload : [payload];
+
+  if (requests.length === 0) {
+    return null;
+  }
+
+  const methods: string[] = [];
+
+  for (const request of requests) {
+    if (
+      !request ||
+      typeof request !== "object" ||
+      !("method" in request) ||
+      typeof request.method !== "string"
+    ) {
+      return null;
+    }
+
+    methods.push(request.method);
+  }
+
+  return methods;
+}
+
+function isAllowedRelayMethod(target: RelayTarget, method: string) {
+  if (target === "rpc") {
+    return ALLOWED_RPC_RELAY_METHODS.has(method);
+  }
+
+  return ALLOWED_BUNDLER_RELAY_METHODS.has(method);
+}
+
 function normalizeBackendSignMessage(
   payload: BackendSignerMessagePayload,
 ): string | { raw: Hex } {
@@ -260,10 +311,27 @@ export function registerRoutes(
   ) {
     const params = request.params as { chainId: string };
     const chainId = Number(params.chainId);
+    const methods = extractRelayMethods(request.body);
 
     if (!Number.isInteger(chainId) || !config.supportedChainIds.includes(chainId)) {
       return reply.status(404).send({
         error: "unsupported_chain",
+      });
+    }
+
+    if (!methods) {
+      return reply.status(400).send({
+        error: "invalid_relay_request",
+        message: "Relay requests must include a JSON-RPC method.",
+      });
+    }
+
+    const disallowedMethod = methods.find((method) => !isAllowedRelayMethod(target, method));
+
+    if (disallowedMethod) {
+      return reply.status(403).send({
+        error: `${target}_method_not_allowed`,
+        message: `JSON-RPC method ${disallowedMethod} is not allowed on the ${target} relay.`,
       });
     }
 

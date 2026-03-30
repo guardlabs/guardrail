@@ -13,6 +13,7 @@ import {
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { buildApp } from "./app.js";
 import type { AppConfig } from "./config.js";
+import type { ChainRelayService } from "./chain-relay.js";
 import type { StoredWalletRequest, WalletRequestRepository } from "./repository.js";
 import type { WalletProvisioningService } from "./wallet.js";
 
@@ -187,6 +188,30 @@ function createTestWalletProvisioningService(result: {
   };
 }
 
+function createTestChainRelayService() {
+  const calls: Array<{
+    chainId: number;
+    target: "rpc" | "bundler";
+    payload: unknown;
+  }> = [];
+
+  const service: ChainRelayService = {
+    async relay(input) {
+      calls.push(input);
+
+      return {
+        ok: true,
+        target: input.target,
+      };
+    },
+  };
+
+  return {
+    service,
+    calls,
+  };
+}
+
 function extractProvisioningToken(provisioningUrl: string) {
   const url = new URL(provisioningUrl);
   const token = url.searchParams.get("token");
@@ -337,6 +362,141 @@ describe("backend app mode B", () => {
         agentAddress: agentAccount.address,
       },
     });
+
+    await app.close();
+  });
+
+  it("relays allowed RPC methods used by the CLI runtime", async () => {
+    const chainRelay = createTestChainRelayService();
+    const app = buildApp({
+      config: testConfig,
+      repository: createTestRepository(),
+      chainRelayService: chainRelay.service,
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chains/84532/rpc",
+      payload: {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "eth_call",
+        params: [],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      target: "rpc",
+    });
+    expect(chainRelay.calls).toEqual([
+      {
+        chainId: 84532,
+        target: "rpc",
+        payload: {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "eth_call",
+          params: [],
+        },
+      },
+    ]);
+
+    await app.close();
+  });
+
+  it("rejects RPC relay methods outside the CLI allowlist", async () => {
+    const chainRelay = createTestChainRelayService();
+    const app = buildApp({
+      config: testConfig,
+      repository: createTestRepository(),
+      chainRelayService: chainRelay.service,
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chains/84532/rpc",
+      payload: {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "eth_sendRawTransaction",
+        params: ["0xdeadbeef"],
+      },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({
+      error: "rpc_method_not_allowed",
+    });
+    expect(chainRelay.calls).toEqual([]);
+
+    await app.close();
+  });
+
+  it("relays allowed bundler methods used by the CLI runtime", async () => {
+    const chainRelay = createTestChainRelayService();
+    const app = buildApp({
+      config: testConfig,
+      repository: createTestRepository(),
+      chainRelayService: chainRelay.service,
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chains/84532/bundler",
+      payload: {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "eth_sendUserOperation",
+        params: [],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      target: "bundler",
+    });
+    expect(chainRelay.calls).toEqual([
+      {
+        chainId: 84532,
+        target: "bundler",
+        payload: {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "eth_sendUserOperation",
+          params: [],
+        },
+      },
+    ]);
+
+    await app.close();
+  });
+
+  it("rejects malformed relay payloads without a JSON-RPC method", async () => {
+    const chainRelay = createTestChainRelayService();
+    const app = buildApp({
+      config: testConfig,
+      repository: createTestRepository(),
+      chainRelayService: chainRelay.service,
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chains/84532/rpc",
+      payload: {
+        jsonrpc: "2.0",
+        id: 1,
+        params: [],
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      error: "invalid_relay_request",
+    });
+    expect(chainRelay.calls).toEqual([]);
 
     await app.close();
   });
