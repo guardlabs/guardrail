@@ -42,6 +42,10 @@ function createExpiresAt(now: Date, ttlHours: number) {
   return new Date(now.getTime() + ttlHours * 60 * 60 * 1000).toISOString();
 }
 
+function isExpired(expiresAt: string) {
+  return new Date(expiresAt).getTime() <= Date.now();
+}
+
 function createProvisioningUrl(input: {
   frontendBaseUrl: string;
   backendBaseUrl: string;
@@ -482,6 +486,13 @@ export function registerRoutes(
       });
     }
 
+    if (isExpired(walletRequest.expiresAt)) {
+      return reply.status(410).send({
+        error: "provisioning_token_expired",
+        message: "The provisioning token has expired.",
+      });
+    }
+
     return reply.send(
       resolveProvisioningResponseSchema.parse({
         walletMode: walletRequest.walletMode,
@@ -519,6 +530,13 @@ export function registerRoutes(
     if (!existingRequest) {
       return reply.status(404).send({
         error: "request_not_found",
+      });
+    }
+
+    if (isExpired(existingRequest.expiresAt)) {
+      return reply.status(410).send({
+        error: "provisioning_token_expired",
+        message: "The provisioning token has expired.",
       });
     }
 
