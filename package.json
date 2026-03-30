@@ -8,6 +8,8 @@
     "db:migrate": "pnpm --filter @conduit/backend db:migrate",
     "dev": "turbo dev",
     "test": "turbo test",
+    "test:e2e": "pnpm build && pnpm --filter @conduit/e2e test:e2e",
+    "test:e2e:provisioning": "pnpm build && pnpm --filter @conduit/e2e test:provisioning",
     "typecheck": "turbo typecheck"
   },
   "devDependencies": {

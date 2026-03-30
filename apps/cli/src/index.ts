@@ -8,6 +8,8 @@ import {
   registerCreateCommand,
   registerSignTypedDataCommand,
   registerStatusCommand,
+  registerX402FetchCommand,
+  registerX402SignCommand,
 } from "./commands.js";
 import { loadEnvFiles } from "./env.js";
 
@@ -15,7 +17,7 @@ loadEnvFiles();
 
 function addBackendOption(command: Command) {
   command.addOption(
-    new Option("--backend-url <url>", "Override the default orchestrator backend URL"),
+    new Option("--backend-url <url>", "override the default orchestrator backend URL"),
   );
 }
 
@@ -30,7 +32,7 @@ export function buildProgram() {
   program
     .name("conduit-wallet")
     .description(
-      `Provision and manage secure wallet rails for autonomous agents\n\nSupported chains:\n  ${supportedChainsText}`,
+      `provision and manage secure wallet rails for autonomous agents\n\nsupported chains:\n  ${supportedChainsText}`,
     )
     .showHelpAfterError()
     .showSuggestionAfterError(true);
@@ -39,10 +41,11 @@ export function buildProgram() {
 
   const createCommand = program
     .command("create")
+    .summary("create a wallet provisioning request")
     .description(
-      `Create a wallet provisioning request\n\nSupported chains:\n  ${supportedChainsText}`,
+      `create a wallet provisioning request\n\nsupported chains:\n  ${supportedChainsText}`,
     )
-    .requiredOption("--chain-id <chainId>", "EIP-155 chain id")
+    .requiredOption("--chain-id <chainId>", "eip-155 chain id")
     .addHelpText(
       "after",
       `
@@ -55,8 +58,8 @@ Example:
 
   const statusCommand = program
     .command("status")
-    .description("Inspect a wallet")
-    .argument("<wallet-id>", "Wallet id")
+    .description("inspect a wallet")
+    .argument("<wallet-id>", "wallet id")
     .addHelpText(
       "after",
       `
@@ -69,9 +72,9 @@ Example:
 
   const awaitCommand = program
     .command("await")
-    .description("Poll until a wallet is ready or failed")
-    .argument("<wallet-id>", "Wallet id")
-    .option("--interval-ms <ms>", "Polling interval in milliseconds", "5000")
+    .description("poll until a wallet is ready or failed")
+    .argument("<wallet-id>", "wallet id")
+    .option("--interval-ms <ms>", "polling interval in milliseconds", "5000")
     .addHelpText(
       "after",
       `
@@ -84,11 +87,11 @@ Example:
 
   const callCommand = program
     .command("call")
-    .description("Execute a contract call from a ready wallet")
-    .argument("<wallet-id>", "Wallet id")
-    .requiredOption("--to <address>", "Target contract address")
-    .requiredOption("--data <hex>", "Encoded calldata")
-    .option("--value-wei <wei>", "Native value attached to the call", "0")
+    .description("execute a contract call from a ready wallet")
+    .argument("<wallet-id>", "wallet id")
+    .requiredOption("--to <address>", "target contract address")
+    .requiredOption("--data <hex>", "encoded calldata")
+    .option("--value-wei <wei>", "native value attached to the call", "0")
     .addHelpText(
       "after",
       `
@@ -100,10 +103,10 @@ Example:
 
   const signTypedDataCommand = program
     .command("sign-typed-data")
-    .description("Sign arbitrary EIP-712 typed data from a ready wallet")
-    .argument("<wallet-id>", "Wallet id")
-    .option("--typed-data-file <path>", "Path to a JSON file containing the typed data")
-    .option("--typed-data-json <json>", "Inline JSON string containing the typed data")
+    .description("sign arbitrary EIP-712 typed data from a ready wallet")
+    .argument("<wallet-id>", "wallet id")
+    .option("--typed-data-file <path>", "path to a JSON file containing the typed data")
+    .option("--typed-data-json <json>", "inline JSON string containing the typed data")
     .addHelpText(
       "after",
       `
@@ -112,6 +115,39 @@ Example:
       `.trimEnd(),
     );
   registerSignTypedDataCommand(signTypedDataCommand);
+
+  const x402SignCommand = program
+    .command("x402-sign")
+    .description(
+      "build an x402 PAYMENT-SIGNATURE header for an exact/eip3009 requirement using the ready Conduit wallet signer",
+    )
+    .argument("<wallet-id>", "wallet id")
+    .requiredOption(
+      "--payment-required-header <base64>",
+      "base64 PAYMENT-REQUIRED header returned by the resource server",
+    )
+    .addHelpText(
+      "after",
+      `
+Example:
+  conduit-wallet x402-sign wal_123 --payment-required-header eyJ4NDAyVmVyc2lvbiI6Mn0=
+      `.trimEnd(),
+    );
+  registerX402SignCommand(x402SignCommand);
+
+  const x402FetchCommand = program
+    .command("x402-fetch")
+    .description("fetch a URL and automatically complete the x402 challenge when required")
+    .argument("<wallet-id>", "wallet id")
+    .argument("<url>", "protected or unprotected resource URL")
+    .addHelpText(
+      "after",
+      `
+Example:
+  conduit-wallet x402-fetch wal_123 http://127.0.0.1:4010/x402/premium-data
+      `.trimEnd(),
+    );
+  registerX402FetchCommand(x402FetchCommand);
 
   return program;
 }

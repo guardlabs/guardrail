@@ -10,6 +10,10 @@ import {
   getWalletRequestResponseSchema,
   getSupportedChainById,
   hexStringSchema,
+  x402PaymentPayloadSchema,
+  x402PaymentRequiredSchema,
+  x402PaymentRequirementsSchema,
+  x402SettlementResponseSchema,
   type CreateWalletRequestResponse,
   type WalletRequest,
 } from "@conduit/shared";
@@ -122,6 +126,100 @@ function parseTypedDataJson(raw: string): TypedDataDefinition<TypedData, string>
   return parsed as unknown as TypedDataDefinition<TypedData, string>;
 }
 
+function encodeBase64Json(value: unknown) {
+  return Buffer.from(JSON.stringify(value), "utf8").toString("base64");
+}
+
+function decodeBase64Json(raw: string) {
+  return JSON.parse(Buffer.from(raw.trim(), "base64").toString("utf8")) as unknown;
+}
+
+async function parseResponseBody(response: Response) {
+  const contentType = response.headers.get("content-type") ?? "";
+  const raw = await response.text();
+
+  if (raw.length === 0) {
+    return null;
+  }
+
+  if (contentType.includes("application/json")) {
+    try {
+      return JSON.parse(raw) as unknown;
+    } catch {
+      return raw;
+    }
+  }
+
+  return raw;
+}
+
+function parseEip155Network(network: string) {
+  const match = /^eip155:(\d+)$/.exec(network.trim());
+
+  if (!match) {
+    throw new Error(`Unsupported network "${network}". Expected eip155:<chainId>.`);
+  }
+
+  return Number(match[1]);
+}
+
+function buildTransferWithAuthorizationTypedData(input: {
+  chainId: number;
+  verifyingContract: `0x${string}`;
+  name: string;
+  version: string;
+  from: `0x${string}`;
+  to: `0x${string}`;
+  value: string;
+  validAfter: string;
+  validBefore: string;
+  nonce?: string;
+}) {
+  return {
+    domain: {
+      name: input.name,
+      version: input.version,
+      chainId: input.chainId,
+      verifyingContract: evmAddressSchema.parse(
+        input.verifyingContract,
+      ) as `0x${string}`,
+    },
+    primaryType: "TransferWithAuthorization",
+    types: transferWithAuthorizationTypes,
+    message: {
+      from: input.from,
+      to: evmAddressSchema.parse(input.to),
+      value: parseUint256(input.value, "value").toString(),
+      validAfter: parseUint256(input.validAfter, "validAfter").toString(),
+      validBefore: parseUint256(input.validBefore, "validBefore").toString(),
+      nonce: bytes32HexSchema.parse(input.nonce ?? buildDefaultAuthorizationNonce()),
+    },
+  } as const;
+}
+
+function selectX402ExactEip3009Requirement(
+  accepts: Array<ReturnType<typeof x402PaymentRequirementsSchema.parse>>,
+  chainId: number,
+) {
+  const selected = accepts.find((candidate) => {
+    const candidateChainId = parseEip155Network(candidate.network);
+
+    return (
+      candidate.scheme === "exact" &&
+      candidateChainId === chainId &&
+      (candidate.extra.assetTransferMethod ?? "eip3009") === "eip3009"
+    );
+  });
+
+  if (!selected) {
+    throw new Error(
+      `No exact/eip3009 x402 payment requirement matched local chain ${chainId}.`,
+    );
+  }
+
+  return selected;
+}
+
 export function buildOfficialUsdcTransferWithAuthorizationTypedData(input: {
   chainId: number;
   from: `0x${string}`;
@@ -137,24 +235,21 @@ export function buildOfficialUsdcTransferWithAuthorizationTypedData(input: {
     throw new Error(`Unsupported chain ${input.chainId}.`);
   }
 
-  return {
-    domain: {
-      name: OFFICIAL_USDC_EIP712_DOMAIN_NAME,
-      version: OFFICIAL_USDC_EIP712_DOMAIN_VERSION,
-      chainId: input.chainId,
-      verifyingContract: supportedChain.officialUsdcAddress,
-    },
-    primaryType: "TransferWithAuthorization",
-    types: transferWithAuthorizationTypes,
-    message: {
-      from: input.from,
-      to: evmAddressSchema.parse(input.to),
-      value: parseUnits(input.amountUsdc.trim(), supportedChain.officialUsdcDecimals).toString(),
-      validAfter: parseUint256(input.validAfter, "validAfter").toString(),
-      validBefore: parseUint256(input.validBefore, "validBefore").toString(),
-      nonce: bytes32HexSchema.parse(input.nonce ?? buildDefaultAuthorizationNonce()),
-    },
-  } as const;
+  return buildTransferWithAuthorizationTypedData({
+    chainId: input.chainId,
+    verifyingContract: supportedChain.officialUsdcAddress as `0x${string}`,
+    name: OFFICIAL_USDC_EIP712_DOMAIN_NAME,
+    version: OFFICIAL_USDC_EIP712_DOMAIN_VERSION,
+    from: input.from,
+    to: input.to,
+    value: parseUnits(
+      input.amountUsdc.trim(),
+      supportedChain.officialUsdcDecimals,
+    ).toString(),
+    validAfter: input.validAfter,
+    validBefore: input.validBefore,
+    nonce: input.nonce,
+  });
 }
 
 export async function executeCreate(options: {
@@ -427,6 +522,138 @@ export async function executeSignTypedData(options: {
   };
 }
 
+export async function executeX402Sign(options: {
+  walletId: string;
+  paymentRequiredHeader: string;
+}) {
+  let localRequest = await readLocalWalletRequest(options.walletId);
+  const paymentRequired = x402PaymentRequiredSchema.parse(
+    decodeBase64Json(options.paymentRequiredHeader),
+  );
+  const accepted = selectX402ExactEip3009Requirement(
+    paymentRequired.accepts,
+    localRequest.chainId,
+  );
+  const requirementChainId = parseEip155Network(accepted.network);
+
+  if (requirementChainId !== localRequest.chainId) {
+    throw new Error(
+      `x402 requirement chain ${requirementChainId} does not match local chain ${localRequest.chainId}.`,
+    );
+  }
+
+  await ensureReadyWalletDeployed({
+    localRequest,
+  });
+  const refreshed = await executeRefreshFunding({
+    walletId: options.walletId,
+    backendUrl: localRequest.backendBaseUrl,
+  });
+  await persistWalletProgress(options.walletId, refreshed);
+  localRequest = await readLocalWalletRequest(options.walletId);
+
+  if (!localRequest.walletAddress) {
+    throw new Error("Local wallet state is missing the deployed wallet address.");
+  }
+
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const validAfter = Math.max(0, nowSeconds - 5).toString();
+  const validBefore = (nowSeconds + accepted.maxTimeoutSeconds).toString();
+  const typedData = buildTransferWithAuthorizationTypedData({
+    chainId: requirementChainId,
+    verifyingContract: accepted.asset as `0x${string}`,
+    name: accepted.extra.name,
+    version: accepted.extra.version,
+    from: localRequest.walletAddress as `0x${string}`,
+    to: accepted.payTo as `0x${string}`,
+    value: accepted.amount,
+    validAfter,
+    validBefore,
+  });
+  const signedTypedData = await signReadyWalletTypedData({
+    localRequest,
+    typedData,
+  });
+  const paymentPayload = x402PaymentPayloadSchema.parse({
+    x402Version: paymentRequired.x402Version,
+    resource: paymentRequired.resource,
+    accepted,
+    payload: {
+      signature: signedTypedData.signature,
+      authorization: typedData.message,
+    },
+  });
+
+  return {
+    walletId: options.walletId,
+    walletAddress: signedTypedData.walletAddress,
+    payerAddress: signedTypedData.walletAddress,
+    paymentRequired,
+    paymentPayload,
+    paymentSignatureHeader: encodeBase64Json(paymentPayload),
+  };
+}
+
+export async function executeX402Fetch(
+  options: {
+    walletId: string;
+    url: string;
+  },
+  dependencies: {
+    fetchImpl?: typeof fetch;
+    x402Signer?: typeof executeX402Sign;
+  } = {},
+) {
+  const fetchImpl = dependencies.fetchImpl ?? fetch;
+  const x402Signer = dependencies.x402Signer ?? executeX402Sign;
+  const firstResponse = await fetchImpl(options.url, {
+    method: "GET",
+  });
+  const paymentRequiredHeader = firstResponse.headers.get("payment-required");
+
+  if (firstResponse.status !== 402 || !paymentRequiredHeader) {
+    return {
+      walletId: options.walletId,
+      url: options.url,
+      status: firstResponse.status,
+      ok: firstResponse.ok,
+      x402Paid: false,
+      contentType: firstResponse.headers.get("content-type"),
+      body: await parseResponseBody(firstResponse),
+    };
+  }
+
+  const paymentRequired = x402PaymentRequiredSchema.parse(
+    decodeBase64Json(paymentRequiredHeader),
+  );
+  const signatureResult = await x402Signer({
+    walletId: options.walletId,
+    paymentRequiredHeader,
+  });
+  const paidResponse = await fetchImpl(options.url, {
+    method: "GET",
+    headers: {
+      "PAYMENT-SIGNATURE": signatureResult.paymentSignatureHeader,
+    },
+  });
+  const paymentResponseHeader = paidResponse.headers.get("payment-response");
+
+  return {
+    walletId: options.walletId,
+    url: options.url,
+    status: paidResponse.status,
+    ok: paidResponse.ok,
+    x402Paid: true,
+    walletAddress: signatureResult.walletAddress,
+    contentType: paidResponse.headers.get("content-type"),
+    paymentRequired,
+    paymentResponse: paymentResponseHeader
+      ? x402SettlementResponseSchema.parse(decodeBase64Json(paymentResponseHeader))
+      : undefined,
+    body: await parseResponseBody(paidResponse),
+  };
+}
+
 export function printJson(value: unknown) {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
 }
@@ -485,6 +712,28 @@ export function registerSignTypedDataCommand(command: Command) {
         walletId,
         typedDataJson: options.typedDataJson,
         typedDataFile: options.typedDataFile,
+      }),
+    );
+  });
+}
+
+export function registerX402SignCommand(command: Command) {
+  command.action(async (walletId, options) => {
+    printJson(
+      await executeX402Sign({
+        walletId,
+        paymentRequiredHeader: options.paymentRequiredHeader,
+      }),
+    );
+  });
+}
+
+export function registerX402FetchCommand(command: Command) {
+  command.action(async (walletId, url) => {
+    printJson(
+      await executeX402Fetch({
+        walletId,
+        url,
       }),
     );
   });

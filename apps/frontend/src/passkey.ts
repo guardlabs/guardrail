@@ -3,18 +3,11 @@ import {
   type RegularValidatorInitArtifact,
   type WalletConfig,
 } from "@conduit/shared";
-import { createProvisioningWeightedValidator } from "@conduit/zerodev";
-import {
-  PasskeyValidatorContractVersion,
-  toPasskeyValidator,
-} from "@zerodev/passkey-validator";
+import { createProvisioningArtifacts } from "@conduit/zerodev";
 import {
   toWebAuthnKey,
   WebAuthnMode,
 } from "@zerodev/permissions/signers";
-import { createKernelAccount } from "@zerodev/sdk/accounts";
-import { getEntryPoint, KERNEL_V3_1 } from "@zerodev/sdk/constants";
-import { encodeWebAuthnPubKey } from "@zerodev/webauthn-key";
 import { createPublicClient, http } from "viem";
 
 function getPublicRpcUrl(chainId: number) {
@@ -70,7 +63,6 @@ export const browserPasskeyClient: PasskeyClient = {
       transport: http(rpcUrl),
     });
 
-    const entryPoint = getEntryPoint("0.7");
     const webAuthnKey = await toWebAuthnKey({
       passkeyName: displayName,
       passkeyServerUrl: __PASSKEY_SERVER_URL__,
@@ -79,42 +71,9 @@ export const browserPasskeyClient: PasskeyClient = {
       passkeyServerHeaders: {},
     });
 
-    const passkeyValidator = await toPasskeyValidator(publicClient, {
-      webAuthnKey,
-      entryPoint,
-      kernelVersion: KERNEL_V3_1,
-      validatorContractVersion:
-        PasskeyValidatorContractVersion.V0_0_2_UNPATCHED,
-      validatorAddress: walletConfig.sudoValidator.address as `0x${string}`,
-    });
-
-    const weightedValidator = await createProvisioningWeightedValidator(publicClient, {
+    return createProvisioningArtifacts(publicClient, {
       walletConfig,
+      webAuthnKey,
     });
-
-    const account = await createKernelAccount(publicClient, {
-      entryPoint,
-      kernelVersion: KERNEL_V3_1,
-      plugins: {
-        sudo: passkeyValidator,
-        regular: weightedValidator,
-      },
-    });
-
-    const pluginEnableSignature =
-      await account.kernelPluginManager.getPluginEnableSignature(account.address);
-
-    return {
-      owner: {
-        credentialId: webAuthnKey.authenticatorId,
-        publicKey: encodeWebAuthnPubKey(webAuthnKey),
-      },
-      counterfactualWalletAddress: account.address,
-      regularValidatorInitArtifact: {
-        validatorAddress: weightedValidator.address,
-        enableData: await weightedValidator.getEnableData(account.address),
-        pluginEnableSignature,
-      },
-    };
   },
 };

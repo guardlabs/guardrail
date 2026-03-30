@@ -307,6 +307,68 @@ export const backendSignResponseSchema = z.object({
   signature: hexStringSchema,
 });
 
+export const x402VersionSchema = z.literal(2);
+
+export const x402ResourceSchema = z.object({
+  url: z.string().url(),
+  description: z.string().min(1).optional(),
+  mimeType: z.string().min(1).optional(),
+});
+
+export const x402ExactEip3009ExtraSchema = z.object({
+  assetTransferMethod: z.literal("eip3009").optional(),
+  name: z.string().min(1),
+  version: z.string().min(1),
+});
+
+export const x402PaymentRequirementsSchema = z.object({
+  scheme: z.literal("exact"),
+  network: z.string().regex(/^eip155:\d+$/, "Expected an EIP-155 CAIP-2 network."),
+  amount: z.string().regex(/^\d+$/, "Expected an unsigned integer amount."),
+  asset: evmAddressSchema,
+  payTo: evmAddressSchema,
+  maxTimeoutSeconds: z.number().int().positive(),
+  extra: x402ExactEip3009ExtraSchema,
+});
+
+export const x402TransferWithAuthorizationSchema = z.object({
+  from: evmAddressSchema,
+  to: evmAddressSchema,
+  value: z.string().regex(/^\d+$/, "Expected an unsigned integer value."),
+  validAfter: z.string().regex(/^\d+$/, "Expected an unsigned integer validAfter."),
+  validBefore: z.string().regex(/^\d+$/, "Expected an unsigned integer validBefore."),
+  nonce: bytes32HexSchema,
+});
+
+export const x402PaymentRequiredSchema = z.object({
+  x402Version: x402VersionSchema,
+  error: z.string().min(1).optional(),
+  resource: x402ResourceSchema,
+  accepts: z.array(x402PaymentRequirementsSchema).min(1),
+  extensions: z.record(z.unknown()).optional(),
+});
+
+export const x402PaymentPayloadSchema = z.object({
+  x402Version: x402VersionSchema,
+  resource: x402ResourceSchema.optional(),
+  accepted: x402PaymentRequirementsSchema,
+  payload: z.object({
+    signature: hexStringSchema,
+    authorization: x402TransferWithAuthorizationSchema,
+  }),
+  extensions: z.record(z.unknown()).optional(),
+});
+
+export const x402SettlementResponseSchema = z.object({
+  success: z.boolean(),
+  errorReason: z.string().min(1).optional(),
+  payer: evmAddressSchema.optional(),
+  transaction: hexStringSchema,
+  network: z.string().regex(/^eip155:\d+$/, "Expected an EIP-155 CAIP-2 network."),
+  amount: z.string().regex(/^\d+$/, "Expected an unsigned integer amount.").optional(),
+  extensions: z.record(z.unknown()).optional(),
+});
+
 const transitions = {
   created: ["owner_bound", "failed"],
   owner_bound: ["ready", "failed"],

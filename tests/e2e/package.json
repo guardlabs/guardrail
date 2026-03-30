@@ -1,0 +1,23 @@
+{
+  "name": "@conduit/e2e",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test:e2e": "vitest run",
+    "test:provisioning": "vitest run provisioning-headless.e2e.test.ts"
+  },
+  "dependencies": {
+    "@conduit/shared": "workspace:*",
+    "@conduit/zerodev": "workspace:*",
+    "dotenv": "^16.6.1",
+    "pg": "^8.14.1",
+    "viem": "2.47.6"
+  },
+  "devDependencies": {
+    "@pimlico/alto": "^0.0.20",
+    "@types/node": "^22.13.10",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.9"
+  }
+}

@@ -16,7 +16,9 @@
   },
   "dependencies": {
     "@conduit/shared": "workspace:*",
+    "@zerodev/passkey-validator": "5.6.0",
     "@zerodev/sdk": "5.5.8",
+    "@zerodev/webauthn-key": "^5.4.2",
     "@zerodev/weighted-ecdsa-validator": "5.4.4",
     "viem": "2.47.6"
   },

@@ -58,7 +58,7 @@ function decodeOwnerPublicKey(owner: OwnerPublicArtifacts) {
   };
 }
 
-function createStaticPasskeyValidator(input: {
+export function createStaticPasskeyValidator(input: {
   walletConfig: WalletConfig;
   owner: OwnerPublicArtifacts;
 }) {

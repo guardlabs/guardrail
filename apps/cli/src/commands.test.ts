@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   PROJECT_WALLET_MODE,
   buildDefaultWalletConfig,
+  x402PaymentPayloadSchema,
 } from "@conduit/shared";
 import {
   hydrateReadyWalletRequest,
@@ -18,8 +19,10 @@ import {
   executeAwait,
   executeCall,
   executeCreate,
+  executeX402Fetch,
   executeSignTypedData,
   executeStatus,
+  executeX402Sign,
 } from "./commands.js";
 
 vi.mock("./kernel.js", () => ({
@@ -39,6 +42,7 @@ describe("cli commands mode B", () => {
 
   afterEach(() => {
     delete process.env.CONDUIT_LOCAL_STORE_DIR;
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -511,5 +515,334 @@ describe("cli commands mode B", () => {
     });
     const persistedRequest = await readLocalWalletRequest("wal_123");
     expect(persistedRequest.deployment.status).toBe("deployed");
+  });
+
+  it("builds a spec-aligned x402 PAYMENT-SIGNATURE header through the deployed smart wallet signer", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-30T12:00:00.000Z"));
+
+    const walletConfig = buildDefaultWalletConfig({
+      chainId: 84532,
+      agentAddress: "0xFCAd0B19bB29D4674531d6f115237E16AfCE377c",
+      backendAddress: "0x1111111111111111111111111111111111111111",
+    });
+    await saveLocalWalletRequest({
+      walletMode: PROJECT_WALLET_MODE,
+      walletId: "wal_123",
+      backendBaseUrl: "http://127.0.0.1:3000",
+      provisioningUrl:
+        "http://127.0.0.1:5173/?walletId=wal_123&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
+      chainId: 84532,
+      walletConfig,
+      agentAddress: walletConfig.regularValidator.signers[0]?.address ?? "",
+      agentPrivateKey:
+        "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      backendAddress: walletConfig.regularValidator.signers[1]?.address ?? "",
+      walletAddress: "0x2222222222222222222222222222222222222222",
+      createdAt: "2026-03-29T12:00:00.000Z",
+      lastKnownStatus: "ready",
+      deployment: {
+        status: "undeployed",
+      },
+    });
+    vi.mocked(ensureReadyWalletDeployed).mockResolvedValue({
+      walletAddress: "0x2222222222222222222222222222222222222222",
+      deployed: true,
+      deployedByThisCall: true,
+      transactionHash: "0xdeploymenthash",
+    });
+    vi.mocked(signReadyWalletTypedData).mockResolvedValue({
+      walletAddress: "0x2222222222222222222222222222222222222222",
+      signature: `0x${"ab".repeat(96)}`,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          walletMode: PROJECT_WALLET_MODE,
+          walletId: "wal_123",
+          status: "ready",
+          walletConfig,
+          agentAddress: walletConfig.regularValidator.signers[0]?.address,
+          backendAddress: walletConfig.regularValidator.signers[1]?.address,
+          ownerPublicArtifacts: {
+            credentialId: "credential-id",
+            publicKey: "0x1234",
+          },
+          regularValidatorInitArtifact: {
+            validatorAddress: "0x3333333333333333333333333333333333333333",
+            enableData: "0x1234",
+            pluginEnableSignature: "0x5678",
+          },
+          counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
+          funding: {
+            status: "verified",
+            minimumRequiredWei: "500000000000000",
+            balanceWei: "700000000000000",
+            checkedAt: "2026-03-29T12:05:00.000Z",
+          },
+          deployment: {
+            status: "deployed",
+          },
+          walletContext: {
+            walletAddress: "0x2222222222222222222222222222222222222222",
+            chainId: 84532,
+            kernelVersion: "3.1",
+            entryPointVersion: "0.7",
+            owner: {
+              credentialId: "credential-id",
+              publicKey: "0x1234",
+            },
+            agentAddress: walletConfig.regularValidator.signers[0]?.address,
+            backendAddress: walletConfig.regularValidator.signers[1]?.address,
+            weightedValidator: walletConfig.regularValidator,
+          },
+          createdAt: "2026-03-29T12:00:00.000Z",
+          updatedAt: "2026-03-29T12:05:00.000Z",
+          expiresAt: "2026-03-30T12:00:00.000Z",
+        }),
+      }),
+    );
+
+    const paymentRequiredHeader = Buffer.from(
+      JSON.stringify({
+        x402Version: 2,
+        error: "PAYMENT-SIGNATURE header is required",
+        resource: {
+          url: "http://127.0.0.1:4010/premium-data",
+          description: "Premium test payload",
+          mimeType: "application/json",
+        },
+        accepts: [
+          {
+            scheme: "exact",
+            network: "eip155:84532",
+            amount: "250000",
+            asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+            payTo: "0x3333333333333333333333333333333333333333",
+            maxTimeoutSeconds: 60,
+            extra: {
+              assetTransferMethod: "eip3009",
+              name: "USDC",
+              version: "2",
+            },
+          },
+        ],
+      }),
+      "utf8",
+    ).toString("base64");
+
+    const result = await executeX402Sign({
+      walletId: "wal_123",
+      paymentRequiredHeader,
+    });
+    const decodedPayload = x402PaymentPayloadSchema.parse(
+      JSON.parse(Buffer.from(result.paymentSignatureHeader, "base64").toString("utf8")),
+    );
+
+    expect(result.walletId).toBe("wal_123");
+    expect(result.walletAddress).toBe("0x2222222222222222222222222222222222222222");
+    expect(result.payerAddress).toBe("0x2222222222222222222222222222222222222222");
+    expect(decodedPayload.accepted.amount).toBe("250000");
+    expect(decodedPayload.accepted.payTo).toBe("0x3333333333333333333333333333333333333333");
+    expect(decodedPayload.payload.authorization.from).toBe(
+      "0x2222222222222222222222222222222222222222",
+    );
+    expect(decodedPayload.payload.authorization.validAfter).toBe("1774871995");
+    expect(decodedPayload.payload.authorization.validBefore).toBe("1774872060");
+    expect(vi.mocked(ensureReadyWalletDeployed)).toHaveBeenCalledWith({
+      localRequest: expect.objectContaining({
+        walletId: "wal_123",
+      }),
+    });
+    expect(vi.mocked(signReadyWalletTypedData)).toHaveBeenCalledWith({
+      localRequest: expect.objectContaining({
+        walletId: "wal_123",
+        walletAddress: "0x2222222222222222222222222222222222222222",
+        deployment: {
+          status: "deployed",
+        },
+      }),
+      typedData: expect.objectContaining({
+        primaryType: "TransferWithAuthorization",
+        message: expect.objectContaining({
+          from: "0x2222222222222222222222222222222222222222",
+          to: "0x3333333333333333333333333333333333333333",
+          value: "250000",
+        }),
+      }),
+    });
+    expect(decodedPayload.payload.signature).toBe(`0x${"ab".repeat(96)}`);
+  });
+
+  it("fetches an unprotected resource without attempting x402 payment", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ ok: true, resource: "public" }), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+    );
+    const x402Signer = vi.fn();
+
+    const result = await executeX402Fetch(
+      {
+        walletId: "wal_123",
+        url: "http://127.0.0.1:4010/public",
+      },
+      {
+        fetchImpl: fetchMock,
+        x402Signer: x402Signer as never,
+      },
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(x402Signer).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      walletId: "wal_123",
+      url: "http://127.0.0.1:4010/public",
+      status: 200,
+      ok: true,
+      x402Paid: false,
+      contentType: "application/json",
+      body: {
+        ok: true,
+        resource: "public",
+      },
+    });
+  });
+
+  it("fetches a protected resource and retries with PAYMENT-SIGNATURE", async () => {
+    const paymentRequired = {
+      x402Version: 2,
+      error: "PAYMENT-SIGNATURE header is required",
+      resource: {
+        url: "http://127.0.0.1:4010/premium",
+        description: "Premium payload",
+        mimeType: "application/json",
+      },
+      accepts: [
+        {
+          scheme: "exact",
+          network: "eip155:84532",
+          amount: "250000",
+          asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+          payTo: "0x3333333333333333333333333333333333333333",
+          maxTimeoutSeconds: 60,
+          extra: {
+            assetTransferMethod: "eip3009",
+            name: "USDC",
+            version: "2",
+          },
+        },
+      ],
+    };
+    const settlementResponse = {
+      success: true,
+      transaction: `0x${"11".repeat(32)}`,
+      network: "eip155:84532",
+      payer: "0x2222222222222222222222222222222222222222",
+      amount: "250000",
+    };
+    const paymentRequiredHeader = Buffer.from(
+      JSON.stringify(paymentRequired),
+      "utf8",
+    ).toString("base64");
+    const paymentResponseHeader = Buffer.from(
+      JSON.stringify(settlementResponse),
+      "utf8",
+    ).toString("base64");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: "PAYMENT-SIGNATURE header is required",
+          }),
+          {
+            status: 402,
+            headers: {
+              "content-type": "application/json",
+              "payment-required": paymentRequiredHeader,
+            },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            ok: true,
+            resource: "premium",
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json",
+              "payment-response": paymentResponseHeader,
+            },
+          },
+        ),
+      );
+    const x402Signer = vi.fn().mockResolvedValue({
+      walletId: "wal_123",
+      walletAddress: "0x2222222222222222222222222222222222222222",
+      payerAddress: "0x2222222222222222222222222222222222222222",
+      paymentRequired,
+      paymentPayload: {
+        x402Version: 2,
+      },
+      paymentSignatureHeader: "signed-header",
+    });
+
+    const result = await executeX402Fetch(
+      {
+        walletId: "wal_123",
+        url: "http://127.0.0.1:4010/premium",
+      },
+      {
+        fetchImpl: fetchMock,
+        x402Signer: x402Signer as never,
+      },
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "http://127.0.0.1:4010/premium",
+      {
+        method: "GET",
+      },
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "http://127.0.0.1:4010/premium",
+      {
+        method: "GET",
+        headers: {
+          "PAYMENT-SIGNATURE": "signed-header",
+        },
+      },
+    );
+    expect(x402Signer).toHaveBeenCalledWith({
+      walletId: "wal_123",
+      paymentRequiredHeader,
+    });
+    expect(result).toEqual({
+      walletId: "wal_123",
+      url: "http://127.0.0.1:4010/premium",
+      status: 200,
+      ok: true,
+      x402Paid: true,
+      walletAddress: "0x2222222222222222222222222222222222222222",
+      contentType: "application/json",
+      paymentRequired,
+      paymentResponse: settlementResponse,
+      body: {
+        ok: true,
+        resource: "premium",
+      },
+    });
   });
 });

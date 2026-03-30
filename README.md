@@ -74,6 +74,22 @@ npx @your-scope/conduit-wallet sign-typed-data wal_xxx \
   --typed-data-file ./typed-data.json
 ```
 
+Build an x402 `PAYMENT-SIGNATURE` header for an `exact/eip3009` challenge using the ready Conduit wallet signer:
+
+```bash
+npx @your-scope/conduit-wallet x402-sign wal_xxx \
+  --payment-required-header eyJ4NDAyVmVyc2lvbiI6Mn0=
+```
+
+This command deploys the wallet if needed, then signs `TransferWithAuthorization` through the Conduit smart wallet path, including backend co-signing.
+
+Fetch a resource and automatically complete the x402 challenge when needed:
+
+```bash
+npx @your-scope/conduit-wallet x402-fetch wal_xxx \
+  https://api.example.com/premium-data
+```
+
 <a id="how-it-works"></a>
 
 ## 🔄 How It Works
@@ -140,6 +156,7 @@ Chain support is defined centrally in the shared package and is currently limite
 - Node.js 22+
 - `pnpm` 10+
 - Docker
+- [Foundry](https://book.getfoundry.sh/getting-started/installation) with `anvil` on your `PATH` for the local e2e suite
 
 ### 1. Install Dependencies
 
@@ -243,6 +260,7 @@ Run the whole workspace:
 
 ```bash
 pnpm test
+pnpm test:e2e:provisioning
 pnpm typecheck
 ```
 
@@ -255,6 +273,21 @@ pnpm --filter @conduit/cli test
 pnpm --filter @conduit/shared test
 pnpm --filter @conduit/zerodev test
 ```
+
+The headless provisioning e2e lives under `tests/e2e` and runs the real CLI plus backend against:
+
+- Docker Postgres
+- an Anvil fork of Base Sepolia
+- a local Alto bundler for ERC-4337 user operations
+- a deterministic headless passkey owner
+
+It covers the flow through `ready`, then exercises:
+
+- one co-signed `sign-typed-data` call
+- one co-signed transaction
+- one `conduit-wallet x402-fetch ...` round-trip that performs `402 -> PAYMENT-SIGNATURE -> 200` using exact EIP-3009 settlement on official Base Sepolia USDC
+
+Before running it, make sure either `CONDUIT_E2E_FORK_URL` or `CONDUIT_PUBLIC_RPC_URL_84532` points to a Base Sepolia RPC URL. The test starts its own backend, Anvil, and Alto processes locally.
 
 Run individual package typecheck commands:
 
