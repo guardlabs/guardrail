@@ -1,16 +1,12 @@
 #!/usr/bin/env node
 import { fileURLToPath } from "node:url";
 import { Command, Option } from "commander";
-import {
-  evmAddressSchema,
-  outgoingBudgetFlowSchema,
-  outgoingBudgetPeriodSchema,
-  supportedChains,
-} from "@agent-wallet/shared";
+import { supportedChains } from "@agent-wallet/shared";
 import {
   registerAwaitCommand,
   registerCallCommand,
   registerCreateCommand,
+  registerSignTypedDataCommand,
   registerStatusCommand,
 } from "./commands.js";
 import { loadEnvFiles } from "./env.js";
@@ -25,10 +21,6 @@ function addBackendOption(command: Command) {
 
 function formatSupportedChains() {
   return supportedChains.map((chain) => `${chain.id} (${chain.name})`).join(", ");
-}
-
-function collectOptionValue(value: string, previous: string[] = []) {
-  return [...previous, value];
 }
 
 export function buildProgram() {
@@ -51,47 +43,11 @@ export function buildProgram() {
       `Create a wallet provisioning request\n\nSupported chains:\n  ${supportedChainsText}`,
     )
     .requiredOption("--chain-id <chainId>", "EIP-155 chain id")
-    .addOption(
-      new Option(
-        "--contract-permission <address:selectors>",
-        "Repeatable contract permission in the form <targetContract>:<selector>[,<selector>...]",
-      ).argParser(collectOptionValue),
-    )
-    .option(
-      "--usdc-outgoing-limit <amount>",
-      "Optional cumulative USDC limit expressed in whole-token units.",
-    )
-    .addOption(
-      new Option(
-        "--usdc-outgoing-period <period>",
-        "Outgoing-budget period when --usdc-outgoing-limit is set",
-      )
-        .choices(outgoingBudgetPeriodSchema.options)
-        .default("week"),
-    )
-    .addOption(
-      new Option(
-        "--usdc-outgoing-flow <flow>",
-        "Repeatable outgoing flow covered by the USDC budget",
-      )
-        .choices(outgoingBudgetFlowSchema.options)
-        .argParser(collectOptionValue),
-    )
-    .addOption(
-      new Option(
-        "--usdc-outgoing-counterparty <address>",
-        "Optional repeatable whitelist entry for USDC transfer recipients and approve spenders",
-      ).argParser((value, previous: string[] = []) => [
-        ...previous,
-        evmAddressSchema.parse(value),
-      ]),
-    )
-    .option("--operator-api-key <key>", "Operator API key")
     .addHelpText(
       "after",
       `
 Example:
-  agent-wallet create --chain-id 84532 --contract-permission 0x1111111111111111111111111111111111111111:0xa9059cbb --usdc-outgoing-limit 25 --usdc-outgoing-flow transfer --backend-url http://127.0.0.1:3000
+  agent-wallet create --chain-id 84532 --backend-url http://127.0.0.1:3000
       `.trimEnd(),
     );
   addBackendOption(createCommand);
@@ -141,6 +97,21 @@ Example:
       `.trimEnd(),
     );
   registerCallCommand(callCommand);
+
+  const signTypedDataCommand = program
+    .command("sign-typed-data")
+    .description("Sign arbitrary EIP-712 typed data from a ready wallet")
+    .argument("<wallet-id>", "Wallet id")
+    .option("--typed-data-file <path>", "Path to a JSON file containing the typed data")
+    .option("--typed-data-json <json>", "Inline JSON string containing the typed data")
+    .addHelpText(
+      "after",
+      `
+Example:
+  agent-wallet sign-typed-data wal_123 --typed-data-file /tmp/typed-data.json
+      `.trimEnd(),
+    );
+  registerSignTypedDataCommand(signTypedDataCommand);
 
   return program;
 }

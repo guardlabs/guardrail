@@ -125,8 +125,7 @@ export function App({
       const provisioningArtifacts =
         await resolvedPasskeyClient.createProvisioningArtifacts({
         displayName: "Agent Wallet",
-        scope: request.scope,
-        sessionPublicKey: request.sessionPublicKey,
+        walletConfig: request.walletConfig,
       });
 
       const updatedRequest = await api.publishOwnerArtifacts({
@@ -134,8 +133,8 @@ export function App({
         owner: provisioningArtifacts.owner,
         counterfactualWalletAddress:
           provisioningArtifacts.counterfactualWalletAddress,
-        serializedPermissionAccount:
-          provisioningArtifacts.serializedPermissionAccount,
+        regularValidatorInitArtifact:
+          provisioningArtifacts.regularValidatorInitArtifact,
       });
 
       setRequest(updatedRequest);
@@ -169,7 +168,7 @@ export function App({
             {status === "ready" ? "Wallet ready" : "Provisioning in progress"}
           </span>
           <p className="side-note">
-            The wallet is real and the agent stays limited to the scoped permissions.
+            Runtime transactions require both the local agent and the backend co-signer.
           </p>
         </div>
       </section>
@@ -182,7 +181,7 @@ export function App({
       ) : !request && !error ? (
         <section className="message-panel">
           <h2>Loading wallet</h2>
-          <p>Checking the wallet and the allowed permissions.</p>
+          <p>Checking the wallet and its weighted multisig configuration.</p>
         </section>
       ) : (
         <section className="workspace">
@@ -244,15 +243,19 @@ export function App({
           <aside className="workspace-side">
             <div className="detail-line">
               <span>Chain</span>
-              <strong>Base Sepolia ({request?.scope.chainId ?? "pending"})</strong>
+              <strong>Base Sepolia ({request?.walletConfig.chainId ?? "pending"})</strong>
             </div>
             <div className="detail-line">
-              <span>Contract permissions</span>
-              <strong>{request?.scope.contractPermissions?.length ?? 0}</strong>
+              <span>Threshold</span>
+              <strong>{request?.walletConfig.regularValidator.threshold ?? "Pending"}</strong>
             </div>
             <div className="detail-line">
-              <span>Outgoing budgets</span>
-              <strong>{request?.scope.outgoingBudgets?.length ?? 0}</strong>
+              <span>Agent signer</span>
+              <code>{request?.agentAddress ?? "Pending"}</code>
+            </div>
+            <div className="detail-line">
+              <span>Backend signer</span>
+              <code>{request?.backendAddress ?? "Pending"}</code>
             </div>
             <div className="detail-line">
               <span>Funding</span>

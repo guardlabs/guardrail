@@ -35,6 +35,9 @@ importers:
       pg:
         specifier: ^8.14.1
         version: 8.20.0
+      viem:
+        specifier: 2.47.6
+        version: 2.47.6(typescript@5.9.3)(zod@3.25.76)
     devDependencies:
       '@types/node':
         specifier: ^22.13.10
@@ -60,9 +63,6 @@ importers:
       '@agent-wallet/zerodev':
         specifier: workspace:*
         version: link:../../packages/zerodev
-      '@zerodev/permissions':
-        specifier: 5.6.3
-        version: 5.6.3(@zerodev/sdk@5.5.8(viem@2.47.6(typescript@5.9.3)(zod@3.25.76)))(@zerodev/webauthn-key@5.5.0(viem@2.47.6(typescript@5.9.3)(zod@3.25.76)))(viem@2.47.6(typescript@5.9.3)(zod@3.25.76))
       '@zerodev/sdk':
         specifier: 5.5.8
         version: 5.5.8(viem@2.47.6(typescript@5.9.3)(zod@3.25.76))
@@ -183,12 +183,12 @@ importers:
       '@agent-wallet/shared':
         specifier: workspace:*
         version: link:../shared
-      '@zerodev/permissions':
-        specifier: 5.6.3
-        version: 5.6.3(@zerodev/sdk@5.5.8(viem@2.47.6(typescript@5.9.3)(zod@3.25.76)))(@zerodev/webauthn-key@5.5.0(viem@2.47.6(typescript@5.9.3)(zod@3.25.76)))(viem@2.47.6(typescript@5.9.3)(zod@3.25.76))
       '@zerodev/sdk':
         specifier: 5.5.8
         version: 5.5.8(viem@2.47.6(typescript@5.9.3)(zod@3.25.76))
+      '@zerodev/weighted-ecdsa-validator':
+        specifier: 5.4.4
+        version: 5.4.4(@zerodev/sdk@5.5.8(viem@2.47.6(typescript@5.9.3)(zod@3.25.76)))(viem@2.47.6(typescript@5.9.3)(zod@3.25.76))
       viem:
         specifier: 2.47.6
         version: 2.47.6(typescript@5.9.3)(zod@3.25.76)
@@ -1228,6 +1228,12 @@ packages:
   '@zerodev/webauthn-key@5.5.0':
     resolution: {integrity: sha512-AbD2d/qrsX7AWxJMEfwxnLbp1TjiUjc1V4ne3Q40UJxKe+lW64Td+y8OD0qSFMqgN6rQxJZ0aOAXmat8H6xluA==}
     peerDependencies:
+      viem: ^2.28.0
+
+  '@zerodev/weighted-ecdsa-validator@5.4.4':
+    resolution: {integrity: sha512-bN6TESoUl69QVu9+q0XP3GpiXGQAMwE8WwR+4p/mSSTTvOuWgjiE8mojlIJ2RN5zwTzlulUS+sNxuaaL+NQ9tQ==}
+    peerDependencies:
+      '@zerodev/sdk': ^5.4.0
       viem: ^2.28.0
 
   abitype@1.2.3:
@@ -3388,6 +3394,11 @@ snapshots:
       '@noble/curves': 1.9.7
       '@simplewebauthn/browser': 8.3.7
       '@simplewebauthn/types': 12.0.0
+      viem: 2.47.6(typescript@5.9.3)(zod@3.25.76)
+
+  '@zerodev/weighted-ecdsa-validator@5.4.4(@zerodev/sdk@5.5.8(viem@2.47.6(typescript@5.9.3)(zod@3.25.76)))(viem@2.47.6(typescript@5.9.3)(zod@3.25.76))':
+    dependencies:
+      '@zerodev/sdk': 5.5.8(viem@2.47.6(typescript@5.9.3)(zod@3.25.76))
       viem: 2.47.6(typescript@5.9.3)(zod@3.25.76)
 
   abitype@1.2.3(typescript@5.9.3)(zod@3.25.76):

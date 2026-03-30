@@ -1,32 +1,46 @@
 import "@testing-library/jest-dom/vitest";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ResolveProvisioningResponse, WalletRequest } from "@agent-wallet/shared";
+import {
+  PROJECT_WALLET_MODE,
+  buildDefaultWalletConfig,
+  type ResolveProvisioningResponse,
+  type WalletRequest,
+} from "@agent-wallet/shared";
 import { App } from "./App.js";
+
+const walletConfig = buildDefaultWalletConfig({
+  chainId: 84532,
+  agentAddress: "0x95b4d8f3a9f0ac9d4d7f9ef42fb0f4f6e11d1111",
+  backendAddress: "0x1111111111111111111111111111111111111111",
+});
+const regularValidatorInitArtifact = {
+  validatorAddress: "0x3333333333333333333333333333333333333333",
+  enableData: "0x1234",
+  pluginEnableSignature: "0x5678",
+} as const;
 
 function buildProvisioningResponse(
   overrides: Partial<ResolveProvisioningResponse> = {},
 ): ResolveProvisioningResponse {
   return {
+    walletMode: PROJECT_WALLET_MODE,
     walletId: "wal_test",
     status: "created",
-    scope: {
-      chainId: 84532,
-      contractPermissions: [
-        {
-          targetContract: "0x1111111111111111111111111111111111111111",
-          allowedMethods: ["0xa9059cbb"],
-        },
-      ],
-    },
-    sessionPublicKey: "0x1234",
+    walletConfig,
+    agentAddress: walletConfig.regularValidator.signers[0]?.address ?? "",
+    backendAddress: walletConfig.regularValidator.signers[1]?.address ?? "",
     ownerPublicArtifacts: undefined,
+    regularValidatorInitArtifact: undefined,
     counterfactualWalletAddress: null,
     funding: {
       status: "unverified",
       minimumRequiredWei: "500000000000000",
     },
-    expiresAt: "2026-03-26T10:00:00.000Z",
+    deployment: {
+      status: "undeployed",
+    },
+    expiresAt: "2026-03-30T10:00:00.000Z",
     ...overrides,
   };
 }
@@ -35,54 +49,44 @@ function buildWalletRequest(
   overrides: Partial<WalletRequest> = {},
 ): WalletRequest {
   return {
+    walletMode: PROJECT_WALLET_MODE,
     walletId: "wal_test",
     status: "ready",
-    scope: {
-      chainId: 84532,
-      contractPermissions: [
-        {
-          targetContract: "0x1111111111111111111111111111111111111111",
-          allowedMethods: ["0xa9059cbb"],
-        },
-      ],
-    },
-    sessionPublicKey: "0x1234",
+    walletConfig,
+    agentAddress: walletConfig.regularValidator.signers[0]?.address ?? "",
+    backendAddress: walletConfig.regularValidator.signers[1]?.address ?? "",
     counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
+    regularValidatorInitArtifact,
     funding: {
       status: "verified",
       minimumRequiredWei: "500000000000000",
       balanceWei: "600000000000000",
-      checkedAt: "2026-03-25T12:00:00.000Z",
+      checkedAt: "2026-03-29T12:00:00.000Z",
+    },
+    deployment: {
+      status: "deployed",
     },
     walletContext: {
       walletAddress: "0x2222222222222222222222222222222222222222",
       chainId: 84532,
       kernelVersion: "3.1",
-      sessionPublicKey: "0x1234",
+      entryPointVersion: "0.7",
       owner: {
         credentialId: "credential-id",
         publicKey: "0x1234",
       },
-      scope: {
-        chainId: 84532,
-        contractPermissions: [
-          {
-            targetContract: "0x1111111111111111111111111111111111111111",
-            allowedMethods: ["0xa9059cbb"],
-          },
-        ],
-      },
-      policyDigest: "0x12345678",
-      serializedPermissionAccount: "approval_123",
+      agentAddress: walletConfig.regularValidator.signers[0]?.address ?? "",
+      backendAddress: walletConfig.regularValidator.signers[1]?.address ?? "",
+      weightedValidator: walletConfig.regularValidator,
     },
-    createdAt: "2026-03-25T11:00:00.000Z",
-    updatedAt: "2026-03-25T12:00:00.000Z",
-    expiresAt: "2026-03-26T10:00:00.000Z",
+    createdAt: "2026-03-29T11:00:00.000Z",
+    updatedAt: "2026-03-29T12:00:00.000Z",
+    expiresAt: "2026-03-30T10:00:00.000Z",
     ...overrides,
   };
 }
 
-describe("frontend app", () => {
+describe("frontend app mode B", () => {
   afterEach(() => {
     cleanup();
   });
@@ -96,7 +100,7 @@ describe("frontend app", () => {
         () => Promise<{
           owner: { credentialId: string; publicKey: string };
           counterfactualWalletAddress: string;
-          serializedPermissionAccount: string;
+          regularValidatorInitArtifact: typeof regularValidatorInitArtifact;
         }>
       >()
       .mockResolvedValue({
@@ -105,7 +109,7 @@ describe("frontend app", () => {
           publicKey: "0x1234",
         },
         counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
-        serializedPermissionAccount: "approval_123",
+        regularValidatorInitArtifact,
       });
     const publishOwnerArtifacts = vi
       .fn<() => Promise<WalletRequest>>()
@@ -138,16 +142,7 @@ describe("frontend app", () => {
     await waitFor(() => {
       expect(createProvisioningArtifacts).toHaveBeenCalledWith({
         displayName: "Agent Wallet",
-        scope: {
-          chainId: 84532,
-          contractPermissions: [
-            {
-              targetContract: "0x1111111111111111111111111111111111111111",
-              allowedMethods: ["0xa9059cbb"],
-            },
-          ],
-        },
-        sessionPublicKey: "0x1234",
+        walletConfig,
       });
     });
 
@@ -160,11 +155,12 @@ describe("frontend app", () => {
         publicKey: "0x1234",
       },
       counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
-      serializedPermissionAccount: "approval_123",
+      regularValidatorInitArtifact,
     });
 
     expect(await screen.findByText(/wallet ready/i)).toBeInTheDocument();
     expect(screen.getByText(/0x2222/i)).toBeInTheDocument();
+    expect(screen.getByText(walletConfig.regularValidator.threshold.toString())).toBeInTheDocument();
   });
 
   it("shows a clear error when the provisioning link is incomplete", () => {
@@ -177,11 +173,12 @@ describe("frontend app", () => {
   });
 
   it("polls funding after owner binding until the wallet is ready", async () => {
-    let intervalCallback: (() => void) | undefined;
     const setIntervalSpy = vi
       .spyOn(window, "setInterval")
       .mockImplementation(((callback: TimerHandler) => {
-        intervalCallback = callback as () => void;
+        queueMicrotask(() => {
+          void (callback as () => void)();
+        });
         return 1;
       }) as typeof window.setInterval);
     const clearIntervalSpy = vi
@@ -190,29 +187,13 @@ describe("frontend app", () => {
 
     const loadProvisioningRequest = vi
       .fn<() => Promise<ResolveProvisioningResponse>>()
-      .mockResolvedValueOnce(buildProvisioningResponse())
-      .mockResolvedValueOnce(
-        buildProvisioningResponse({
-          status: "ready",
-          ownerPublicArtifacts: {
-            credentialId: "credential-id",
-            publicKey: "0x1234",
-          },
-          counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
-          funding: {
-            status: "verified",
-            minimumRequiredWei: "500000000000000",
-            balanceWei: "600000000000000",
-            checkedAt: "2026-03-25T12:00:00.000Z",
-          },
-        }),
-      );
+      .mockResolvedValue(buildProvisioningResponse());
     const createProvisioningArtifacts = vi
       .fn<
         () => Promise<{
           owner: { credentialId: string; publicKey: string };
           counterfactualWalletAddress: string;
-          serializedPermissionAccount: string;
+          regularValidatorInitArtifact: typeof regularValidatorInitArtifact;
         }>
       >()
       .mockResolvedValue({
@@ -221,7 +202,7 @@ describe("frontend app", () => {
           publicKey: "0x1234",
         },
         counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
-        serializedPermissionAccount: "approval_123",
+        regularValidatorInitArtifact,
       });
     const publishOwnerArtifacts = vi
       .fn<() => Promise<WalletRequest>>()
@@ -232,28 +213,7 @@ describe("frontend app", () => {
             status: "insufficient",
             minimumRequiredWei: "500000000000000",
             balanceWei: "0",
-            checkedAt: "2026-03-25T11:59:00.000Z",
-          },
-          walletContext: {
-            walletAddress: "0x2222222222222222222222222222222222222222",
-            chainId: 84532,
-            kernelVersion: "3.1",
-            sessionPublicKey: "0x1234",
-            owner: {
-              credentialId: "credential-id",
-              publicKey: "0x1234",
-            },
-            scope: {
-              chainId: 84532,
-              contractPermissions: [
-                {
-                  targetContract: "0x1111111111111111111111111111111111111111",
-                  allowedMethods: ["0xa9059cbb"],
-                },
-              ],
-            },
-            policyDigest: "0x12345678",
-            serializedPermissionAccount: "approval_123",
+            checkedAt: "2026-03-29T11:59:00.000Z",
           },
         }),
       );
@@ -278,21 +238,6 @@ describe("frontend app", () => {
     fireEvent.click(await screen.findByRole("button", { name: /create a passkey/i }));
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/fund this wallet to continue activation/i),
-      ).toBeInTheDocument();
-    });
-    expect(
-      screen.getByText(/checking funding status automatically/i),
-    ).toBeInTheDocument();
-
-    expect(intervalCallback).toBeTypeOf("function");
-
-    await act(async () => {
-      intervalCallback?.();
-    });
-
-    await waitFor(() => {
       expect(refreshFunding).toHaveBeenCalledWith({
         walletId: "wal_test",
         backendUrl: "http://127.0.0.1:3000",
@@ -300,6 +245,7 @@ describe("frontend app", () => {
     });
 
     expect(await screen.findByText(/wallet ready/i)).toBeInTheDocument();
+
     setIntervalSpy.mockRestore();
     clearIntervalSpy.mockRestore();
   });

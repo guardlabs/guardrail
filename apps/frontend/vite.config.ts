@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => {
     ],
     define: {
       __DEFAULT_BACKEND_URL__: JSON.stringify(
-        env.AGENT_WALLET_DEFAULT_BACKEND_URL ?? null,
+        env.AGENT_WALLET_PUBLIC_BACKEND_URL ?? null,
       ),
       __PASSKEY_SERVER_URL__: JSON.stringify(
         env.AGENT_WALLET_PASSKEY_SERVER_URL ?? null,

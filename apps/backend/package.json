@@ -16,7 +16,8 @@
     "dotenv": "^16.6.1",
     "drizzle-orm": "^0.43.1",
     "fastify": "^5.2.1",
-    "pg": "^8.14.1"
+    "pg": "^8.14.1",
+    "viem": "2.47.6"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",

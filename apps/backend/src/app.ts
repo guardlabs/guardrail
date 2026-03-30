@@ -21,6 +21,7 @@ export function buildApp(options: BuildAppOptions = {}) {
   const config = options.config ?? readConfig();
   const app = Fastify({
     logger: true,
+    disableRequestLogging: true,
   });
   const repository = options.repository ?? createPostgresWalletRequestRepository(config.databaseUrl);
   const walletProvisioningService =

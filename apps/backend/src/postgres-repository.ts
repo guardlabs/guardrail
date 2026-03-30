@@ -7,14 +7,20 @@ import type { StoredWalletRequest, WalletRequestRepository } from "./repository.
 function serialize(row: WalletRow): StoredWalletRequest {
   return {
     walletId: row.walletId,
+    walletMode: row.walletMode,
     status: row.status,
-    scope: row.scope,
-    sessionPublicKey: row.sessionPublicKey,
+    walletConfig: row.walletConfig,
+    agentAddress: row.agentAddress,
+    backendAddress: row.backendAddress,
     provisioningTokenHash: row.provisioningTokenHash,
+    backendPrivateKey: row.backendPrivateKey,
     ownerPublicArtifacts: row.ownerPublicArtifacts ?? undefined,
+    regularValidatorInitArtifact: row.regularValidatorInitArtifact ?? undefined,
     counterfactualWalletAddress: row.counterfactualWalletAddress ?? undefined,
     funding: row.funding,
+    deployment: row.deployment,
     walletContext: row.walletContext ?? undefined,
+    usedSigningRequestIds: row.usedSigningRequestIds,
     errorCode: row.errorCode ?? undefined,
     errorMessage: row.errorMessage ?? undefined,
     createdAt: row.createdAt.toISOString(),
@@ -35,14 +41,20 @@ export function createPostgresWalletRequestRepository(
     async create(request) {
       await db.insert(walletsTable).values({
         walletId: request.walletId,
+        walletMode: request.walletMode,
         status: request.status,
-        scope: request.scope,
-        sessionPublicKey: request.sessionPublicKey,
+        walletConfig: request.walletConfig,
+        agentAddress: request.agentAddress,
+        backendAddress: request.backendAddress,
+        backendPrivateKey: request.backendPrivateKey,
         provisioningTokenHash: request.provisioningTokenHash,
         ownerPublicArtifacts: request.ownerPublicArtifacts,
+        regularValidatorInitArtifact: request.regularValidatorInitArtifact,
         counterfactualWalletAddress: request.counterfactualWalletAddress,
         funding: request.funding,
+        deployment: request.deployment,
         walletContext: request.walletContext,
+        usedSigningRequestIds: request.usedSigningRequestIds,
         errorCode: request.errorCode,
         errorMessage: request.errorMessage,
         createdAt: new Date(request.createdAt),
@@ -84,8 +96,10 @@ export function createPostgresWalletRequestRepository(
       walletId,
       provisioningTokenHash,
       ownerPublicArtifacts,
+      regularValidatorInitArtifact,
       counterfactualWalletAddress,
       funding,
+      deployment,
       status,
       walletContext,
       updatedAt,
@@ -94,8 +108,10 @@ export function createPostgresWalletRequestRepository(
         .update(walletsTable)
         .set({
           ownerPublicArtifacts,
+          regularValidatorInitArtifact,
           counterfactualWalletAddress,
           funding,
+          deployment,
           status,
           walletContext,
           updatedAt: new Date(updatedAt),
@@ -112,12 +128,14 @@ export function createPostgresWalletRequestRepository(
       return row ? serialize(row) : null;
     },
 
-    async updateFunding({ walletId, funding, status, updatedAt }) {
+    async updateFunding({ walletId, funding, deployment, status, walletContext, updatedAt }) {
       const rows = await db
         .update(walletsTable)
         .set({
           funding,
+          deployment,
           status,
+          walletContext,
           updatedAt: new Date(updatedAt),
         })
         .where(eq(walletsTable.walletId, walletId))
@@ -125,6 +143,28 @@ export function createPostgresWalletRequestRepository(
 
       const row = rows[0];
       return row ? serialize(row) : null;
+    },
+
+    async recordUsedSigningRequestId({ walletId, requestId, updatedAt }) {
+      const current = await this.findById(walletId);
+
+      if (!current) {
+        return "not_found";
+      }
+
+      if (current.usedSigningRequestIds.includes(requestId)) {
+        return "duplicate";
+      }
+
+      await db
+        .update(walletsTable)
+        .set({
+          usedSigningRequestIds: [...current.usedSigningRequestIds, requestId],
+          updatedAt: new Date(updatedAt),
+        })
+        .where(eq(walletsTable.walletId, walletId));
+
+      return "ok";
     },
   };
 }

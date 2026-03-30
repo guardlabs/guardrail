@@ -2,6 +2,7 @@ import {
   publishOwnerArtifactsInputSchema,
   resolveProvisioningResponseSchema,
   type OwnerPublicArtifacts,
+  type RegularValidatorInitArtifact,
   type ResolveProvisioningResponse,
   type WalletRequest,
   walletRequestSchema,
@@ -40,7 +41,7 @@ export type FrontendApi = {
     backendUrl: string;
     owner: OwnerPublicArtifacts;
     counterfactualWalletAddress: string;
-    serializedPermissionAccount: string;
+    regularValidatorInitArtifact: RegularValidatorInitArtifact;
   }): Promise<WalletRequest>;
   refreshFunding(input: {
     walletId: string;
@@ -70,7 +71,7 @@ export const browserApi: FrontendApi = {
             publishOwnerArtifactsInputSchema.parse({
               owner: input.owner,
               counterfactualWalletAddress: input.counterfactualWalletAddress,
-              serializedPermissionAccount: input.serializedPermissionAccount,
+              regularValidatorInitArtifact: input.regularValidatorInitArtifact,
             }),
           ),
         },

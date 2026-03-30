@@ -28,12 +28,12 @@ function getWalletFilePath(walletId: string) {
 }
 
 export async function saveLocalWalletRequest(request: LocalWalletRequest) {
-  localWalletRequestSchema.parse(request);
+  const normalizedRequest = localWalletRequestSchema.parse(request);
 
   const directory = await getStoreDirectory();
-  const filePath = join(directory, `${request.walletId}.json`);
+  const filePath = join(directory, `${normalizedRequest.walletId}.json`);
 
-  await writeFile(filePath, `${JSON.stringify(request, null, 2)}\n`, {
+  await writeFile(filePath, `${JSON.stringify(normalizedRequest, null, 2)}\n`, {
     mode: 0o600,
   });
   await chmod(filePath, 0o600);
@@ -44,5 +44,12 @@ export async function saveLocalWalletRequest(request: LocalWalletRequest) {
 export async function readLocalWalletRequest(walletId: string) {
   const filePath = getWalletFilePath(walletId);
   const raw = await readFile(filePath, "utf8");
-  return localWalletRequestSchema.parse(JSON.parse(raw));
+
+  try {
+    return localWalletRequestSchema.parse(JSON.parse(raw));
+  } catch (error) {
+    throw new Error(
+      `Local wallet file ${filePath} is not a supported mode-B wallet. Delete it and recreate the wallet request.`,
+    );
+  }
 }

@@ -3,23 +3,33 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  PROJECT_WALLET_MODE,
+  buildDefaultWalletConfig,
+} from "@agent-wallet/shared";
+import {
   hydrateReadyWalletRequest,
   callReadyWalletTransaction,
+  ensureReadyWalletDeployed,
+  signReadyWalletTypedData,
 } from "./kernel.js";
 import { readLocalWalletRequest, saveLocalWalletRequest } from "./local-store.js";
 import {
+  buildOfficialUsdcTransferWithAuthorizationTypedData,
   executeAwait,
   executeCall,
   executeCreate,
+  executeSignTypedData,
   executeStatus,
 } from "./commands.js";
 
 vi.mock("./kernel.js", () => ({
   hydrateReadyWalletRequest: vi.fn(),
   callReadyWalletTransaction: vi.fn(),
+  ensureReadyWalletDeployed: vi.fn(),
+  signReadyWalletTypedData: vi.fn(),
 }));
 
-describe("cli commands", () => {
+describe("cli commands mode B", () => {
   let tempStoreDirectory = "";
 
   beforeEach(async () => {
@@ -41,209 +51,115 @@ describe("cli commands", () => {
     }
   });
 
-  it("creates a wallet against the backend API", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
+  it("creates a mode B wallet request and persists local runtime state", async () => {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      const requestBody = JSON.parse(String(init?.body)) as {
+        chainId: number;
+        walletMode: string;
+        agentAddress: string;
+      };
+      const walletConfig = buildDefaultWalletConfig({
+        chainId: requestBody.chainId,
+        agentAddress: requestBody.agentAddress,
+        backendAddress: "0x1111111111111111111111111111111111111111",
+      });
+
+      return {
         ok: true,
         json: async () => ({
+          walletMode: PROJECT_WALLET_MODE,
           walletId: "wal_123",
           status: "created",
+          agentAddress: requestBody.agentAddress,
+          backendAddress: "0x1111111111111111111111111111111111111111",
+          walletConfig,
+          deployment: {
+            status: "undeployed",
+          },
           provisioningUrl:
             "http://127.0.0.1:5173/?walletId=wal_123&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
-          expiresAt: new Date().toISOString(),
-        }),
-      }),
-    );
-
-    const result = await executeCreate({
-      chainId: "84532",
-      contractPermissions: [
-        "0x1111111111111111111111111111111111111111:0xa9059cbb",
-      ],
-      backendUrl: "http://127.0.0.1:3000",
-    });
-
-    expect(result.walletId).toBe("wal_123");
-    expect(result.sessionPublicKey.startsWith("0x")).toBe(true);
-    expect(result.localStatePath.endsWith("wal_123.json")).toBe(true);
-    expect(result.provisioningUrl).toContain(
-      "backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
-    );
-    expect(result.nextSteps).toMatchObject({
-      recommendedPollIntervalMs: 5000,
-      walletAddressStatus: "owner_bound",
-      humanActionUrl:
-        "http://127.0.0.1:5173/?walletId=wal_123&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
-      humanAction:
-        "Ask the human to open the provisioning URL and create the wallet with the passkey owner.",
-      walletAddressCommand:
-        "agent-wallet status wal_123 --backend-url http://127.0.0.1:3000",
-      statusCommand:
-        "agent-wallet status wal_123 --backend-url http://127.0.0.1:3000",
-      awaitCommand:
-        "agent-wallet await wal_123 --backend-url http://127.0.0.1:3000",
-    });
-    expect(result.nextSteps.guidance).toHaveLength(4);
-  });
-
-  it("preserves the caller backend override in create output", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          walletId: "wal_localhost",
-          status: "created",
-          provisioningUrl:
-            "http://127.0.0.1:5173/?walletId=wal_localhost&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
-          expiresAt: new Date().toISOString(),
+          expiresAt: "2026-03-30T12:00:00.000Z",
           nextSteps: {
             recommendedPollIntervalMs: 5000,
             walletAddressStatus: "owner_bound",
             humanActionUrl:
-              "http://127.0.0.1:5173/?walletId=wal_localhost&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
+              "http://127.0.0.1:5173/?walletId=wal_123&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
             humanAction:
-              "Ask the human to open the provisioning URL and create the wallet with the passkey owner.",
+              "Ask the human to open the provisioning URL and create the passkey owner for the weighted wallet.",
             walletAddressCommand:
-              "agent-wallet status wal_localhost --backend-url http://127.0.0.1:3000",
+              "agent-wallet status wal_123 --backend-url http://127.0.0.1:3000",
             statusCommand:
-              "agent-wallet status wal_localhost --backend-url http://127.0.0.1:3000",
+              "agent-wallet status wal_123 --backend-url http://127.0.0.1:3000",
             awaitCommand:
-              "agent-wallet await wal_localhost --backend-url http://127.0.0.1:3000",
+              "agent-wallet await wal_123 --backend-url http://127.0.0.1:3000",
             guidance: [
-              "Ask the human to open the provisioning URL and create the wallet with the passkey owner.",
-              "Then call the CLI wallet-address command again to refresh status and obtain the wallet address.",
-              "When the wallet address is available, ask the human to fund it on the request chain.",
-              "After funding, continue waiting until the request reaches ready.",
+              "Ask the human to open the provisioning URL and create the passkey owner.",
+              "Wait for the wallet address to appear once the owner is bound.",
+              "Fund the wallet on the target chain.",
+              "Continue waiting until the request reaches ready.",
             ],
           },
         }),
-      }),
-    );
-
-    const result = await executeCreate({
-      chainId: "84532",
-      contractPermissions: [
-        "0x1111111111111111111111111111111111111111:0xa9059cbb",
-      ],
-      backendUrl: "http://localhost:3000",
-    });
-
-    expect(result.provisioningUrl).toContain(
-      "backendUrl=http%3A%2F%2Flocalhost%3A3000",
-    );
-    expect(result.nextSteps.humanActionUrl).toContain(
-      "backendUrl=http%3A%2F%2Flocalhost%3A3000",
-    );
-    expect(result.nextSteps.walletAddressCommand).toContain(
-      "--backend-url http://localhost:3000",
-    );
-    expect(result.nextSteps.statusCommand).toContain(
-      "--backend-url http://localhost:3000",
-    );
-    expect(result.nextSteps.awaitCommand).toContain(
-      "--backend-url http://localhost:3000",
-    );
-  });
-
-  it("encodes and persists contract permissions plus an optional weekly USDC outgoing budget", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        walletId: "wal_limit",
-        status: "created",
-        provisioningUrl:
-          "http://127.0.0.1:5173/?walletId=wal_limit&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
-        expiresAt: new Date().toISOString(),
-      }),
+      };
     });
 
     vi.stubGlobal("fetch", fetchMock);
 
-    await executeCreate({
+    const result = await executeCreate({
       chainId: "84532",
-      contractPermissions: [
-        "0x9999999999999999999999999999999999999999:0x12345678,0xabcdef01",
-      ],
-      usdcOutgoingLimit: "25",
-      usdcOutgoingPeriod: "week",
-      usdcOutgoingFlow: ["transfer", "approve"],
-      usdcOutgoingCounterparty: [
-        "0x3333333333333333333333333333333333333333",
-        "0x4444444444444444444444444444444444444444",
-      ],
       backendUrl: "http://127.0.0.1:3000",
     });
 
-    const createCall = fetchMock.mock.calls[0];
-    expect(createCall?.[0]).toBe("http://127.0.0.1:3000/v1/wallets");
-    const requestInit = createCall?.[1] as RequestInit | undefined;
-    const body = JSON.parse(String(requestInit?.body)) as {
-      contractPermissions?: Array<{
-        targetContract: string;
-        allowedMethods: string[];
-      }>;
-      outgoingBudgets?: Array<{
-        type: string;
-        tokenAddress: string;
-        limitBaseUnits: string;
-        period: string;
-        allowedFlows: string[];
-        allowedCounterparties?: string[];
-      }>;
-    };
+    expect(result.walletId).toBe("wal_123");
+    expect(result.agentAddress).toMatch(/^0x[a-fA-F0-9]{40}$/);
+    expect(result.localStatePath.endsWith("wal_123.json")).toBe(true);
+    expect(result.walletConfig.regularValidator.threshold).toBe(2);
 
-    expect(body.contractPermissions).toEqual([
-      {
-        targetContract: "0x9999999999999999999999999999999999999999",
-        allowedMethods: ["0x12345678", "0xabcdef01"],
-      },
-    ]);
-    expect(body.outgoingBudgets).toEqual([
-      {
-        type: "erc20",
-        tokenAddress: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-        limitBaseUnits: "25000000",
-        period: "week",
-        allowedFlows: ["transfer", "approve"],
-        allowedCounterparties: [
-          "0x3333333333333333333333333333333333333333",
-          "0x4444444444444444444444444444444444444444",
-        ],
-      },
-    ]);
+    const persistedRequest = await readLocalWalletRequest("wal_123");
+    expect(persistedRequest.walletMode).toBe(PROJECT_WALLET_MODE);
+    expect(persistedRequest.agentAddress).toBe(result.agentAddress);
+    expect(persistedRequest.backendAddress).toBe(
+      "0x1111111111111111111111111111111111111111",
+    );
+    expect(persistedRequest.deployment.status).toBe("undeployed");
 
-    const persistedRequest = await readLocalWalletRequest("wal_limit");
-    expect(persistedRequest.contractPermissions).toEqual(body.contractPermissions);
-    expect(persistedRequest.outgoingBudgets).toEqual(body.outgoingBudgets);
+    const [createUrl, createInit] = fetchMock.mock.calls[0] ?? [];
+    expect(createUrl).toBe("http://127.0.0.1:3000/v1/wallets");
+    expect(JSON.parse(String((createInit as RequestInit | undefined)?.body))).toMatchObject({
+      walletMode: PROJECT_WALLET_MODE,
+      chainId: 84532,
+      agentAddress: result.agentAddress,
+    });
   });
 
   it("reads wallet status from the backend API", async () => {
+    const walletConfig = buildDefaultWalletConfig({
+      chainId: 84532,
+      agentAddress: "0x95b4d8f3a9f0ac9d4d7f9ef42fb0f4f6e11d1111",
+      backendAddress: "0x1111111111111111111111111111111111111111",
+    });
+
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
+          walletMode: PROJECT_WALLET_MODE,
           walletId: "wal_123",
           status: "created",
-          scope: {
-            chainId: 84532,
-            contractPermissions: [
-              {
-                targetContract: "0x1111111111111111111111111111111111111111",
-                allowedMethods: ["0xa9059cbb"],
-              },
-            ],
-          },
-          sessionPublicKey: "0x1234",
+          walletConfig,
+          agentAddress: walletConfig.regularValidator.signers[0]?.address,
+          backendAddress: walletConfig.regularValidator.signers[1]?.address,
           funding: {
             status: "unverified",
             minimumRequiredWei: "500000000000000",
           },
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          expiresAt: new Date().toISOString(),
+          deployment: {
+            status: "undeployed",
+          },
+          createdAt: "2026-03-29T12:00:00.000Z",
+          updatedAt: "2026-03-29T12:00:00.000Z",
+          expiresAt: "2026-03-30T12:00:00.000Z",
         }),
       }),
     );
@@ -255,161 +171,81 @@ describe("cli commands", () => {
 
     expect(result.walletId).toBe("wal_123");
     expect(result.status).toBe("created");
+    expect(result.walletMode).toBe(PROJECT_WALLET_MODE);
   });
 
-  it("waits until the backend returns a ready wallet", async () => {
-    const stderrWrite = vi
-      .spyOn(process.stderr, "write")
-      .mockImplementation(() => true);
-
-    vi.mocked(hydrateReadyWalletRequest).mockResolvedValue({
-      walletAddress: "0x2222222222222222222222222222222222222222",
-      serializedPermissionAccount: "approval_123",
+  it("waits until the backend returns a ready weighted wallet and persists the wallet address", async () => {
+    const walletConfig = buildDefaultWalletConfig({
+      chainId: 84532,
+      agentAddress: "0x95b4d8f3a9f0ac9d4d7f9ef42fb0f4f6e11d1111",
+      backendAddress: "0x1111111111111111111111111111111111111111",
+    });
+    await saveLocalWalletRequest({
+      walletMode: PROJECT_WALLET_MODE,
+      walletId: "wal_123",
+      backendBaseUrl: "http://127.0.0.1:3000",
+      provisioningUrl:
+        "http://127.0.0.1:5173/?walletId=wal_123&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
+      chainId: 84532,
+      walletConfig,
+      agentAddress: walletConfig.regularValidator.signers[0]?.address ?? "",
+      agentPrivateKey:
+        "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      backendAddress: walletConfig.regularValidator.signers[1]?.address ?? "",
+      createdAt: "2026-03-29T12:00:00.000Z",
+      lastKnownStatus: "created",
+      deployment: {
+        status: "undeployed",
+      },
     });
 
-    const fetchMock = vi
-        .fn()
+    vi.stubGlobal(
+      "fetch",
+      vi.fn()
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            walletId: "wal_123",
-            status: "created",
-            provisioningUrl:
-              "http://127.0.0.1:5173/?walletId=wal_123&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
-            expiresAt: new Date().toISOString(),
-          }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            walletId: "wal_123",
-            status: "created",
-            scope: {
-              chainId: 84532,
-              contractPermissions: [
-                {
-                  targetContract: "0x1111111111111111111111111111111111111111",
-                  allowedMethods: ["0xa9059cbb"],
-                },
-              ],
-            },
-            sessionPublicKey: "0x1234",
-            funding: {
-              status: "unverified",
-              minimumRequiredWei: "500000000000000",
-            },
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            expiresAt: new Date().toISOString(),
-          }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            walletId: "wal_123",
-            status: "owner_bound",
-            scope: {
-              chainId: 84532,
-              contractPermissions: [
-                {
-                  targetContract: "0x1111111111111111111111111111111111111111",
-                  allowedMethods: ["0xa9059cbb"],
-                },
-              ],
-            },
-            sessionPublicKey: "0x1234",
-            counterfactualWalletAddress:
-              "0x2222222222222222222222222222222222222222",
-            funding: {
-              status: "insufficient",
-              minimumRequiredWei: "500000000000000",
-              balanceWei: "0",
-              checkedAt: new Date().toISOString(),
-            },
-            walletContext: {
-              walletAddress: "0x2222222222222222222222222222222222222222",
-              chainId: 84532,
-              kernelVersion: "3.1",
-              sessionPublicKey: "0x1234",
-              owner: {
-                credentialId: "credential-id",
-                publicKey: "0x1234",
-              },
-              scope: {
-                chainId: 84532,
-                contractPermissions: [
-                  {
-                    targetContract: "0x1111111111111111111111111111111111111111",
-                    allowedMethods: ["0xa9059cbb"],
-                  },
-                ],
-              },
-              policyDigest: "0x12345678",
-              serializedPermissionAccount: "approval_123",
-            },
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            expiresAt: new Date().toISOString(),
-          }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
+            walletMode: PROJECT_WALLET_MODE,
             walletId: "wal_123",
             status: "ready",
-            scope: {
-              chainId: 84532,
-              contractPermissions: [
-                {
-                  targetContract: "0x1111111111111111111111111111111111111111",
-                  allowedMethods: ["0xa9059cbb"],
-                },
-              ],
+            walletConfig,
+            agentAddress: walletConfig.regularValidator.signers[0]?.address,
+            backendAddress: walletConfig.regularValidator.signers[1]?.address,
+            counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
+            ownerPublicArtifacts: {
+              credentialId: "credential-id",
+              publicKey: "0x1234",
             },
-            sessionPublicKey: "0x1234",
-            counterfactualWalletAddress:
-              "0x2222222222222222222222222222222222222222",
             funding: {
               status: "verified",
               minimumRequiredWei: "500000000000000",
-              balanceWei: "600000000000000",
-              checkedAt: new Date().toISOString(),
+              balanceWei: "700000000000000",
+              checkedAt: "2026-03-29T12:05:00.000Z",
+            },
+            deployment: {
+              status: "undeployed",
             },
             walletContext: {
               walletAddress: "0x2222222222222222222222222222222222222222",
               chainId: 84532,
               kernelVersion: "3.1",
-              sessionPublicKey: "0x1234",
+              entryPointVersion: "0.7",
               owner: {
                 credentialId: "credential-id",
                 publicKey: "0x1234",
               },
-              scope: {
-                chainId: 84532,
-                contractPermissions: [
-                  {
-                    targetContract: "0x1111111111111111111111111111111111111111",
-                    allowedMethods: ["0xa9059cbb"],
-                  },
-                ],
-              },
-              policyDigest: "0x12345678",
-              serializedPermissionAccount: "approval_123",
+              agentAddress: walletConfig.regularValidator.signers[0]?.address,
+              backendAddress: walletConfig.regularValidator.signers[1]?.address,
+              weightedValidator: walletConfig.regularValidator,
             },
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            expiresAt: new Date().toISOString(),
+            createdAt: "2026-03-29T12:00:00.000Z",
+            updatedAt: "2026-03-29T12:05:00.000Z",
+            expiresAt: "2026-03-30T12:00:00.000Z",
           }),
-        });
-
-    vi.stubGlobal("fetch", fetchMock);
-
-    await executeCreate({
-      chainId: "84532",
-      contractPermissions: [
-        "0x1111111111111111111111111111111111111111:0xa9059cbb",
-      ],
-      backendUrl: "http://127.0.0.1:3000",
+        }),
+    );
+    vi.mocked(hydrateReadyWalletRequest).mockResolvedValue({
+      walletAddress: "0x2222222222222222222222222222222222222222",
     });
 
     const result = await executeAwait({
@@ -418,92 +254,262 @@ describe("cli commands", () => {
       backendUrl: "http://127.0.0.1:3000",
     });
 
-    expect(hydrateReadyWalletRequest).toHaveBeenCalledTimes(1);
-    expect(result.status).toBe("ready");
-    expect(result.counterfactualWalletAddress).toBe(
-      "0x2222222222222222222222222222222222222222",
-    );
-    expect(result.walletContext?.walletAddress).toBe(
-      "0x2222222222222222222222222222222222222222",
-    );
-    expect("localStatePath" in result).toBe(true);
-    if (!("localStatePath" in result)) {
-      throw new Error("Expected executeAwait to return a localStatePath.");
-    }
-    expect(result.localStatePath.endsWith("wal_123.json")).toBe(true);
-
     const persistedRequest = await readLocalWalletRequest("wal_123");
-    expect(persistedRequest.lastKnownStatus).toBe("ready");
+    expect(vi.mocked(hydrateReadyWalletRequest)).toHaveBeenCalled();
+    expect(result).toMatchObject({
+      status: "ready",
+      localStatePath: expect.stringContaining("wal_123.json"),
+    });
     expect(persistedRequest.walletAddress).toBe(
       "0x2222222222222222222222222222222222222222",
     );
-    expect(persistedRequest.serializedPermissionAccount).toBe("approval_123");
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      4,
-      "http://127.0.0.1:3000/v1/wallets/wal_123/refresh-funding",
-      expect.objectContaining({
-        method: "POST",
-      }),
-    );
-    expect(stderrWrite).toHaveBeenCalledWith(
-      expect.stringContaining("Waiting for wallet wal_123"),
-    );
+    expect(persistedRequest.lastKnownStatus).toBe("ready");
+    expect(persistedRequest.deployment.status).toBe("undeployed");
   });
 
-  it("calls an authorized contract from a ready local wallet", async () => {
+  it("executes a transaction from a ready local wallet", async () => {
+    const walletConfig = buildDefaultWalletConfig({
+      chainId: 84532,
+      agentAddress: "0x95b4d8f3a9f0ac9d4d7f9ef42fb0f4f6e11d1111",
+      backendAddress: "0x1111111111111111111111111111111111111111",
+    });
+    await saveLocalWalletRequest({
+      walletMode: PROJECT_WALLET_MODE,
+      walletId: "wal_123",
+      backendBaseUrl: "http://127.0.0.1:3000",
+      provisioningUrl:
+        "http://127.0.0.1:5173/?walletId=wal_123&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
+      chainId: 84532,
+      walletConfig,
+      agentAddress: walletConfig.regularValidator.signers[0]?.address ?? "",
+      agentPrivateKey:
+        "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      backendAddress: walletConfig.regularValidator.signers[1]?.address ?? "",
+      walletAddress: "0x2222222222222222222222222222222222222222",
+      createdAt: "2026-03-29T12:00:00.000Z",
+      lastKnownStatus: "ready",
+      deployment: {
+        status: "undeployed",
+      },
+    });
     vi.mocked(callReadyWalletTransaction).mockResolvedValue({
       walletAddress: "0x2222222222222222222222222222222222222222",
       transactionHash: "0xtransactionhash",
     });
-
-    await saveLocalWalletRequest({
-      walletId: "wal_ready",
-      backendBaseUrl: "http://127.0.0.1:3000",
-      provisioningUrl:
-        "http://127.0.0.1:5173/?walletId=wal_ready&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
-      chainId: 84532,
-      contractPermissions: [
-        {
-          targetContract: "0x1111111111111111111111111111111111111111",
-          allowedMethods: ["0xa9059cbb"],
-        },
-      ],
-      sessionPublicKey:
-        "0x04bfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabf",
-      sessionPrivateKey:
-        "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-      walletAddress: "0x2222222222222222222222222222222222222222",
-      serializedPermissionAccount: "approval_123",
-      createdAt: "2026-03-25T12:00:00.000Z",
-      lastKnownStatus: "ready",
-    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          walletMode: PROJECT_WALLET_MODE,
+          walletId: "wal_123",
+          status: "ready",
+          walletConfig,
+          agentAddress: walletConfig.regularValidator.signers[0]?.address,
+          backendAddress: walletConfig.regularValidator.signers[1]?.address,
+          ownerPublicArtifacts: {
+            credentialId: "credential-id",
+            publicKey: "0x1234",
+          },
+          regularValidatorInitArtifact: {
+            validatorAddress: "0x3333333333333333333333333333333333333333",
+            enableData: "0x1234",
+            pluginEnableSignature: "0x5678",
+          },
+          counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
+          funding: {
+            status: "verified",
+            minimumRequiredWei: "500000000000000",
+            balanceWei: "700000000000000",
+            checkedAt: "2026-03-29T12:05:00.000Z",
+          },
+          deployment: {
+            status: "deployed",
+          },
+          walletContext: {
+            walletAddress: "0x2222222222222222222222222222222222222222",
+            chainId: 84532,
+            kernelVersion: "3.1",
+            entryPointVersion: "0.7",
+            owner: {
+              credentialId: "credential-id",
+              publicKey: "0x1234",
+            },
+            agentAddress: walletConfig.regularValidator.signers[0]?.address,
+            backendAddress: walletConfig.regularValidator.signers[1]?.address,
+            weightedValidator: walletConfig.regularValidator,
+          },
+          createdAt: "2026-03-29T12:00:00.000Z",
+          updatedAt: "2026-03-29T12:05:00.000Z",
+          expiresAt: "2026-03-30T12:00:00.000Z",
+        }),
+      }),
+    );
 
     const result = await executeCall({
-      walletId: "wal_ready",
+      walletId: "wal_123",
       to: "0x1111111111111111111111111111111111111111",
       data: "0xa9059cbb",
       valueWei: "0",
     });
 
-    expect(callReadyWalletTransaction).toHaveBeenCalledWith({
-      localRequest: expect.objectContaining({
-        walletId: "wal_ready",
-        lastKnownStatus: "ready",
-      }),
-      call: {
-        to: "0x1111111111111111111111111111111111111111",
-        data: "0xa9059cbb",
-        valueWei: "0",
-      },
-    });
+    expect(vi.mocked(callReadyWalletTransaction)).toHaveBeenCalled();
     expect(result).toEqual({
-      walletId: "wal_ready",
+      walletId: "wal_123",
       walletAddress: "0x2222222222222222222222222222222222222222",
       targetContract: "0x1111111111111111111111111111111111111111",
       data: "0xa9059cbb",
       valueWei: "0",
       transactionHash: "0xtransactionhash",
     });
+    const persistedRequest = await readLocalWalletRequest("wal_123");
+    expect(persistedRequest.deployment.status).toBe("deployed");
   });
 
+  it("signs generic typed data and covers the USDC transferWithAuthorization shape", async () => {
+    const walletConfig = buildDefaultWalletConfig({
+      chainId: 84532,
+      agentAddress: "0x95b4d8f3a9f0ac9d4d7f9ef42fb0f4f6e11d1111",
+      backendAddress: "0x1111111111111111111111111111111111111111",
+    });
+    await saveLocalWalletRequest({
+      walletMode: PROJECT_WALLET_MODE,
+      walletId: "wal_123",
+      backendBaseUrl: "http://127.0.0.1:3000",
+      provisioningUrl:
+        "http://127.0.0.1:5173/?walletId=wal_123&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
+      chainId: 84532,
+      walletConfig,
+      agentAddress: walletConfig.regularValidator.signers[0]?.address ?? "",
+      agentPrivateKey:
+        "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      backendAddress: walletConfig.regularValidator.signers[1]?.address ?? "",
+      walletAddress: "0x2222222222222222222222222222222222222222",
+      createdAt: "2026-03-29T12:00:00.000Z",
+      lastKnownStatus: "ready",
+      deployment: {
+        status: "undeployed",
+      },
+    });
+    vi.mocked(ensureReadyWalletDeployed).mockResolvedValue({
+      walletAddress: "0x2222222222222222222222222222222222222222",
+      deployed: true,
+      deployedByThisCall: true,
+      transactionHash: "0xdeploymenthash",
+    });
+    vi.mocked(signReadyWalletTypedData).mockResolvedValue({
+      walletAddress: "0x2222222222222222222222222222222222222222",
+      signature: "0xsignedtypeddata",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          walletMode: PROJECT_WALLET_MODE,
+          walletId: "wal_123",
+          status: "ready",
+          walletConfig,
+          agentAddress: walletConfig.regularValidator.signers[0]?.address,
+          backendAddress: walletConfig.regularValidator.signers[1]?.address,
+          ownerPublicArtifacts: {
+            credentialId: "credential-id",
+            publicKey: "0x1234",
+          },
+          regularValidatorInitArtifact: {
+            validatorAddress: "0x3333333333333333333333333333333333333333",
+            enableData: "0x1234",
+            pluginEnableSignature: "0x5678",
+          },
+          counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
+          funding: {
+            status: "verified",
+            minimumRequiredWei: "500000000000000",
+            balanceWei: "700000000000000",
+            checkedAt: "2026-03-29T12:05:00.000Z",
+          },
+          deployment: {
+            status: "deployed",
+          },
+          walletContext: {
+            walletAddress: "0x2222222222222222222222222222222222222222",
+            chainId: 84532,
+            kernelVersion: "3.1",
+            entryPointVersion: "0.7",
+            owner: {
+              credentialId: "credential-id",
+              publicKey: "0x1234",
+            },
+            agentAddress: walletConfig.regularValidator.signers[0]?.address,
+            backendAddress: walletConfig.regularValidator.signers[1]?.address,
+            weightedValidator: walletConfig.regularValidator,
+          },
+          createdAt: "2026-03-29T12:00:00.000Z",
+          updatedAt: "2026-03-29T12:05:00.000Z",
+          expiresAt: "2026-03-30T12:00:00.000Z",
+        }),
+      }),
+    );
+
+    const typedData = buildOfficialUsdcTransferWithAuthorizationTypedData({
+      chainId: 84532,
+      from: "0x2222222222222222222222222222222222222222",
+      to: "0x1111111111111111111111111111111111111111",
+      amountUsdc: "1.25",
+      validAfter: "0",
+      validBefore: "1893456000",
+      nonce:
+        "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    });
+
+    const result = await executeSignTypedData({
+      walletId: "wal_123",
+      typedDataJson: JSON.stringify(typedData),
+    });
+
+    expect(vi.mocked(signReadyWalletTypedData)).toHaveBeenCalledWith({
+      localRequest: expect.objectContaining({
+        walletId: "wal_123",
+        deployment: {
+          status: "deployed",
+        },
+      }),
+      typedData: {
+        domain: {
+          name: "USDC",
+          version: "2",
+          chainId: 84532,
+          verifyingContract: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+        },
+        primaryType: "TransferWithAuthorization",
+        types: {
+          TransferWithAuthorization: [
+            { name: "from", type: "address" },
+            { name: "to", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "validAfter", type: "uint256" },
+            { name: "validBefore", type: "uint256" },
+            { name: "nonce", type: "bytes32" },
+          ],
+        },
+        message: {
+          from: "0x2222222222222222222222222222222222222222",
+          to: "0x1111111111111111111111111111111111111111",
+          value: "1250000",
+          validAfter: "0",
+          validBefore: "1893456000",
+          nonce:
+            "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        },
+      },
+    });
+    expect(result).toEqual({
+      walletId: "wal_123",
+      walletAddress: "0x2222222222222222222222222222222222222222",
+      typedData,
+      signature: "0xsignedtypeddata",
+    });
+    const persistedRequest = await readLocalWalletRequest("wal_123");
+    expect(persistedRequest.deployment.status).toBe("deployed");
+  });
 });

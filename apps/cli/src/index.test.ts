@@ -9,6 +9,7 @@ describe("cli help", () => {
     expect(help).toContain("status");
     expect(help).toContain("await");
     expect(help).toContain("call");
+    expect(help).toContain("sign-typed-data");
     expect(help).toContain("--backend-url");
     expect(help).toContain("Supported chains");
     expect(help).toContain("84532 (Base Sepolia)");
@@ -21,12 +22,10 @@ describe("cli help", () => {
 
     expect(createCommand?.helpInformation()).toContain("--chain-id");
     expect(createCommand?.helpInformation()).toContain("--backend-url");
-    expect(createCommand?.helpInformation()).toContain("--contract-permission");
-    expect(createCommand?.helpInformation()).toContain("--usdc-outgoing-limit");
-    expect(createCommand?.helpInformation()).toContain("--usdc-outgoing-period");
-    expect(createCommand?.helpInformation()).toContain("--usdc-outgoing-flow");
-    expect(createCommand?.helpInformation()).toContain("--usdc-outgoing-counterparty");
     expect(createCommand?.helpInformation()).toContain("84532 (Base Sepolia)");
+    expect(createCommand?.helpInformation()).toContain(
+      "Create a wallet provisioning request",
+    );
   });
 
   it("documents call usage for a ready wallet", () => {
@@ -37,5 +36,15 @@ describe("cli help", () => {
     expect(callCommand?.helpInformation()).toContain("<wallet-id>");
     expect(callCommand?.helpInformation()).toContain("--to");
     expect(callCommand?.helpInformation()).toContain("--data");
+  });
+
+  it("documents typed data signing usage for a ready wallet", () => {
+    const signTypedDataCommand = buildProgram().commands.find(
+      (command) => command.name() === "sign-typed-data",
+    );
+
+    expect(signTypedDataCommand?.helpInformation()).toContain("<wallet-id>");
+    expect(signTypedDataCommand?.helpInformation()).toContain("--typed-data-file");
+    expect(signTypedDataCommand?.helpInformation()).toContain("--typed-data-json");
   });
 });

@@ -1,30 +1,53 @@
 import { describe, expect, it, vi } from "vitest";
-import type { LocalWalletRequest, WalletRequest } from "@agent-wallet/shared";
 import {
-  hydrateReadyWalletRequest,
+  PROJECT_WALLET_MODE,
+  buildDefaultWalletConfig,
+  type LocalWalletRequest,
+  type WalletRequest,
+} from "@agent-wallet/shared";
+import { createWeightedKernelRuntime } from "@agent-wallet/zerodev";
+import {
   callReadyWalletTransaction,
+  ensureReadyWalletDeployed,
+  hydrateReadyWalletRequest,
+  signReadyWalletTypedData,
 } from "./kernel.js";
+
+vi.mock("@agent-wallet/zerodev", () => ({
+  createWeightedKernelRuntime: vi.fn(),
+}));
 
 function buildLocalWalletRequest(
   overrides: Partial<LocalWalletRequest> = {},
 ): LocalWalletRequest {
+  const walletConfig = buildDefaultWalletConfig({
+    chainId: 84532,
+    agentAddress: "0x95b4d8f3a9f0ac9d4d7f9ef42fb0f4f6e11d1111",
+    backendAddress: "0x1111111111111111111111111111111111111111",
+  });
+
   return {
+    walletMode: PROJECT_WALLET_MODE,
     walletId: "wal_123",
     backendBaseUrl: "http://127.0.0.1:3000",
     provisioningUrl:
       "http://127.0.0.1:5173/?walletId=wal_123&token=token_123&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
     chainId: 84532,
-    contractPermissions: [
-      {
-        targetContract: "0x1111111111111111111111111111111111111111",
-        allowedMethods: ["0xa9059cbb"],
-      },
-    ],
-    sessionPublicKey: "0x04bfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabf",
-    sessionPrivateKey:
+    walletConfig,
+    agentAddress: walletConfig.regularValidator.signers[0]?.address ?? "",
+    agentPrivateKey:
       "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-    createdAt: "2026-03-25T12:00:00.000Z",
+    backendAddress: "0x1111111111111111111111111111111111111111",
+    regularValidatorInitArtifact: {
+      validatorAddress: "0x3333333333333333333333333333333333333333",
+      enableData: "0x1234",
+      pluginEnableSignature: "0x5678",
+    },
+    createdAt: "2026-03-29T12:00:00.000Z",
     lastKnownStatus: "created",
+    deployment: {
+      status: "undeployed",
+    },
     ...overrides,
   };
 }
@@ -32,141 +55,96 @@ function buildLocalWalletRequest(
 function buildReadyWalletRequest(
   overrides: Partial<WalletRequest> = {},
 ): WalletRequest {
+  const walletConfig = buildDefaultWalletConfig({
+    chainId: 84532,
+    agentAddress: "0x95b4d8f3a9f0ac9d4d7f9ef42fb0f4f6e11d1111",
+    backendAddress: "0x1111111111111111111111111111111111111111",
+  });
+
   return {
+    walletMode: PROJECT_WALLET_MODE,
     walletId: "wal_123",
     status: "ready",
-    scope: {
-      chainId: 84532,
-      contractPermissions: [
-        {
-          targetContract: "0x1111111111111111111111111111111111111111",
-          allowedMethods: ["0xa9059cbb"],
-        },
-      ],
+    walletConfig,
+    agentAddress: "0x95b4d8f3a9f0ac9d4d7f9ef42fb0f4f6e11d1111",
+    backendAddress: "0x1111111111111111111111111111111111111111",
+    ownerPublicArtifacts: {
+      credentialId: "credential-id",
+      publicKey: "0x1234",
     },
-    sessionPublicKey:
-      "0x04bfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabf",
+    regularValidatorInitArtifact: {
+      validatorAddress: "0x3333333333333333333333333333333333333333",
+      enableData: "0x1234",
+      pluginEnableSignature: "0x5678",
+    },
     counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
     funding: {
       status: "verified",
       minimumRequiredWei: "500000000000000",
       balanceWei: "700000000000000",
-      checkedAt: "2026-03-25T12:05:00.000Z",
+      checkedAt: "2026-03-29T12:05:00.000Z",
+    },
+    deployment: {
+      status: "undeployed",
     },
     walletContext: {
       walletAddress: "0x2222222222222222222222222222222222222222",
       chainId: 84532,
       kernelVersion: "3.1",
-      sessionPublicKey:
-        "0x04bfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabfcabf",
+      entryPointVersion: "0.7",
       owner: {
         credentialId: "credential-id",
         publicKey: "0x1234",
       },
-      scope: {
-        chainId: 84532,
-        contractPermissions: [
-          {
-            targetContract: "0x1111111111111111111111111111111111111111",
-            allowedMethods: ["0xa9059cbb"],
-          },
-        ],
-      },
-      policyDigest: "0x12345678",
-      serializedPermissionAccount: "approval_123",
+      agentAddress: "0x95b4d8f3a9f0ac9d4d7f9ef42fb0f4f6e11d1111",
+      backendAddress: "0x1111111111111111111111111111111111111111",
+      weightedValidator: walletConfig.regularValidator,
     },
-    createdAt: "2026-03-25T12:00:00.000Z",
-    updatedAt: "2026-03-25T12:05:00.000Z",
-    expiresAt: "2026-03-26T12:00:00.000Z",
+    createdAt: "2026-03-29T12:00:00.000Z",
+    updatedAt: "2026-03-29T12:05:00.000Z",
+    expiresAt: "2026-03-30T12:00:00.000Z",
     ...overrides,
   };
 }
 
-describe("kernel hydration", () => {
-  it("rebuilds a ready permission account from the serialized approval and session key", async () => {
-    const createPublicClient = vi.fn(() => ({ transport: "public" }));
-    const estimateFeesPerGas = vi.fn(async () => ({
-      maxFeePerGas: 7n,
-      maxPriorityFeePerGas: 3n,
-    }));
-    const http = vi.fn((url: string) => ({ url }));
-    const privateKeyToAccount = vi.fn(() => ({ address: "0xsession" }));
-    const toECDSASigner = vi.fn(async () => ({ signer: "ecdsa" }));
-    const deserializePermissionAccount = vi.fn(async () => ({
-      address: "0x2222222222222222222222222222222222222222",
-    }));
-    const createKernelAccountClient = vi.fn(() => ({
-      sendTransaction: vi.fn(async () => "0xtransactionhash" as const),
-    }));
-
-    const result = await hydrateReadyWalletRequest(
-      {
-        walletRequest: buildReadyWalletRequest(),
-        localRequest: buildLocalWalletRequest(),
+describe("kernel runtime mode B", () => {
+  it("hydrates a ready weighted wallet runtime from local state", async () => {
+    vi.mocked(createWeightedKernelRuntime).mockResolvedValue({
+      kernelAccount: {
+        address: "0x2222222222222222222222222222222222222222",
       },
-      {
-        createPublicClient,
-        estimateFeesPerGas,
-        http,
-        privateKeyToAccount,
-        toECDSASigner,
-        deserializePermissionAccount,
-        createKernelAccountClient,
+      kernelClient: {
+        sendTransaction: vi.fn(),
       },
-    );
+      publicClient: {},
+    } as never);
 
-    expect(privateKeyToAccount).toHaveBeenCalledWith(
-      "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-    );
-    expect(toECDSASigner).toHaveBeenCalled();
-    expect(deserializePermissionAccount).toHaveBeenCalledWith(
-      { transport: "public" },
-      expect.anything(),
-      "0.3.1",
-      "approval_123",
-      { signer: "ecdsa" },
-    );
-    expect(createKernelAccountClient).toHaveBeenCalled();
-    const kernelClientConfig = (
-      createKernelAccountClient as unknown as {
-        mock: {
-          calls: Array<
-            [
-              {
-                userOperation?: {
-                  estimateFeesPerGas?: (parameters: unknown) => Promise<{
-                    maxFeePerGas: bigint;
-                    maxPriorityFeePerGas: bigint;
-                  }>;
-                };
-              },
-            ]
-          >;
-        };
-      }
-    ).mock.calls[0]?.[0];
-    expect(kernelClientConfig?.userOperation?.estimateFeesPerGas).toBeTypeOf(
-      "function",
-    );
-    const estimateFeesPerGasFn = kernelClientConfig?.userOperation?.estimateFeesPerGas;
-    expect(estimateFeesPerGasFn).toBeTypeOf("function");
-    if (!estimateFeesPerGasFn) {
-      throw new Error("Expected createKernelAccountClient to receive estimateFeesPerGas.");
-    }
-    await expect(estimateFeesPerGasFn({})).resolves.toEqual({
-      maxFeePerGas: 7n,
-      maxPriorityFeePerGas: 3n,
+    const result = await hydrateReadyWalletRequest({
+      walletRequest: buildReadyWalletRequest(),
+      localRequest: buildLocalWalletRequest({
+        walletAddress: "0x2222222222222222222222222222222222222222",
+      }),
     });
-    expect(estimateFeesPerGas).toHaveBeenCalledWith({ transport: "public" });
-    expect(http).toHaveBeenCalledWith(
-      "http://127.0.0.1:3000/v1/chains/84532/rpc",
+
+    expect(createWeightedKernelRuntime).toHaveBeenCalledWith(
+      expect.objectContaining({
+        walletId: "wal_123",
+        walletAddress: "0x2222222222222222222222222222222222222222",
+        backendBaseUrl: "http://127.0.0.1:3000",
+        ownerPublicArtifacts: {
+          credentialId: "credential-id",
+          publicKey: "0x1234",
+        },
+        regularValidatorInitArtifact: {
+          validatorAddress: "0x3333333333333333333333333333333333333333",
+          enableData: "0x1234",
+          pluginEnableSignature: "0x5678",
+        },
+        rpcUrl: "http://127.0.0.1:3000/v1/chains/84532/rpc",
+        bundlerUrl: "http://127.0.0.1:3000/v1/chains/84532/bundler",
+      }),
     );
-    expect(http).toHaveBeenCalledWith(
-      "http://127.0.0.1:3000/v1/chains/84532/bundler",
-    );
-    expect(result.walletAddress).toBe(
-      "0x2222222222222222222222222222222222222222",
-    );
+    expect(result.walletAddress).toBe("0x2222222222222222222222222222222222222222");
   });
 
   it("fails fast when the local backend URL is missing", async () => {
@@ -175,46 +153,35 @@ describe("kernel hydration", () => {
         walletRequest: buildReadyWalletRequest(),
         localRequest: buildLocalWalletRequest({
           backendBaseUrl: "",
+          walletAddress: "0x2222222222222222222222222222222222222222",
         }),
       }),
     ).rejects.toThrow(/backend url/i);
   });
 
-  it("calls a contract from a locally hydrated ready wallet", async () => {
-    const createPublicClient = vi.fn(() => ({ transport: "public" }));
-    const http = vi.fn((url: string) => ({ url }));
-    const privateKeyToAccount = vi.fn(() => ({ address: "0xsession" }));
-    const toECDSASigner = vi.fn(async () => ({ signer: "ecdsa" }));
-    const deserializePermissionAccount = vi.fn(async () => ({
-      address: "0x2222222222222222222222222222222222222222",
-    }));
+  it("sends a transaction through the weighted runtime client", async () => {
     const sendTransaction = vi.fn(async () => "0xtransactionhash" as const);
-    const createKernelAccountClient = vi.fn(() => ({
-      sendTransaction,
-    }));
+    vi.mocked(createWeightedKernelRuntime).mockResolvedValue({
+      kernelAccount: {
+        address: "0x2222222222222222222222222222222222222222",
+      },
+      kernelClient: {
+        sendTransaction,
+      },
+      publicClient: {},
+    } as never);
 
-    const result = await callReadyWalletTransaction(
-      {
-        localRequest: buildLocalWalletRequest({
-          walletAddress: "0x2222222222222222222222222222222222222222",
-          serializedPermissionAccount: "approval_123",
-          lastKnownStatus: "ready",
-        }),
-        call: {
-          to: "0x1111111111111111111111111111111111111111",
-          data: "0xa9059cbb",
-          valueWei: "0",
-        },
+    const result = await callReadyWalletTransaction({
+      localRequest: buildLocalWalletRequest({
+        walletAddress: "0x2222222222222222222222222222222222222222",
+        lastKnownStatus: "ready",
+      }),
+      call: {
+        to: "0x1111111111111111111111111111111111111111",
+        data: "0xa9059cbb",
+        valueWei: "0",
       },
-      {
-        createPublicClient,
-        http,
-        privateKeyToAccount,
-        toECDSASigner,
-        deserializePermissionAccount,
-        createKernelAccountClient,
-      },
-    );
+    });
 
     expect(sendTransaction).toHaveBeenCalledWith({
       to: "0x1111111111111111111111111111111111111111",
@@ -224,6 +191,110 @@ describe("kernel hydration", () => {
     expect(result).toEqual({
       walletAddress: "0x2222222222222222222222222222222222222222",
       transactionHash: "0xtransactionhash",
+    });
+  });
+
+  it("signs typed data through the weighted runtime account", async () => {
+    const signTypedData = vi.fn(async () => "0xsignedtypeddata" as const);
+    vi.mocked(createWeightedKernelRuntime).mockResolvedValue({
+      kernelAccount: {
+        address: "0x2222222222222222222222222222222222222222",
+        signTypedData,
+      },
+      kernelClient: {
+        sendTransaction: vi.fn(),
+      },
+      publicClient: {},
+    } as never);
+
+    const result = await signReadyWalletTypedData({
+      localRequest: buildLocalWalletRequest({
+        walletAddress: "0x2222222222222222222222222222222222222222",
+        lastKnownStatus: "ready",
+      }),
+      typedData: {
+        domain: {
+          name: "USDC",
+          version: "2",
+          chainId: 84532,
+          verifyingContract: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+        },
+        primaryType: "TransferWithAuthorization",
+        types: {
+          TransferWithAuthorization: [
+            { name: "from", type: "address" },
+            { name: "to", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "validAfter", type: "uint256" },
+            { name: "validBefore", type: "uint256" },
+            { name: "nonce", type: "bytes32" },
+          ],
+        },
+        message: {
+          from: "0x2222222222222222222222222222222222222222",
+          to: "0x1111111111111111111111111111111111111111",
+          value: "1250000",
+          validAfter: "0",
+          validBefore: "1893456000",
+          nonce:
+            "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        },
+      },
+    });
+
+    expect(signTypedData).toHaveBeenCalledWith(
+      expect.objectContaining({
+        primaryType: "TransferWithAuthorization",
+      }),
+    );
+    expect(result).toEqual({
+      walletAddress: "0x2222222222222222222222222222222222222222",
+      signature: "0xsignedtypeddata",
+    });
+  });
+
+  it("deploys the wallet on demand before signature-only flows", async () => {
+    const getCode = vi
+      .fn()
+      .mockResolvedValueOnce("0x")
+      .mockResolvedValueOnce("0x1234");
+    const waitForTransactionReceipt = vi.fn(async () => ({
+      transactionHash: "0xdeploymenthash",
+    }));
+    const sendTransaction = vi.fn(async () => "0xdeploymenthash" as const);
+    vi.mocked(createWeightedKernelRuntime).mockResolvedValue({
+      kernelAccount: {
+        address: "0x2222222222222222222222222222222222222222",
+      },
+      kernelClient: {
+        sendTransaction,
+      },
+      publicClient: {
+        getCode,
+        waitForTransactionReceipt,
+      },
+    } as never);
+
+    const result = await ensureReadyWalletDeployed({
+      localRequest: buildLocalWalletRequest({
+        walletAddress: "0x2222222222222222222222222222222222222222",
+        lastKnownStatus: "ready",
+      }),
+    });
+
+    expect(sendTransaction).toHaveBeenCalledWith({
+      to: "0x95b4d8f3a9f0ac9d4d7f9ef42fb0f4f6e11d1111",
+      data: "0x",
+      value: 0n,
+    });
+    expect(waitForTransactionReceipt).toHaveBeenCalledWith({
+      hash: "0xdeploymenthash",
+    });
+    expect(result).toEqual({
+      walletAddress: "0x2222222222222222222222222222222222222222",
+      deployed: true,
+      deployedByThisCall: true,
+      transactionHash: "0xdeploymenthash",
     });
   });
 });

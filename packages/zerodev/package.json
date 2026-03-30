@@ -6,10 +6,6 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    },
-    "./permission-account": {
-      "types": "./dist/permission-account.d.ts",
-      "default": "./dist/permission-account.js"
     }
   },
   "scripts": {
@@ -19,8 +15,8 @@
   },
   "dependencies": {
     "@agent-wallet/shared": "workspace:*",
-    "@zerodev/permissions": "5.6.3",
     "@zerodev/sdk": "5.5.8",
+    "@zerodev/weighted-ecdsa-validator": "5.4.4",
     "viem": "2.47.6"
   },
   "devDependencies": {

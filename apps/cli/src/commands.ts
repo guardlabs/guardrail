@@ -1,70 +1,44 @@
+import { randomBytes } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import type { Command } from "commander";
 import {
+  PROJECT_WALLET_MODE,
+  bytes32HexSchema,
   createWalletRequestInputSchema,
-  evmAddressSchema,
-  getOutgoingBudgetScopeValidationErrors,
   createWalletRequestResponseSchema,
-  getSupportedChainById,
+  evmAddressSchema,
   getWalletRequestResponseSchema,
+  getSupportedChainById,
   hexStringSchema,
-  selectorSchema,
-  type ContractPermission,
-  type OutgoingBudgetFlow,
-  type OutgoingBudgetPeriod,
   type CreateWalletRequestResponse,
   type WalletRequest,
 } from "@agent-wallet/shared";
+import { bytesToHex, parseUnits, type TypedData, type TypedDataDefinition } from "viem";
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { resolveBackendUrl } from "./backend.js";
 import { fetchJson } from "./http.js";
 import {
   callReadyWalletTransaction,
+  ensureReadyWalletDeployed,
   hydrateReadyWalletRequest,
+  signReadyWalletTypedData,
 } from "./kernel.js";
 import { readLocalWalletRequest, saveLocalWalletRequest } from "./local-store.js";
-import { generateSessionKeyPair } from "./session-key.js";
-import { parseUnits } from "viem";
 
 const DEFAULT_AWAIT_INTERVAL_MS = 5000;
+const OFFICIAL_USDC_EIP712_DOMAIN_NAME = "USDC";
+const OFFICIAL_USDC_EIP712_DOMAIN_VERSION = "2";
 
-function hasOutgoingBudgetConfiguration(options: {
-  usdcOutgoingLimit?: string;
-  usdcOutgoingPeriod?: OutgoingBudgetPeriod;
-  usdcOutgoingFlow?: OutgoingBudgetFlow[];
-  usdcOutgoingCounterparty?: string[];
-}) {
-  return Boolean(
-    options.usdcOutgoingLimit ||
-      options.usdcOutgoingPeriod ||
-      options.usdcOutgoingFlow?.length ||
-      options.usdcOutgoingCounterparty?.length,
-  );
-}
-
-function parseContractPermission(value: string): ContractPermission {
-  const [targetContract, selectorsText, ...rest] = value.split(":");
-
-  if (!targetContract || !selectorsText || rest.length > 0) {
-    throw new Error(
-      `Invalid --contract-permission "${value}". Expected <address>:<selector>[,<selector>...]`,
-    );
-  }
-
-  const selectors = selectorsText
-    .split(",")
-    .filter(Boolean)
-    .map((selector) => selectorSchema.parse(selector));
-
-  if (selectors.length === 0) {
-    throw new Error(
-      `Invalid --contract-permission "${value}". At least one selector is required.`,
-    );
-  }
-
-  return {
-    targetContract: evmAddressSchema.parse(targetContract),
-    allowedMethods: selectors,
-  };
-}
+const transferWithAuthorizationTypes = {
+  TransferWithAuthorization: [
+    { name: "from", type: "address" },
+    { name: "to", type: "address" },
+    { name: "value", type: "uint256" },
+    { name: "validAfter", type: "uint256" },
+    { name: "validBefore", type: "uint256" },
+    { name: "nonce", type: "bytes32" },
+  ],
+} as const;
 
 function rewriteProvisioningUrlBackend(
   provisioningUrl: string,
@@ -85,15 +59,15 @@ function buildNextSteps(
     walletAddressStatus: "owner_bound" as const,
     humanActionUrl: provisioningUrl,
     humanAction:
-      "Ask the human to open the provisioning URL and create the wallet with the passkey owner.",
+      "Ask the human to open the provisioning URL and create the passkey owner for the weighted wallet.",
     walletAddressCommand: `agent-wallet status ${walletId} --backend-url ${backendUrl}`,
     statusCommand: `agent-wallet status ${walletId} --backend-url ${backendUrl}`,
     awaitCommand: `agent-wallet await ${walletId} --backend-url ${backendUrl}`,
     guidance: [
-      "Ask the human to open the provisioning URL and create the wallet with the passkey owner.",
-      "Then call the CLI wallet-address command again to refresh status and obtain the wallet address.",
-      "When the wallet address is available, ask the human to fund it on the request chain.",
-      "After funding, continue waiting until the request reaches ready.",
+      "Ask the human to open the provisioning URL and create the passkey owner.",
+      "Wait for the wallet address to appear once the owner is bound.",
+      "Fund the wallet on the target chain.",
+      "Continue waiting until the request reaches ready.",
     ],
   };
 }
@@ -106,66 +80,102 @@ function resolveCommandBackendUrl(
   return options.backendUrl ?? commandOptions.backendUrl;
 }
 
-function parseContractPermissions(contractPermissions?: string[]) {
-  return contractPermissions?.map(parseContractPermission);
+function parseUint256(value: string, label: string) {
+  const normalized = value.trim();
+
+  if (!/^\d+$/.test(normalized)) {
+    throw new Error(`${label} must be an unsigned integer.`);
+  }
+
+  return BigInt(normalized);
+}
+
+function buildDefaultAuthorizationNonce() {
+  return bytesToHex(randomBytes(32));
+}
+
+function parseTypedDataJson(raw: string): TypedDataDefinition<TypedData, string> {
+  const parsed = JSON.parse(raw) as {
+    domain?: Record<string, unknown>;
+    types?: Record<string, Array<{ name: string; type: string }>>;
+    primaryType?: string;
+    message?: Record<string, unknown>;
+  };
+
+  if (
+    !parsed ||
+    typeof parsed !== "object" ||
+    !parsed.domain ||
+    typeof parsed.domain !== "object" ||
+    !parsed.types ||
+    typeof parsed.types !== "object" ||
+    !parsed.primaryType ||
+    typeof parsed.primaryType !== "string" ||
+    !parsed.message ||
+    typeof parsed.message !== "object"
+  ) {
+    throw new Error(
+      "Typed data JSON must include domain, types, primaryType, and message objects.",
+    );
+  }
+
+  return parsed as unknown as TypedDataDefinition<TypedData, string>;
+}
+
+export function buildOfficialUsdcTransferWithAuthorizationTypedData(input: {
+  chainId: number;
+  from: `0x${string}`;
+  to: `0x${string}`;
+  amountUsdc: string;
+  validAfter: string;
+  validBefore: string;
+  nonce?: string;
+}) {
+  const supportedChain = getSupportedChainById(input.chainId);
+
+  if (!supportedChain) {
+    throw new Error(`Unsupported chain ${input.chainId}.`);
+  }
+
+  return {
+    domain: {
+      name: OFFICIAL_USDC_EIP712_DOMAIN_NAME,
+      version: OFFICIAL_USDC_EIP712_DOMAIN_VERSION,
+      chainId: input.chainId,
+      verifyingContract: supportedChain.officialUsdcAddress,
+    },
+    primaryType: "TransferWithAuthorization",
+    types: transferWithAuthorizationTypes,
+    message: {
+      from: input.from,
+      to: evmAddressSchema.parse(input.to),
+      value: parseUnits(input.amountUsdc.trim(), supportedChain.officialUsdcDecimals).toString(),
+      validAfter: parseUint256(input.validAfter, "validAfter").toString(),
+      validBefore: parseUint256(input.validBefore, "validBefore").toString(),
+      nonce: bytes32HexSchema.parse(input.nonce ?? buildDefaultAuthorizationNonce()),
+    },
+  } as const;
 }
 
 export async function executeCreate(options: {
   chainId: string;
-  contractPermissions?: string[];
-  usdcOutgoingLimit?: string;
-  usdcOutgoingPeriod?: OutgoingBudgetPeriod;
-  usdcOutgoingFlow?: OutgoingBudgetFlow[];
-  usdcOutgoingCounterparty?: string[];
   backendUrl?: string;
 }) {
   const backendUrl = resolveBackendUrl(options.backendUrl);
-  const sessionKeyPair = generateSessionKeyPair();
   const chainId = Number(options.chainId);
   const supportedChain = getSupportedChainById(chainId);
 
-  if (hasOutgoingBudgetConfiguration(options) && !options.usdcOutgoingLimit) {
-    throw new Error(
-      "USDC outgoing budget configuration requires --usdc-outgoing-limit.",
-    );
+  if (!supportedChain) {
+    throw new Error(`Unsupported chain ${chainId}.`);
   }
 
-  if (options.usdcOutgoingLimit && !supportedChain) {
-    throw new Error(`Unsupported chain ${chainId} for USDC outgoing budgets.`);
-  }
-
-  const outgoingBudgets =
-    options.usdcOutgoingLimit && supportedChain
-      ? [
-          {
-            type: "erc20" as const,
-            tokenAddress: supportedChain.officialUsdcAddress,
-            limitBaseUnits: parseUnits(
-              options.usdcOutgoingLimit,
-              supportedChain.officialUsdcDecimals,
-            ).toString(),
-            period: options.usdcOutgoingPeriod ?? "week",
-            allowedFlows:
-              options.usdcOutgoingFlow?.length
-                ? options.usdcOutgoingFlow
-                : ["transfer"],
-            allowedCounterparties: options.usdcOutgoingCounterparty,
-          },
-        ]
-      : undefined;
-  const contractPermissions = parseContractPermissions(options.contractPermissions);
-
+  const agentPrivateKey = generatePrivateKey();
+  const agentAccount = privateKeyToAccount(agentPrivateKey);
   const payload = createWalletRequestInputSchema.parse({
+    walletMode: PROJECT_WALLET_MODE,
     chainId,
-    contractPermissions,
-    outgoingBudgets,
-    sessionPublicKey: sessionKeyPair.publicKey,
+    agentAddress: agentAccount.address,
   });
-  const validationErrors = getOutgoingBudgetScopeValidationErrors(payload);
-
-  if (validationErrors.length > 0) {
-    throw new Error(validationErrors.join(" "));
-  }
 
   const backendResponse = await fetchJson<CreateWalletRequestResponse>(
     `${backendUrl}/v1/wallets`,
@@ -175,19 +185,15 @@ export async function executeCreate(options: {
     },
   );
 
+  const provisioningUrl = rewriteProvisioningUrlBackend(
+    backendResponse.provisioningUrl,
+    backendUrl,
+  );
   const response = createWalletRequestResponseSchema.parse({
     ...backendResponse,
-    provisioningUrl: rewriteProvisioningUrlBackend(
-      backendResponse.provisioningUrl,
-      backendUrl,
-    ),
-    nextSteps: buildNextSteps(
-      "wal_placeholder",
-      backendUrl,
-      rewriteProvisioningUrlBackend(backendResponse.provisioningUrl, backendUrl),
-    ),
+    provisioningUrl,
+    nextSteps: buildNextSteps("wal_placeholder", backendUrl, provisioningUrl),
   });
-
   const nextSteps = buildNextSteps(
     response.walletId,
     backendUrl,
@@ -195,22 +201,24 @@ export async function executeCreate(options: {
   );
 
   const localPath = await saveLocalWalletRequest({
+    walletMode: PROJECT_WALLET_MODE,
     walletId: response.walletId,
     backendBaseUrl: backendUrl,
     provisioningUrl: response.provisioningUrl,
-    chainId: payload.chainId,
-    contractPermissions: payload.contractPermissions,
-    outgoingBudgets: payload.outgoingBudgets,
-    sessionPublicKey: sessionKeyPair.publicKey,
-    sessionPrivateKey: sessionKeyPair.privateKey,
+    chainId: response.walletConfig.chainId,
+    walletConfig: response.walletConfig,
+    agentAddress: response.agentAddress,
+    agentPrivateKey,
+    backendAddress: response.backendAddress,
     createdAt: new Date().toISOString(),
     lastKnownStatus: response.status,
+    deployment: response.deployment,
   });
 
   return {
     ...response,
     nextSteps,
-    sessionPublicKey: sessionKeyPair.publicKey,
+    agentAddress: agentAccount.address,
     localStatePath: localPath,
   };
 }
@@ -247,6 +255,21 @@ export async function executeRefreshFunding(options: {
   );
 }
 
+async function persistWalletProgress(walletId: string, current: WalletRequest) {
+  const localRequest = await readLocalWalletRequest(walletId);
+
+  return saveLocalWalletRequest({
+    ...localRequest,
+    walletConfig: current.walletConfig,
+    backendAddress: current.backendAddress,
+    walletAddress: current.walletContext?.walletAddress ?? current.counterfactualWalletAddress,
+    ownerPublicArtifacts: current.ownerPublicArtifacts,
+    regularValidatorInitArtifact: current.regularValidatorInitArtifact,
+    lastKnownStatus: current.status,
+    deployment: current.deployment,
+  });
+}
+
 export async function executeAwait(options: {
   walletId: string;
   intervalMs: number;
@@ -271,10 +294,13 @@ export async function executeAwait(options: {
       });
       const localStatePath = await saveLocalWalletRequest({
         ...localRequest,
+        walletConfig: current.walletConfig,
+        backendAddress: current.backendAddress,
+        ownerPublicArtifacts: current.ownerPublicArtifacts,
+        regularValidatorInitArtifact: current.regularValidatorInitArtifact,
         lastKnownStatus: current.status,
         walletAddress: hydratedWallet.walletAddress,
-        serializedPermissionAccount:
-          hydratedWallet.serializedPermissionAccount,
+        deployment: current.deployment,
       });
 
       return {
@@ -284,7 +310,9 @@ export async function executeAwait(options: {
     }
 
     if (current.status === "owner_bound") {
+      await persistWalletProgress(options.walletId, current);
       current = await executeRefreshFunding(options);
+      await persistWalletProgress(options.walletId, current);
 
       if (current.status === "ready") {
         const localRequest = await readLocalWalletRequest(options.walletId);
@@ -294,10 +322,13 @@ export async function executeAwait(options: {
         });
         const localStatePath = await saveLocalWalletRequest({
           ...localRequest,
+          walletConfig: current.walletConfig,
+          backendAddress: current.backendAddress,
+          ownerPublicArtifacts: current.ownerPublicArtifacts,
+          regularValidatorInitArtifact: current.regularValidatorInitArtifact,
           lastKnownStatus: current.status,
           walletAddress: hydratedWallet.walletAddress,
-          serializedPermissionAccount:
-            hydratedWallet.serializedPermissionAccount,
+          deployment: current.deployment,
         });
 
         return {
@@ -334,6 +365,22 @@ export async function executeCall(options: {
     },
   });
 
+  try {
+    const refreshed = await executeRefreshFunding({
+      walletId: options.walletId,
+      backendUrl: localRequest.backendBaseUrl,
+    });
+    await persistWalletProgress(options.walletId, refreshed);
+  } catch {
+    await saveLocalWalletRequest({
+      ...localRequest,
+      walletAddress: result.walletAddress,
+      deployment: {
+        status: "deployed",
+      },
+    });
+  }
+
   return {
     walletId: options.walletId,
     walletAddress: result.walletAddress,
@@ -341,6 +388,42 @@ export async function executeCall(options: {
     data,
     valueWei,
     transactionHash: result.transactionHash,
+  };
+}
+
+export async function executeSignTypedData(options: {
+  walletId: string;
+  typedDataJson?: string;
+  typedDataFile?: string;
+}) {
+  let localRequest = await readLocalWalletRequest(options.walletId);
+
+  if (!options.typedDataJson && !options.typedDataFile) {
+    throw new Error("Provide either typedDataJson or typedDataFile.");
+  }
+
+  await ensureReadyWalletDeployed({
+    localRequest,
+  });
+  const refreshed = await executeRefreshFunding({
+    walletId: options.walletId,
+    backendUrl: localRequest.backendBaseUrl,
+  });
+  await persistWalletProgress(options.walletId, refreshed);
+  localRequest = await readLocalWalletRequest(options.walletId);
+
+  const typedDataSource = options.typedDataJson ?? (await readFile(options.typedDataFile!, "utf8"));
+  const typedData = parseTypedDataJson(typedDataSource);
+  const signedTypedData = await signReadyWalletTypedData({
+    localRequest,
+    typedData,
+  });
+
+  return {
+    walletId: options.walletId,
+    walletAddress: signedTypedData.walletAddress,
+    typedData,
+    signature: signedTypedData.signature,
   };
 }
 
@@ -352,11 +435,6 @@ export function registerCreateCommand(command: Command) {
   command.action(async (options) => {
     const result = await executeCreate({
       chainId: options.chainId,
-      contractPermissions: options.contractPermission,
-      usdcOutgoingLimit: options.usdcOutgoingLimit,
-      usdcOutgoingPeriod: options.usdcOutgoingPeriod,
-      usdcOutgoingFlow: options.usdcOutgoingFlow,
-      usdcOutgoingCounterparty: options.usdcOutgoingCounterparty,
       backendUrl: resolveCommandBackendUrl(command, options),
     });
 
@@ -366,36 +444,48 @@ export function registerCreateCommand(command: Command) {
 
 export function registerStatusCommand(command: Command) {
   command.action(async (walletId, options) => {
-    const result = await executeStatus({
-      walletId,
-      backendUrl: resolveCommandBackendUrl(command, options),
-    });
-
-    printJson(result);
+    printJson(
+      await executeStatus({
+        walletId,
+        backendUrl: resolveCommandBackendUrl(command, options),
+      }),
+    );
   });
 }
 
 export function registerAwaitCommand(command: Command) {
   command.action(async (walletId, options) => {
-    const result = await executeAwait({
-      walletId,
-      intervalMs: Number(options.intervalMs),
-      backendUrl: resolveCommandBackendUrl(command, options),
-    });
-
-    printJson(result);
+    printJson(
+      await executeAwait({
+        walletId,
+        backendUrl: resolveCommandBackendUrl(command, options),
+        intervalMs: Number(options.intervalMs ?? DEFAULT_AWAIT_INTERVAL_MS),
+      }),
+    );
   });
 }
 
 export function registerCallCommand(command: Command) {
   command.action(async (walletId, options) => {
-    const result = await executeCall({
-      walletId,
-      to: options.to,
-      data: options.data,
-      valueWei: options.valueWei,
-    });
+    printJson(
+      await executeCall({
+        walletId,
+        to: options.to,
+        data: options.data,
+        valueWei: options.valueWei,
+      }),
+    );
+  });
+}
 
-    printJson(result);
+export function registerSignTypedDataCommand(command: Command) {
+  command.action(async (walletId, options) => {
+    printJson(
+      await executeSignTypedData({
+        walletId,
+        typedDataJson: options.typedDataJson,
+        typedDataFile: options.typedDataFile,
+      }),
+    );
   });
 }

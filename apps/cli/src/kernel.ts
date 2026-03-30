@@ -3,14 +3,8 @@ import {
   type LocalWalletRequest,
   type WalletRequest,
 } from "@agent-wallet/shared";
-import { deserializePermissionAccount } from "@agent-wallet/zerodev/permission-account";
-import { toECDSASigner } from "@zerodev/permissions/signers";
-import { createKernelAccountClient } from "@zerodev/sdk";
-import { getEntryPoint, KERNEL_V3_1 } from "@zerodev/sdk/constants";
-import type { Chain, Hex } from "viem";
-import { createPublicClient, http } from "viem";
-import { estimateFeesPerGas } from "viem/actions";
-import { privateKeyToAccount } from "viem/accounts";
+import { createWeightedKernelRuntime } from "@agent-wallet/zerodev";
+import type { Chain, Hex, TypedData, TypedDataDefinition } from "viem";
 
 function getChain(chainId: number): Chain {
   const supportedChain = getSupportedChainById(chainId);
@@ -37,193 +31,73 @@ function resolveRuntimeConfiguration(chainId: number, backendBaseUrl: string) {
   };
 }
 
-export type KernelHydrationDependencies = {
-  createPublicClient: (parameters: {
-    chain: Chain;
-    transport: unknown;
-  }) => {
-    transport: unknown;
-  };
-  http: (url: string) => unknown;
-  estimateFeesPerGas: (client: unknown) => Promise<{
-    maxFeePerGas: bigint;
-    maxPriorityFeePerGas: bigint;
-  }>;
-  privateKeyToAccount: (privateKey: Hex) => {
-    address: string;
-  };
-  toECDSASigner: (parameters: {
-    signer: unknown;
-  }) => Promise<unknown>;
-  deserializePermissionAccount: (
-    client: unknown,
-    entryPoint: unknown,
-    kernelVersion: string,
-    serializedPermissionAccount: string,
-    signer: unknown,
-  ) => Promise<{
-    address: string;
-  }>;
-  createKernelAccountClient: (parameters: {
-    account: unknown;
-    chain: Chain;
-    bundlerTransport: unknown;
-    client: unknown;
-    userOperation?: {
-      estimateFeesPerGas?: (parameters: unknown) => Promise<{
-        maxFeePerGas: bigint;
-        maxPriorityFeePerGas: bigint;
-      }>;
-    };
-  }) => {
-    sendTransaction: (parameters: {
-      to: `0x${string}`;
-      data: `0x${string}`;
-      value: bigint;
-    }) => Promise<`0x${string}`>;
-  };
-};
-
-type HydratedKernelRuntime = {
-  walletAddress: string;
-  serializedPermissionAccount: string;
-  kernelClient: {
-    sendTransaction: (parameters: {
-      to: `0x${string}`;
-      data: `0x${string}`;
-      value: bigint;
-    }) => Promise<`0x${string}`>;
-  };
-};
-
-async function hydrateKernelRuntime(
-  input: {
-    chainId: number;
-    backendBaseUrl: string;
-    walletAddress: string;
-    serializedPermissionAccount: string;
-    sessionPrivateKey: string;
-  },
-  dependencies: Partial<KernelHydrationDependencies> = {},
-): Promise<HydratedKernelRuntime> {
-  const chain = getChain(input.chainId);
-  const { rpcUrl, bundlerUrl } = resolveRuntimeConfiguration(
-    input.chainId,
-    input.backendBaseUrl,
-  );
-
-  const makeTransport = dependencies.http ?? http;
-  const publicClient = ((dependencies.createPublicClient ??
-    createPublicClient)({
-    chain,
-    transport: makeTransport(rpcUrl) as ReturnType<typeof http>,
-  }) as ReturnType<typeof createPublicClient>);
-  const sessionAccount = ((dependencies.privateKeyToAccount ??
-    privateKeyToAccount)(
-    input.sessionPrivateKey as Hex,
-  ) as ReturnType<typeof privateKeyToAccount>);
-  const sessionSigner = (await (dependencies.toECDSASigner ?? toECDSASigner)({
-    signer: sessionAccount,
-  })) as Awaited<ReturnType<typeof toECDSASigner>>;
-  const deserializePermissionAccountFn = (
-    dependencies.deserializePermissionAccount ?? deserializePermissionAccount
-  ) as (...args: unknown[]) => Promise<{ address: string }>;
-  const kernelAccount = await deserializePermissionAccountFn(
-    publicClient,
-    getEntryPoint("0.7"),
-    KERNEL_V3_1,
-    input.serializedPermissionAccount,
-    sessionSigner,
-  );
-
-  if (kernelAccount.address.toLowerCase() !== input.walletAddress.toLowerCase()) {
-    throw new Error("Hydrated account address does not match the backend wallet context.");
+async function hydrateKernelRuntime(localRequest: LocalWalletRequest) {
+  if (!localRequest.walletAddress) {
+    throw new Error("Local wallet state is missing the wallet address.");
   }
 
-  const createKernelAccountClientFn = (
-    dependencies.createKernelAccountClient ?? createKernelAccountClient
-  ) as KernelHydrationDependencies["createKernelAccountClient"];
+  const chain = getChain(localRequest.chainId);
+  const { rpcUrl, bundlerUrl } = resolveRuntimeConfiguration(
+    localRequest.chainId,
+    localRequest.backendBaseUrl,
+  );
 
-  return {
-    walletAddress: kernelAccount.address,
-    serializedPermissionAccount: input.serializedPermissionAccount,
-    kernelClient: createKernelAccountClientFn({
-      account: kernelAccount,
-      chain,
-      bundlerTransport: makeTransport(bundlerUrl),
-      client: publicClient,
-      userOperation: {
-        estimateFeesPerGas: async () =>
-          (dependencies.estimateFeesPerGas ?? estimateFeesPerGas)(
-            publicClient,
-          ),
-      },
-    }),
-  };
+  return createWeightedKernelRuntime({
+    chain,
+    walletId: localRequest.walletId,
+    walletAddress: localRequest.walletAddress as `0x${string}`,
+    walletConfig: localRequest.walletConfig,
+    ownerPublicArtifacts: localRequest.ownerPublicArtifacts,
+    regularValidatorInitArtifact: localRequest.regularValidatorInitArtifact,
+    backendBaseUrl: localRequest.backendBaseUrl,
+    agentPrivateKey: localRequest.agentPrivateKey as `0x${string}`,
+    rpcUrl,
+    bundlerUrl,
+  });
 }
 
-export async function hydrateReadyWalletRequest(
-  input: {
-    walletRequest: WalletRequest;
-    localRequest: LocalWalletRequest;
-  },
-  dependencies: Partial<KernelHydrationDependencies> = {},
-) {
-  if (
-    input.walletRequest.status !== "ready" ||
-    !input.walletRequest.walletContext
-  ) {
+export async function hydrateReadyWalletRequest(input: {
+  walletRequest: WalletRequest;
+  localRequest: LocalWalletRequest;
+}) {
+  if (input.walletRequest.status !== "ready" || !input.walletRequest.walletContext) {
     throw new Error("Wallet is not ready for CLI hydration.");
   }
 
-  const { walletContext } = input.walletRequest;
-  const runtime = await hydrateKernelRuntime(
-    {
-      chainId: walletContext.chainId,
-      backendBaseUrl: input.localRequest.backendBaseUrl,
-      walletAddress: walletContext.walletAddress,
-      serializedPermissionAccount: walletContext.serializedPermissionAccount,
-      sessionPrivateKey: input.localRequest.sessionPrivateKey,
-    },
-    dependencies,
-  );
+  const runtime = await hydrateKernelRuntime({
+    ...input.localRequest,
+    walletAddress: input.walletRequest.walletContext.walletAddress,
+    walletConfig: input.walletRequest.walletConfig,
+    ownerPublicArtifacts: input.walletRequest.ownerPublicArtifacts,
+    regularValidatorInitArtifact: input.walletRequest.regularValidatorInitArtifact,
+    backendAddress: input.walletRequest.backendAddress,
+  });
+
+  if (
+    runtime.kernelAccount.address.toLowerCase() !==
+    input.walletRequest.walletContext.walletAddress.toLowerCase()
+  ) {
+    throw new Error("Hydrated account address does not match the backend wallet context.");
+  }
 
   return {
-    walletAddress: runtime.walletAddress,
-    serializedPermissionAccount: walletContext.serializedPermissionAccount,
+    walletAddress: runtime.kernelAccount.address,
   };
 }
 
-export async function callReadyWalletTransaction(
-  input: {
-    localRequest: LocalWalletRequest;
-    call: {
-      to: `0x${string}`;
-      data: `0x${string}`;
-      valueWei: string;
-    };
-  },
-  dependencies: Partial<KernelHydrationDependencies> = {},
-) {
-  if (
-    input.localRequest.lastKnownStatus !== "ready" ||
-    !input.localRequest.walletAddress ||
-    !input.localRequest.serializedPermissionAccount
-  ) {
+export async function callReadyWalletTransaction(input: {
+  localRequest: LocalWalletRequest;
+  call: {
+    to: `0x${string}`;
+    data: `0x${string}`;
+    valueWei: string;
+  };
+}) {
+  if (input.localRequest.lastKnownStatus !== "ready" || !input.localRequest.walletAddress) {
     throw new Error("Local wallet is not ready for contract calls.");
   }
 
-  const runtime = await hydrateKernelRuntime(
-    {
-      chainId: input.localRequest.chainId,
-      backendBaseUrl: input.localRequest.backendBaseUrl,
-      walletAddress: input.localRequest.walletAddress,
-      serializedPermissionAccount: input.localRequest.serializedPermissionAccount,
-      sessionPrivateKey: input.localRequest.sessionPrivateKey,
-    },
-    dependencies,
-  );
-
+  const runtime = await hydrateKernelRuntime(input.localRequest);
   const transactionHash = await runtime.kernelClient.sendTransaction({
     to: input.call.to,
     data: input.call.data,
@@ -231,7 +105,62 @@ export async function callReadyWalletTransaction(
   });
 
   return {
-    walletAddress: runtime.walletAddress,
+    walletAddress: runtime.kernelAccount.address,
     transactionHash,
+  };
+}
+
+export async function ensureReadyWalletDeployed(input: {
+  localRequest: LocalWalletRequest;
+}) {
+  if (input.localRequest.lastKnownStatus !== "ready" || !input.localRequest.walletAddress) {
+    throw new Error("Local wallet is not ready for deployment checks.");
+  }
+
+  const runtime = await hydrateKernelRuntime(input.localRequest);
+  const code = await runtime.publicClient.getCode({
+    address: runtime.kernelAccount.address,
+  });
+
+  if (code && code !== "0x") {
+    return {
+      walletAddress: runtime.kernelAccount.address,
+      deployed: true,
+      deployedByThisCall: false,
+    };
+  }
+
+  const transactionHash = await runtime.kernelClient.sendTransaction({
+    to: input.localRequest.agentAddress as `0x${string}`,
+    data: "0x",
+    value: 0n,
+  });
+
+  await runtime.publicClient.waitForTransactionReceipt({
+    hash: transactionHash,
+  });
+
+  return {
+    walletAddress: runtime.kernelAccount.address,
+    deployed: true,
+    deployedByThisCall: true,
+    transactionHash,
+  };
+}
+
+export async function signReadyWalletTypedData(input: {
+  localRequest: LocalWalletRequest;
+  typedData: TypedDataDefinition<TypedData, string>;
+}) {
+  if (input.localRequest.lastKnownStatus !== "ready" || !input.localRequest.walletAddress) {
+    throw new Error("Local wallet is not ready for typed-data signing.");
+  }
+
+  const runtime = await hydrateKernelRuntime(input.localRequest);
+  const signature = await runtime.kernelAccount.signTypedData(input.typedData);
+
+  return {
+    walletAddress: runtime.kernelAccount.address,
+    signature: signature as Hex,
   };
 }

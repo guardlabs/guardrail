@@ -1,5 +1,16 @@
-import { describe, expect, it, vi } from "vitest";
-import type { FundingState, OwnerPublicArtifacts, WalletContext } from "@agent-wallet/shared";
+import { describe, expect, it } from "vitest";
+import {
+  type DeploymentState,
+  PROJECT_WALLET_MODE,
+  buildDefaultWalletConfig,
+  getBackendSignerAuthorizationTypedData,
+  hashBackendSignerPayload,
+  type FundingState,
+  type OwnerPublicArtifacts,
+  type RegularValidatorInitArtifact,
+  type WalletContext,
+} from "@agent-wallet/shared";
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { buildApp } from "./app.js";
 import type { AppConfig } from "./config.js";
 import type { StoredWalletRequest, WalletRequestRepository } from "./repository.js";
@@ -38,8 +49,10 @@ function createTestRepository(): WalletRequestRepository {
       walletId,
       provisioningTokenHash,
       ownerPublicArtifacts,
+      regularValidatorInitArtifact,
       counterfactualWalletAddress,
       funding,
+      deployment,
       status,
       walletContext,
       updatedAt,
@@ -52,8 +65,10 @@ function createTestRepository(): WalletRequestRepository {
       const updatedRequest: StoredWalletRequest = {
         ...request,
         ownerPublicArtifacts,
+        regularValidatorInitArtifact,
         counterfactualWalletAddress,
         funding,
+        deployment,
         status,
         walletContext,
         updatedAt,
@@ -61,7 +76,7 @@ function createTestRepository(): WalletRequestRepository {
       requests.set(walletId, updatedRequest);
       return updatedRequest;
     },
-    async updateFunding({ walletId, funding, status, updatedAt }) {
+    async updateFunding({ walletId, funding, deployment, status, walletContext, updatedAt }) {
       const request = requests.get(walletId);
       if (!request) {
         return null;
@@ -70,60 +85,128 @@ function createTestRepository(): WalletRequestRepository {
       const updatedRequest: StoredWalletRequest = {
         ...request,
         funding,
+        deployment,
         status,
+        walletContext: walletContext ?? request.walletContext,
         updatedAt,
       };
       requests.set(walletId, updatedRequest);
       return updatedRequest;
     },
+    async recordUsedSigningRequestId({ walletId, requestId, updatedAt }) {
+      const request = requests.get(walletId);
+      if (!request) {
+        return "not_found";
+      }
+
+      if (request.usedSigningRequestIds.includes(requestId)) {
+        return "duplicate";
+      }
+
+      requests.set(walletId, {
+        ...request,
+        usedSigningRequestIds: [...request.usedSigningRequestIds, requestId],
+        updatedAt,
+      });
+
+      return "ok";
+    },
   };
+}
+
+function createWalletContext(input: {
+  walletAddress: string;
+  owner: OwnerPublicArtifacts;
+  agentAddress: string;
+  backendAddress: string;
+}) {
+  return {
+    walletAddress: input.walletAddress,
+    chainId: 84532,
+    kernelVersion: "3.1",
+    entryPointVersion: "0.7",
+    owner: input.owner,
+    agentAddress: input.agentAddress,
+    backendAddress: input.backendAddress,
+    weightedValidator: buildDefaultWalletConfig({
+      chainId: 84532,
+      agentAddress: input.agentAddress,
+      backendAddress: input.backendAddress,
+    }).regularValidator,
+  } satisfies WalletContext;
 }
 
 function createTestWalletProvisioningService(result: {
   funding: FundingState;
+  deployment?: DeploymentState;
   walletContext?: WalletContext;
-}) : WalletProvisioningService {
+}): WalletProvisioningService {
   return {
     async finalizeProvisioning(input) {
       return {
         ownerPublicArtifacts: input.owner,
+        regularValidatorInitArtifact: input.regularValidatorInitArtifact,
         counterfactualWalletAddress: input.counterfactualWalletAddress,
         funding: result.funding,
-        walletContext: result.walletContext ?? {
-          walletAddress: input.counterfactualWalletAddress,
-          chainId: input.scope.chainId,
-          kernelVersion: "3.1",
-          sessionPublicKey: input.sessionPublicKey,
-          owner: input.owner,
-          scope: input.scope,
-          policyDigest: "0x12345678",
-          serializedPermissionAccount: input.serializedPermissionAccount,
+        deployment: result.deployment ?? {
+          status: "undeployed",
+          checkedAt: "2026-03-29T12:00:00.000Z",
         },
+        walletContext:
+          result.walletContext ??
+          createWalletContext({
+            walletAddress: input.counterfactualWalletAddress,
+            owner: input.owner,
+            agentAddress: input.agentAddress,
+            backendAddress: input.backendAddress,
+          }),
         status: result.funding.status === "verified" ? "ready" : "owner_bound",
       };
     },
     async refreshFunding(input) {
       return {
         ownerPublicArtifacts: input.owner,
+        regularValidatorInitArtifact: input.regularValidatorInitArtifact,
         counterfactualWalletAddress: input.counterfactualWalletAddress,
         funding: result.funding,
-        walletContext: result.walletContext ?? {
-          walletAddress: input.counterfactualWalletAddress,
-          chainId: input.scope.chainId,
-          kernelVersion: "3.1",
-          sessionPublicKey: input.sessionPublicKey,
-          owner: input.owner,
-          scope: input.scope,
-          policyDigest: "0x12345678",
-          serializedPermissionAccount: input.serializedPermissionAccount,
+        deployment: result.deployment ?? {
+          status: "undeployed",
+          checkedAt: "2026-03-29T12:00:00.000Z",
         },
+        walletContext:
+          result.walletContext ??
+          createWalletContext({
+            walletAddress: input.counterfactualWalletAddress,
+            owner: input.owner,
+            agentAddress: input.agentAddress,
+            backendAddress: input.backendAddress,
+          }),
         status: result.funding.status === "verified" ? "ready" : "owner_bound",
       };
     },
   };
 }
 
-describe("backend app", () => {
+function extractProvisioningToken(provisioningUrl: string) {
+  const url = new URL(provisioningUrl);
+  const token = url.searchParams.get("token");
+
+  if (!token) {
+    throw new Error("Missing provisioning token in test URL.");
+  }
+
+  return token;
+}
+
+function createRegularValidatorInitArtifact(): RegularValidatorInitArtifact {
+  return {
+    validatorAddress: "0x3333333333333333333333333333333333333333",
+    enableData: "0x1234",
+    pluginEnableSignature: "0x5678",
+  };
+}
+
+describe("backend app mode B", () => {
   it("serves a health endpoint", async () => {
     const app = buildApp({
       config: testConfig,
@@ -144,7 +227,8 @@ describe("backend app", () => {
     await app.close();
   });
 
-  it("creates and reads a wallet request", async () => {
+  it("creates and reads a mode B wallet request", async () => {
+    const agentAccount = privateKeyToAccount(generatePrivateKey());
     const app = buildApp({
       config: testConfig,
       repository: createTestRepository(),
@@ -153,7 +237,7 @@ describe("backend app", () => {
           status: "insufficient",
           minimumRequiredWei: testConfig.minFundingWei,
           balanceWei: "1",
-          checkedAt: "2026-03-25T12:00:00.000Z",
+          checkedAt: "2026-03-29T12:00:00.000Z",
         },
       }),
     });
@@ -162,14 +246,9 @@ describe("backend app", () => {
       method: "POST",
       url: "/v1/wallets",
       payload: {
+        walletMode: PROJECT_WALLET_MODE,
         chainId: 84532,
-        contractPermissions: [
-          {
-            targetContract: "0x1111111111111111111111111111111111111111",
-            allowedMethods: ["0xa9059cbb"],
-          },
-        ],
-        sessionPublicKey: "0x1234",
+        agentAddress: agentAccount.address,
       },
     });
 
@@ -177,6 +256,8 @@ describe("backend app", () => {
 
     const createdWallet = createResponse.json() as {
       walletId: string;
+      backendAddress: string;
+      walletConfig: { chainId: number };
       provisioningUrl: string;
     };
 
@@ -187,9 +268,12 @@ describe("backend app", () => {
 
     expect(statusResponse.statusCode).toBe(200);
     expect(statusResponse.json()).toMatchObject({
+      walletMode: PROJECT_WALLET_MODE,
       walletId: createdWallet.walletId,
       status: "created",
-      scope: {
+      agentAddress: agentAccount.address,
+      backendAddress: createdWallet.backendAddress,
+      walletConfig: {
         chainId: 84532,
       },
     });
@@ -198,7 +282,8 @@ describe("backend app", () => {
     await app.close();
   });
 
-  it("moves a request to ready when wallet preparation and funding succeed", async () => {
+  it("moves a request to ready when passkey binding and funding succeed", async () => {
+    const agentAccount = privateKeyToAccount(generatePrivateKey());
     const repository = createTestRepository();
     const app = buildApp({
       config: testConfig,
@@ -208,28 +293,7 @@ describe("backend app", () => {
           status: "verified",
           minimumRequiredWei: testConfig.minFundingWei,
           balanceWei: "600000000000000",
-          checkedAt: "2026-03-25T12:00:00.000Z",
-        },
-        walletContext: {
-          walletAddress: "0x2222222222222222222222222222222222222222",
-          chainId: 84532,
-          kernelVersion: "3.1",
-          sessionPublicKey: "0x1234",
-          owner: {
-            credentialId: "credential-id",
-            publicKey: "0x1234",
-          },
-          scope: {
-            chainId: 84532,
-            contractPermissions: [
-              {
-                targetContract: "0x1111111111111111111111111111111111111111",
-                allowedMethods: ["0xa9059cbb"],
-              },
-            ],
-          },
-          policyDigest: "0x12345678",
-          serializedPermissionAccount: "approval_123",
+          checkedAt: "2026-03-29T12:00:00.000Z",
         },
       }),
     });
@@ -238,14 +302,9 @@ describe("backend app", () => {
       method: "POST",
       url: "/v1/wallets",
       payload: {
+        walletMode: PROJECT_WALLET_MODE,
         chainId: 84532,
-        contractPermissions: [
-          {
-            targetContract: "0x1111111111111111111111111111111111111111",
-            allowedMethods: ["0xa9059cbb"],
-          },
-        ],
-        sessionPublicKey: "0x1234",
+        agentAddress: agentAccount.address,
       },
     });
 
@@ -253,71 +312,46 @@ describe("backend app", () => {
       walletId: string;
       provisioningUrl: string;
     };
-    const provisioningUrl = new URL(createdWallet.provisioningUrl);
-    const token = provisioningUrl.searchParams.get("token");
+    const token = extractProvisioningToken(createdWallet.provisioningUrl);
 
-    expect(token).toBeTruthy();
-
-    const bindResponse = await app.inject({
+    const ownerArtifactsResponse = await app.inject({
       method: "POST",
-      url: `/v1/provisioning/${createdWallet.walletId}/owner-artifacts?t=${token}`,
+      url: `/v1/provisioning/${createdWallet.walletId}/owner-artifacts?t=${encodeURIComponent(token)}`,
       payload: {
         owner: {
           credentialId: "credential-id",
           publicKey: "0x1234",
         },
         counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
-        serializedPermissionAccount: "approval_123",
+        regularValidatorInitArtifact: createRegularValidatorInitArtifact(),
       },
     });
 
-    expect(bindResponse.statusCode).toBe(200);
-    expect(bindResponse.json()).toMatchObject({
-      walletId: createdWallet.walletId,
+    expect(ownerArtifactsResponse.statusCode).toBe(200);
+    expect(ownerArtifactsResponse.json()).toMatchObject({
       status: "ready",
-      funding: {
-        status: "verified",
-        minimumRequiredWei: testConfig.minFundingWei,
-      },
+      counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
+      regularValidatorInitArtifact: createRegularValidatorInitArtifact(),
       walletContext: {
         walletAddress: "0x2222222222222222222222222222222222222222",
+        agentAddress: agentAccount.address,
       },
     });
 
     await app.close();
   });
 
-  it("keeps a request in owner_bound when funding is insufficient", async () => {
+  it("authenticates backend signing requests and rejects replayed requestIds", async () => {
+    const agentAccount = privateKeyToAccount(generatePrivateKey());
     const app = buildApp({
       config: testConfig,
       repository: createTestRepository(),
       walletProvisioningService: createTestWalletProvisioningService({
         funding: {
-          status: "insufficient",
+          status: "verified",
           minimumRequiredWei: testConfig.minFundingWei,
-          balanceWei: "1000",
-          checkedAt: "2026-03-25T12:00:00.000Z",
-        },
-        walletContext: {
-          walletAddress: "0x3333333333333333333333333333333333333333",
-          chainId: 84532,
-          kernelVersion: "3.1",
-          sessionPublicKey: "0x1234",
-          owner: {
-            credentialId: "credential-id",
-            publicKey: "0x1234",
-          },
-          scope: {
-            chainId: 84532,
-            contractPermissions: [
-              {
-                targetContract: "0x1111111111111111111111111111111111111111",
-                allowedMethods: ["0xa9059cbb"],
-              },
-            ],
-          },
-          policyDigest: "0x12345678",
-          serializedPermissionAccount: "approval_123",
+          balanceWei: "600000000000000",
+          checkedAt: "2026-03-29T12:00:00.000Z",
         },
       }),
     });
@@ -326,236 +360,87 @@ describe("backend app", () => {
       method: "POST",
       url: "/v1/wallets",
       payload: {
+        walletMode: PROJECT_WALLET_MODE,
         chainId: 84532,
-        contractPermissions: [
-          {
-            targetContract: "0x1111111111111111111111111111111111111111",
-            allowedMethods: ["0xa9059cbb"],
-          },
-        ],
-        sessionPublicKey: "0x1234",
+        agentAddress: agentAccount.address,
       },
     });
 
     const createdWallet = createResponse.json() as {
       walletId: string;
       provisioningUrl: string;
+      backendAddress: string;
     };
-    const provisioningUrl = new URL(createdWallet.provisioningUrl);
-    const token = provisioningUrl.searchParams.get("token");
+    const token = extractProvisioningToken(createdWallet.provisioningUrl);
 
-    expect(token).toBeTruthy();
-
-    const bindResponse = await app.inject({
+    const ownerArtifactsResponse = await app.inject({
       method: "POST",
-      url: `/v1/provisioning/${createdWallet.walletId}/owner-artifacts?t=${token}`,
+      url: `/v1/provisioning/${createdWallet.walletId}/owner-artifacts?t=${encodeURIComponent(token)}`,
       payload: {
         owner: {
           credentialId: "credential-id",
           publicKey: "0x1234",
         },
-        counterfactualWalletAddress: "0x3333333333333333333333333333333333333333",
-        serializedPermissionAccount: "approval_123",
+        counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
+        regularValidatorInitArtifact: createRegularValidatorInitArtifact(),
       },
     });
 
-    expect(bindResponse.statusCode).toBe(200);
-    expect(bindResponse.json()).toMatchObject({
-      walletId: createdWallet.walletId,
-      status: "owner_bound",
-      funding: {
-        status: "insufficient",
-        minimumRequiredWei: testConfig.minFundingWei,
-      },
+    const readyWallet = ownerArtifactsResponse.json() as {
       walletContext: {
-        walletAddress: "0x3333333333333333333333333333333333333333",
-      },
-    });
-
-    await app.close();
-  });
-
-  it("refreshes funding and promotes an owner_bound request to ready", async () => {
-    const repository = createTestRepository();
-    let fundingStatus: FundingState = {
-      status: "insufficient",
-      minimumRequiredWei: testConfig.minFundingWei,
-      balanceWei: "0",
-      checkedAt: "2026-03-25T12:00:00.000Z",
+        walletAddress: string;
+      };
+      backendAddress: string;
     };
-
-    const app = buildApp({
-      config: testConfig,
-      repository,
-      walletProvisioningService: {
-        async finalizeProvisioning(input) {
-          return {
-            ownerPublicArtifacts: input.owner,
-            counterfactualWalletAddress: input.counterfactualWalletAddress,
-            funding: fundingStatus,
-            walletContext: {
-              walletAddress: input.counterfactualWalletAddress,
-              chainId: input.scope.chainId,
-              kernelVersion: "3.1",
-              sessionPublicKey: input.sessionPublicKey,
-              owner: input.owner,
-              scope: input.scope,
-              policyDigest: "0x12345678",
-              serializedPermissionAccount: input.serializedPermissionAccount,
-            },
-            status: "owner_bound",
-          };
-        },
-        async refreshFunding(input) {
-          return {
-            ownerPublicArtifacts: input.owner,
-            counterfactualWalletAddress: input.counterfactualWalletAddress,
-            funding: fundingStatus,
-            walletContext: {
-              walletAddress: input.counterfactualWalletAddress,
-              chainId: input.scope.chainId,
-              kernelVersion: "3.1",
-              sessionPublicKey: input.sessionPublicKey,
-              owner: input.owner,
-              scope: input.scope,
-              policyDigest: "0x12345678",
-              serializedPermissionAccount: input.serializedPermissionAccount,
-            },
-            status: fundingStatus.status === "verified" ? "ready" : "owner_bound",
-          };
-        },
+    const payload = {
+      message: {
+        kind: "raw" as const,
+        raw: "0x1234",
       },
-    });
-
-    const createResponse = await app.inject({
-      method: "POST",
-      url: "/v1/wallets",
-      payload: {
-        chainId: 84532,
-        contractPermissions: [
-          {
-            targetContract: "0x1111111111111111111111111111111111111111",
-            allowedMethods: ["0xa9059cbb"],
-          },
-        ],
-        sessionPublicKey: "0x1234",
-      },
-    });
-
-    const createdWallet = createResponse.json() as {
-      walletId: string;
-      provisioningUrl: string;
     };
-    const provisioningUrl = new URL(createdWallet.provisioningUrl);
-    const token = provisioningUrl.searchParams.get("token");
-
-    expect(token).toBeTruthy();
-
-    await app.inject({
-      method: "POST",
-      url: `/v1/provisioning/${createdWallet.walletId}/owner-artifacts?t=${token}`,
-      payload: {
-        owner: {
-          credentialId: "credential-id",
-          publicKey: "0x1234",
-        },
-        counterfactualWalletAddress: "0x4444444444444444444444444444444444444444",
-        serializedPermissionAccount: "approval_123",
-      },
-    });
-
-    fundingStatus = {
-      status: "verified",
-      minimumRequiredWei: testConfig.minFundingWei,
-      balanceWei: "700000000000000",
-      checkedAt: "2026-03-25T12:05:00.000Z",
+    const authPayload = {
+      walletAddress: readyWallet.walletContext.walletAddress,
+      backendSignerAddress: readyWallet.backendAddress,
+      method: "sign_message" as const,
+      bodyHash: hashBackendSignerPayload("sign_message", payload),
+      requestId: "req_replay_guard",
+      expiresAt: "2026-03-30T18:00:00.000Z",
     };
-
-    const refreshResponse = await app.inject({
-      method: "POST",
-      url: `/v1/wallets/${createdWallet.walletId}/refresh-funding`,
-    });
-
-    expect(refreshResponse.statusCode).toBe(200);
-    expect(refreshResponse.json()).toMatchObject({
-      walletId: createdWallet.walletId,
-      status: "ready",
-      funding: {
-        status: "verified",
-        balanceWei: "700000000000000",
-        minimumRequiredWei: testConfig.minFundingWei,
-      },
-    });
-
-    await app.close();
-  });
-
-  it("proxies supported chain JSON-RPC requests through the backend", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        jsonrpc: "2.0",
-        id: 1,
-        result: "0x1",
-      }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const app = buildApp({
-      config: {
-        ...testConfig,
-        rpcUrlsByChain: {
-          84532: "https://rpc.example.test/base-sepolia",
-        },
-      },
-      repository: createTestRepository(),
-    });
-
-    const response = await app.inject({
-      method: "POST",
-      url: "/v1/chains/84532/rpc",
-      payload: {
-        jsonrpc: "2.0",
-        id: 1,
-        method: "eth_chainId",
-        params: [],
-      },
-    });
-
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({
-      jsonrpc: "2.0",
-      id: 1,
-      result: "0x1",
-    });
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://rpc.example.test/base-sepolia",
-      expect.objectContaining({
-        method: "POST",
-      }),
+    const agentSignature = await agentAccount.signTypedData(
+      getBackendSignerAuthorizationTypedData(authPayload),
     );
 
-    await app.close();
-  });
-
-  it("rejects chain proxy requests for unsupported chains", async () => {
-    const app = buildApp({
-      config: testConfig,
-      repository: createTestRepository(),
-    });
-
-    const response = await app.inject({
+    const signResponse = await app.inject({
       method: "POST",
-      url: "/v1/chains/1/rpc",
+      url: `/v1/wallets/${createdWallet.walletId}/backend-sign`,
       payload: {
-        jsonrpc: "2.0",
-        id: 1,
-        method: "eth_chainId",
-        params: [],
+        auth: {
+          ...authPayload,
+          agentSignature,
+        },
+        payload,
       },
     });
 
-    expect(response.statusCode).toBe(404);
+    expect(signResponse.statusCode).toBe(200);
+    expect(signResponse.json().signature).toMatch(/^0x[a-f0-9]+$/);
+
+    const replayedResponse = await app.inject({
+      method: "POST",
+      url: `/v1/wallets/${createdWallet.walletId}/backend-sign`,
+      payload: {
+        auth: {
+          ...authPayload,
+          agentSignature,
+        },
+        payload,
+      },
+    });
+
+    expect(replayedResponse.statusCode).toBe(409);
+    expect(replayedResponse.json()).toMatchObject({
+      error: "request_replayed",
+    });
 
     await app.close();
   });

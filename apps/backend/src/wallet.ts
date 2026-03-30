@@ -1,8 +1,9 @@
-import { createHash } from "node:crypto";
 import type {
+  DeploymentState,
   FundingState,
   OwnerPublicArtifacts,
-  PermissionScope,
+  RegularValidatorInitArtifact,
+  WalletConfig,
   WalletContext,
   WalletRequestStatus,
 } from "@agent-wallet/shared";
@@ -11,32 +12,32 @@ import { buildFundingState } from "./funding.js";
 
 export type PreparedWallet = {
   ownerPublicArtifacts: OwnerPublicArtifacts;
+  regularValidatorInitArtifact: RegularValidatorInitArtifact;
   counterfactualWalletAddress: string;
   funding: FundingState;
-  walletContext?: WalletContext;
+  deployment: DeploymentState;
+  walletContext: WalletContext;
   status: Extract<WalletRequestStatus, "owner_bound" | "ready">;
 };
 
 export type WalletProvisioningService = {
   finalizeProvisioning(input: {
     owner: OwnerPublicArtifacts;
-    scope: PermissionScope;
-    sessionPublicKey: string;
+    regularValidatorInitArtifact: RegularValidatorInitArtifact;
+    walletConfig: WalletConfig;
+    agentAddress: string;
+    backendAddress: string;
     counterfactualWalletAddress: string;
-    serializedPermissionAccount: string;
   }): Promise<PreparedWallet>;
   refreshFunding(input: {
     owner: OwnerPublicArtifacts;
-    scope: PermissionScope;
-    sessionPublicKey: string;
+    regularValidatorInitArtifact: RegularValidatorInitArtifact;
+    walletConfig: WalletConfig;
+    agentAddress: string;
+    backendAddress: string;
     counterfactualWalletAddress: string;
-    serializedPermissionAccount: string;
   }): Promise<PreparedWallet>;
 };
-
-function derivePolicyDigest(scope: PermissionScope) {
-  return `0x${createHash("sha256").update(JSON.stringify(scope)).digest("hex")}`;
-}
 
 async function fetchBalanceWei(rpcUrl: string, address: string) {
   const response = await fetch(rpcUrl, {
@@ -95,22 +96,79 @@ async function resolveFunding(input: {
   });
 }
 
+async function fetchCodeHex(rpcUrl: string, address: string) {
+  const response = await fetch(rpcUrl, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      id: 1,
+      jsonrpc: "2.0",
+      method: "eth_getCode",
+      params: [address, "latest"],
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Code RPC failed with status ${response.status}`);
+  }
+
+  const payload = (await response.json()) as {
+    error?: { message?: string };
+    result?: string;
+  };
+
+  if (payload.error) {
+    throw new Error(payload.error.message ?? "Code RPC failed");
+  }
+
+  if (payload.result === undefined) {
+    throw new Error("Code RPC returned no result");
+  }
+
+  return payload.result;
+}
+
+async function resolveDeployment(input: {
+  chainId: number;
+  counterfactualWalletAddress: string;
+  config: AppConfig;
+}) {
+  const rpcUrl =
+    input.config.rpcUrlsByChain[input.chainId] ??
+    input.config.bundlerUrlsByChain[input.chainId];
+
+  if (!rpcUrl) {
+    return {
+      status: "undeployed" as const,
+    };
+  }
+
+  const codeHex = await fetchCodeHex(rpcUrl, input.counterfactualWalletAddress);
+
+  return {
+    status: codeHex !== "0x" ? "deployed" as const : "undeployed" as const,
+    checkedAt: new Date().toISOString(),
+  };
+}
+
 function buildWalletContext(input: {
   owner: OwnerPublicArtifacts;
-  scope: PermissionScope;
-  sessionPublicKey: string;
+  walletConfig: WalletConfig;
+  agentAddress: string;
+  backendAddress: string;
   counterfactualWalletAddress: string;
-  serializedPermissionAccount: string;
 }): WalletContext {
   return {
     walletAddress: input.counterfactualWalletAddress,
-    chainId: input.scope.chainId,
-    kernelVersion: "3.1",
-    sessionPublicKey: input.sessionPublicKey,
+    chainId: input.walletConfig.chainId,
+    kernelVersion: input.walletConfig.kernelVersion,
+    entryPointVersion: input.walletConfig.entryPointVersion,
     owner: input.owner,
-    scope: input.scope,
-    policyDigest: derivePolicyDigest(input.scope),
-    serializedPermissionAccount: input.serializedPermissionAccount,
+    agentAddress: input.agentAddress,
+    backendAddress: input.backendAddress,
+    weightedValidator: input.walletConfig.regularValidator,
   };
 }
 
@@ -120,36 +178,50 @@ export function createWalletProvisioningService(
   return {
     async finalizeProvisioning(input) {
       const funding = await resolveFunding({
-        chainId: input.scope.chainId,
+        chainId: input.walletConfig.chainId,
         counterfactualWalletAddress: input.counterfactualWalletAddress,
         config,
       });
-
+      const deployment = await resolveDeployment({
+        chainId: input.walletConfig.chainId,
+        counterfactualWalletAddress: input.counterfactualWalletAddress,
+        config,
+      });
       const walletContext = buildWalletContext(input);
 
       return {
         ownerPublicArtifacts: input.owner,
+        regularValidatorInitArtifact: input.regularValidatorInitArtifact,
         counterfactualWalletAddress: input.counterfactualWalletAddress,
         funding,
+        deployment,
         walletContext,
-        status: funding.status === "verified" ? "ready" : "owner_bound",
+        status:
+          funding.status === "verified" ? "ready" : "owner_bound",
       };
     },
     async refreshFunding(input) {
       const funding = await resolveFunding({
-        chainId: input.scope.chainId,
+        chainId: input.walletConfig.chainId,
         counterfactualWalletAddress: input.counterfactualWalletAddress,
         config,
       });
-
+      const deployment = await resolveDeployment({
+        chainId: input.walletConfig.chainId,
+        counterfactualWalletAddress: input.counterfactualWalletAddress,
+        config,
+      });
       const walletContext = buildWalletContext(input);
 
       return {
         ownerPublicArtifacts: input.owner,
+        regularValidatorInitArtifact: input.regularValidatorInitArtifact,
         counterfactualWalletAddress: input.counterfactualWalletAddress,
         funding,
+        deployment,
         walletContext,
-        status: funding.status === "verified" ? "ready" : "owner_bound",
+        status:
+          funding.status === "verified" ? "ready" : "owner_bound",
       };
     },
   };
