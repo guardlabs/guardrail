@@ -77,9 +77,11 @@ npx @your-scope/conduit-wallet sign-typed-data wal_xxx \
 
 Conduit Wallet is designed so an agent can act autonomously without controlling a fully privileged wallet key.
 
-The human stays the owner through a passkey. The agent can still trigger actions on its own, but those actions are only valid when Conduit also approves them. Conduit is the place where runtime policies are enforced, such as which contracts the agent may call, which methods are allowed, and how much value can be moved over time.
+The human stays the owner through a passkey. In normal operation, the human is only needed for the initial wallet setup and later policy changes, not for each transaction. The agent can still trigger actions on its own, but those actions are only valid when Conduit also approves them. Conduit is the place where runtime policies are enforced, such as which contracts the agent may call, which methods are allowed, and how much value can be moved over time.
 
 This is what makes the model safer than giving the agent a hot EOA key. If the agent key leaks, that key alone is still not enough to drain the wallet or execute arbitrary actions. It can only be used for actions that Conduit is willing to co-sign under the configured policy.
+
+A wallet can be created with policies from the start, such as target contracts or spending limits. That means an autonomous agent or skill can request a dedicated wallet for a specific task, tell the human to fund it, and then use that wallet autonomously within those predefined constraints without any risk.
 
 The high-level flow is:
 1. The CLI creates a wallet request and generates an agent key locally.
