@@ -12,9 +12,13 @@
 
 ## 🧭 Overview
 
-Conduit Wallet is an EVM wallet for autonomous agents that avoids storing a long-lived EOA private key on disk.
+Conduit Wallet is an EVM wallet for autonomous agents that avoids storing a long-lived EOA private key on disk, where it can leak.
 
-The wallet is owned by a human passkey, and agent-triggered actions require backend co-signing so Conduit can enforce policies before execution.
+It lets an agent trigger actions autonomously while staying secure because Conduit can enforce runtime policies and a leaked agent key is not enough to drain the wallet.
+
+The human stays the end owner through a passkey.
+
+For more detail, see [How It Works](#how-it-works).
 
 ## 🚀 Quickstart
 
@@ -67,6 +71,25 @@ npx @your-scope/conduit-wallet sign-typed-data wal_xxx \
   --typed-data-file ./typed-data.json
 ```
 
+<a id="how-it-works"></a>
+
+## 🔄 How It Works
+
+Conduit Wallet is designed so an agent can act autonomously without controlling a fully privileged wallet key.
+
+The human stays the owner through a passkey. The agent can still trigger actions on its own, but those actions are only valid when Conduit also approves them. Conduit is the place where runtime policies are enforced, such as which contracts the agent may call, which methods are allowed, and how much value can be moved over time.
+
+This is what makes the model safer than giving the agent a hot EOA key. If the agent key leaks, that key alone is still not enough to drain the wallet or execute arbitrary actions. It can only be used for actions that Conduit is willing to co-sign under the configured policy.
+
+The high-level flow is:
+1. The CLI creates a wallet request and generates an agent key locally.
+2. The backend creates a matching Conduit co-signer and returns a provisioning link.
+3. A human opens the hosted frontend, creates a passkey, and becomes the wallet owner.
+4. Once the wallet is ready, the agent can trigger actions autonomously.
+5. Each runtime action still requires Conduit approval before it is executed.
+
+<a id="technical-design"></a>
+
 ## 🛠️ Technical Design
 
 Conduit Wallet currently builds on [Kernel](https://github.com/zerodevapp/kernel), the modular ERC-4337 smart account, and uses [ZeroDev](https://zerodev.app/) plus the [ZeroDev SDK](https://docs.zerodev.app/) for provisioning and validator integration.
@@ -76,12 +99,6 @@ The wallet uses two validator layers:
 - a weighted ECDSA validator for runtime use, implemented with ZeroDev's [multisig signer tooling](https://docs.zerodev.app/sdk/permissions/signers/multisig).
 
 In the current setup, the runtime validator is a `2-of-2` weighted signer set: one key for the agent and one key for the Conduit backend, each with weight `1` and a threshold of `2`. That means runtime operations require both signatures. The passkey remains the human-controlled admin path, while the backend co-signer is the place where Conduit can enforce policies before approving agent-triggered transactions.
-
-The high-level flow is:
-1. The CLI creates a wallet request and generates an agent key locally.
-2. The backend creates a matching backend signer and returns a provisioning link.
-3. A human opens the hosted frontend, creates a passkey, and binds the wallet.
-4. Once funded and ready, the CLI can use the wallet to send transactions or sign typed data.
 
 Today, the repository already covers wallet provisioning, backend-assisted co-signing, local agent runtime, and a small provisioning frontend. Full policy enforcement by the backend is the next major step.
 
