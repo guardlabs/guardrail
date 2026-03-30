@@ -10,42 +10,15 @@
   <img src="https://img.shields.io/badge/chain-Base%20Sepolia-0052FF" alt="Chain: Base Sepolia" />
 </p>
 
-Conduit Wallet is an EVM wallet for autonomous agents that avoids putting a long-lived EOA private key on disk. In many agent setups, the wallet key is stored locally, which means an agent with file access or terminal access can read it, leak it, or misuse it.
+## Overview
 
-With Conduit, the wallet is owned by a human passkey. The agent gets its own runtime key, and the Conduit backend holds a separate co-signer key. Transactions triggered by the agent must be co-signed by the backend, so execution can be gated by policies such as allowed contracts, allowed methods, and spend limits in assets like ETH or USDC.
+Conduit Wallet is an EVM wallet for autonomous agents that avoids putting a long-lived EOA private key on disk. Instead of letting the agent fully control a wallet key, Conduit keeps the wallet owned by a human passkey and requires runtime actions to be approved through a backend co-signer.
+
+In practice, the agent gets a runtime key, the backend gets its own co-signer key, and transactions triggered by the agent only go through when the backend agrees. This is the place where Conduit can enforce policies such as allowed contracts, allowed methods, and spending limits.
 
 Today, the repository already covers wallet provisioning, backend-assisted co-signing, local agent runtime, and a small provisioning frontend. Full policy enforcement by the backend is the next major step.
 
-## Implementation
-
-Conduit Wallet currently builds on [Kernel](https://github.com/zerodevapp/kernel), the modular ERC-4337 smart account, and uses [ZeroDev](https://zerodev.app/) plus the [ZeroDev SDK](https://docs.zerodev.app/) for provisioning and validator integration.
-
-The wallet is configured with two validator layers:
-- a human passkey as the `sudo` validator, created in the browser with ZeroDev's [passkey flow](https://docs.zerodev.app/sdk/permissions/signers/passkeys),
-- a weighted ECDSA validator for runtime use, implemented with ZeroDev's [multisig signer tooling](https://docs.zerodev.app/sdk/permissions/signers/multisig).
-
-In the current setup, the runtime validator is a `2-of-2` weighted signer set: one key for the agent and one key for the Conduit backend, each with weight `1` and a threshold of `2`. That means runtime operations require both signatures. The passkey remains the human-controlled admin path, while the backend co-signer is the place where Conduit can enforce policies before approving agent-triggered transactions.
-
-## How It Works
-
-1. The CLI creates a wallet request and generates an agent key locally.
-2. The backend creates a matching backend signer and returns a provisioning link.
-3. A human opens the hosted frontend, creates a passkey, and binds the wallet.
-4. Once funded and ready, the CLI can use the wallet to send transactions or sign typed data.
-
-The current implementation targets Base Sepolia.
-
-## Supported Chains
-
-Conduit Wallet currently supports a single chain:
-
-| Chain | Chain ID | Status | Notes |
-| --- | --- | --- | --- |
-| Base Sepolia | `84532` | Supported | Primary development and testing network |
-
-Chain support is defined centrally in the shared package and is currently limited to Base Sepolia.
-
-## Hosted Usage
+## Quickstart
 
 These commands use placeholders for the future public deployment. Replace them with your real package name and hosted URLs once they exist.
 
@@ -95,6 +68,34 @@ Sign EIP-712 typed data:
 npx @your-scope/conduit-wallet sign-typed-data wal_xxx \
   --typed-data-file ./typed-data.json
 ```
+
+## Technical Design
+
+Conduit Wallet currently builds on [Kernel](https://github.com/zerodevapp/kernel), the modular ERC-4337 smart account, and uses [ZeroDev](https://zerodev.app/) plus the [ZeroDev SDK](https://docs.zerodev.app/) for provisioning and validator integration.
+
+The wallet uses two validator layers:
+- a human passkey as the `sudo` validator, created in the browser with ZeroDev's [passkey flow](https://docs.zerodev.app/sdk/permissions/signers/passkeys),
+- a weighted ECDSA validator for runtime use, implemented with ZeroDev's [multisig signer tooling](https://docs.zerodev.app/sdk/permissions/signers/multisig).
+
+In the current setup, the runtime validator is a `2-of-2` weighted signer set: one key for the agent and one key for the Conduit backend, each with weight `1` and a threshold of `2`. That means runtime operations require both signatures. The passkey remains the human-controlled admin path, while the backend co-signer is the place where Conduit can enforce policies before approving agent-triggered transactions.
+
+The high-level flow is:
+1. The CLI creates a wallet request and generates an agent key locally.
+2. The backend creates a matching backend signer and returns a provisioning link.
+3. A human opens the hosted frontend, creates a passkey, and binds the wallet.
+4. Once funded and ready, the CLI can use the wallet to send transactions or sign typed data.
+
+The current implementation targets Base Sepolia.
+
+## Supported Chains
+
+Conduit Wallet currently supports a single chain:
+
+| Chain | Chain ID | Status | Notes |
+| --- | --- | --- | --- |
+| Base Sepolia | `84532` | Supported | Primary development and testing network |
+
+Chain support is defined centrally in the shared package and is currently limited to Base Sepolia.
 
 ## Local Development
 

@@ -341,6 +341,108 @@ describe("backend app mode B", () => {
     await app.close();
   });
 
+  it("rejects loading provisioning details when the provisioning token has expired", async () => {
+    const agentAccount = privateKeyToAccount(generatePrivateKey());
+    const app = buildApp({
+      config: {
+        ...testConfig,
+        requestTtlHours: -1,
+      },
+      repository: createTestRepository(),
+      walletProvisioningService: createTestWalletProvisioningService({
+        funding: {
+          status: "verified",
+          minimumRequiredWei: testConfig.minFundingWei,
+          balanceWei: "600000000000000",
+          checkedAt: "2026-03-29T12:00:00.000Z",
+        },
+      }),
+    });
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/wallets",
+      payload: {
+        walletMode: PROJECT_WALLET_MODE,
+        chainId: 84532,
+        agentAddress: agentAccount.address,
+      },
+    });
+
+    const createdWallet = createResponse.json() as {
+      walletId: string;
+      provisioningUrl: string;
+    };
+    const token = extractProvisioningToken(createdWallet.provisioningUrl);
+
+    const provisioningResponse = await app.inject({
+      method: "GET",
+      url: `/v1/provisioning/${createdWallet.walletId}?t=${encodeURIComponent(token)}`,
+    });
+
+    expect(provisioningResponse.statusCode).toBe(410);
+    expect(provisioningResponse.json()).toMatchObject({
+      error: "provisioning_token_expired",
+    });
+
+    await app.close();
+  });
+
+  it("rejects publishing owner artifacts when the provisioning token has expired", async () => {
+    const agentAccount = privateKeyToAccount(generatePrivateKey());
+    const app = buildApp({
+      config: {
+        ...testConfig,
+        requestTtlHours: -1,
+      },
+      repository: createTestRepository(),
+      walletProvisioningService: createTestWalletProvisioningService({
+        funding: {
+          status: "verified",
+          minimumRequiredWei: testConfig.minFundingWei,
+          balanceWei: "600000000000000",
+          checkedAt: "2026-03-29T12:00:00.000Z",
+        },
+      }),
+    });
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/wallets",
+      payload: {
+        walletMode: PROJECT_WALLET_MODE,
+        chainId: 84532,
+        agentAddress: agentAccount.address,
+      },
+    });
+
+    const createdWallet = createResponse.json() as {
+      walletId: string;
+      provisioningUrl: string;
+    };
+    const token = extractProvisioningToken(createdWallet.provisioningUrl);
+
+    const ownerArtifactsResponse = await app.inject({
+      method: "POST",
+      url: `/v1/provisioning/${createdWallet.walletId}/owner-artifacts?t=${encodeURIComponent(token)}`,
+      payload: {
+        owner: {
+          credentialId: "credential-id",
+          publicKey: "0x1234",
+        },
+        counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
+        regularValidatorInitArtifact: createRegularValidatorInitArtifact(),
+      },
+    });
+
+    expect(ownerArtifactsResponse.statusCode).toBe(410);
+    expect(ownerArtifactsResponse.json()).toMatchObject({
+      error: "provisioning_token_expired",
+    });
+
+    await app.close();
+  });
+
   it("authenticates backend signing requests and rejects replayed requestIds", async () => {
     const agentAccount = privateKeyToAccount(generatePrivateKey());
     const app = buildApp({
