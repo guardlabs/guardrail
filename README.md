@@ -16,6 +16,16 @@ With Conduit, the wallet is owned by a human passkey. The agent gets its own run
 
 Today, the repository already covers wallet provisioning, backend-assisted co-signing, local agent runtime, and a small provisioning frontend. Full policy enforcement by the backend is the next major step.
 
+## Implementation
+
+Conduit Wallet currently builds on [Kernel](https://github.com/zerodevapp/kernel), the modular ERC-4337 smart account, and uses [ZeroDev](https://zerodev.app/) plus the [ZeroDev SDK](https://docs.zerodev.app/) for provisioning and validator integration.
+
+The wallet is configured with two validator layers:
+- a human passkey as the `sudo` validator, created in the browser with ZeroDev's [passkey flow](https://docs.zerodev.app/sdk/permissions/signers/passkeys),
+- a weighted ECDSA validator for runtime use, implemented with ZeroDev's [multisig signer tooling](https://docs.zerodev.app/sdk/permissions/signers/multisig).
+
+In the current setup, the runtime validator is a `2-of-2` weighted signer set: one key for the agent and one key for the Conduit backend, each with weight `1` and a threshold of `2`. That means runtime operations require both signatures. The passkey remains the human-controlled admin path, while the backend co-signer is the place where Conduit can enforce policies before approving agent-triggered transactions.
+
 ## How It Works
 
 1. The CLI creates a wallet request and generates an agent key locally.
