@@ -1,4 +1,4 @@
-# Agent Wallet Handoff
+# Conduit Wallet Handoff
 
 Use this file to resume implementation without relying on chat history.
 
@@ -6,14 +6,14 @@ Use this file to resume implementation without relying on chat history.
 
 Before making any change, read these files in this order:
 
-1. `docs/superpowers/specs/2026-03-25-agent-wallet-design.md`
-2. `docs/superpowers/specs/2026-03-25-agent-wallet-technical-spec.md`
-3. `docs/superpowers/tracking/2026-03-25-agent-wallet-status.md`
-4. `docs/superpowers/tracking/2026-03-25-agent-wallet-log.md`
+1. `docs/superpowers/specs/2026-03-25-conduit-wallet-design.md`
+2. `docs/superpowers/specs/2026-03-25-conduit-wallet-technical-spec.md`
+3. `docs/superpowers/tracking/2026-03-25-conduit-wallet-status.md`
+4. `docs/superpowers/tracking/2026-03-25-conduit-wallet-log.md`
 
 ## Mission
 
-Continue the implementation of `agent-wallet` from the current repository state only.
+Continue the implementation of `conduit-wallet` from the current repository state only.
 
 Do not assume any external context beyond the files in this repo.
 
@@ -53,16 +53,16 @@ The CLI must remain agent-friendly.
 
 Mandatory requirements:
 
-- `agent-wallet --help`
-- `agent-wallet <command> --help`
+- `conduit-wallet --help`
+- `conduit-wallet <command> --help`
 - concise and stable help output
 - command and flag names are part of the V1 contract
 
 Backend override contract:
 
 - CLI flag: `--backend-url`
-- CLI env: `AGENT_WALLET_BACKEND_URL`
-- frontend env: `AGENT_WALLET_PUBLIC_BACKEND_URL`
+- CLI env: `CONDUIT_BACKEND_URL`
+- frontend env: `CONDUIT_PUBLIC_BACKEND_URL`
 
 Working implementation configuration:
 
@@ -71,17 +71,17 @@ Working implementation configuration:
 - backend runs locally for now
 - bundler is Alchemy, chain-specific, and env-configured
 - local Base Sepolia bundler endpoint has been provided by the user and must not be committed into persistent runtime config
-- `AGENT_WALLET_PASSKEY_SERVER_URL=https://passkeys.zerodev.app/api/v3/ec78db7a-024e-42b8-a404-d78986033fca`
-- `AGENT_WALLET_MIN_FUNDING_WEI=500000000000000`
+- `CONDUIT_PASSKEY_SERVER_URL=https://passkeys.zerodev.app/api/v3/ec78db7a-024e-42b8-a404-d78986033fca`
+- `CONDUIT_MIN_FUNDING_WEI=500000000000000`
 - backend and CLI autoload root `.env.local`, then root `.env`, through `dotenv`
 - frontend Vite config resolves root `.env.local` and root `.env` from the monorepo root
 - the root `.env.local` is the single local-development env file for the monorepo
-- CLI local env usage is intentionally limited to `AGENT_WALLET_BACKEND_URL` as an optional convenience override
+- CLI local env usage is intentionally limited to `CONDUIT_BACKEND_URL` as an optional convenience override
 - backend status model is simplified to `created`, `owner_bound`, `ready`, `failed`
 - persisted owner artifacts are minimal: `{ credentialId, publicKey }`
 - backend runtime requires `DATABASE_URL`; there is no in-memory fallback
 - backend SQL migration exists and local PostgreSQL runtime has been verified
-- backend funding checks currently use `AGENT_WALLET_PUBLIC_RPC_URL_<chainId>` with `AGENT_WALLET_BUNDLER_URL_<chainId>` as fallback
+- backend funding checks currently use `CONDUIT_PUBLIC_RPC_URL_<chainId>` with `CONDUIT_BUNDLER_URL_<chainId>` as fallback
 - the durable orchestration identifier is `walletId`, not `requestId`
 - backend API uses `/v1/wallets/...`
 - supported-chain metadata lives in `packages/shared/src/chains.ts`
@@ -94,10 +94,10 @@ Working implementation configuration:
 - CLI `create` output includes structured `nextSteps` guidance for agent callers
 - `create.nextSteps` must explicitly tell the agent to send the human to `provisioningUrl`, then rerun CLI `status` to obtain the wallet address before asking for funding
 - CLI `await` emits an immediate waiting message before entering the poll loop
-- `agent-wallet call` is the post-`ready` path that hydrates the local permission account and submits the first permitted user operation
+- `conduit-wallet call` is the post-`ready` path that hydrates the local permission account and submits the first permitted user operation
 - the first permitted `call` is the place where the wallet is effectively deployed on-chain if it is still counterfactual
-- `agent-wallet call` must supply standard fee estimation for user operations so Alchemy bundlers work without ZeroDev-specific RPC methods
-- CLI no longer requires direct `AGENT_WALLET_PUBLIC_RPC_URL_<chainId>` or `AGENT_WALLET_BUNDLER_URL_<chainId>` configuration
+- `conduit-wallet call` must supply standard fee estimation for user operations so Alchemy bundlers work without ZeroDev-specific RPC methods
+- CLI no longer requires direct `CONDUIT_PUBLIC_RPC_URL_<chainId>` or `CONDUIT_BUNDLER_URL_<chainId>` configuration
 - backend now exposes `POST /v1/chains/:chainId/rpc` and `POST /v1/chains/:chainId/bundler` as proxy transports for CLI runtime hydration and calls
 - frontend design context is fixed:
   - audience: non-developers and users with limited Web3 familiarity
@@ -117,7 +117,7 @@ Working implementation configuration:
 
 1. Inspect the current repo state.
 2. Verify the actual build and test state.
-3. Read `docs/superpowers/plans/2026-03-25-agent-wallet-v1-completion.md`.
+3. Read `docs/superpowers/plans/2026-03-25-conduit-wallet-v1-completion.md`.
 4. Pick the next smallest useful V1 increment.
 5. Implement it end to end.
 6. Update the tracking documents before finishing.
@@ -126,8 +126,8 @@ Working implementation configuration:
 
 These files are the project memory and must be kept current:
 
-- `docs/superpowers/tracking/2026-03-25-agent-wallet-status.md`
-- `docs/superpowers/tracking/2026-03-25-agent-wallet-log.md`
+- `docs/superpowers/tracking/2026-03-25-conduit-wallet-status.md`
+- `docs/superpowers/tracking/2026-03-25-conduit-wallet-log.md`
 
 Update them whenever:
 
@@ -146,7 +146,7 @@ Unless the tracking files say otherwise, start here:
    - create a wallet against a real contract and authorized selector
    - complete browser passkey provisioning
    - fund until `ready`
-   - run `agent-wallet call`
+   - run `conduit-wallet call`
    - confirm deployed bytecode with `eth_getCode`
 4. continue with hardening or operator guidance only if still needed
 

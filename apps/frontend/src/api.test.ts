@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   PROJECT_WALLET_MODE,
   buildDefaultWalletConfig,
-} from "@agent-wallet/shared";
+} from "@conduit/shared";
 import { browserApi } from "./api.js";
 
 describe("frontend api mode B", () => {

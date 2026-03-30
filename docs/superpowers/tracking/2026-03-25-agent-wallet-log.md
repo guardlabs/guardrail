@@ -1,4 +1,4 @@
-# Agent Wallet Log
+# Conduit Wallet Log
 
 ## 2026-03-25
 
@@ -23,8 +23,8 @@
 - Locked `--help` as a mandatory CLI feature.
 - Locked the backend override contract:
   - `--backend-url`
-  - `AGENT_WALLET_BACKEND_URL`
-  - `AGENT_WALLET_PUBLIC_BACKEND_URL`
+  - `CONDUIT_BACKEND_URL`
+  - `CONDUIT_PUBLIC_BACKEND_URL`
 
 ### Frontend Constraint
 
@@ -37,7 +37,7 @@
 - Locked local backend use for now until a domain exists.
 - Locked Alchemy as the bundler provider with chain-specific env-based configuration.
 - Recorded the current Base Sepolia bundler endpoint provided by the user for local testing.
-- Locked `AGENT_WALLET_MIN_FUNDING_WEI=500000000000000` as the current working threshold.
+- Locked `CONDUIT_MIN_FUNDING_WEI=500000000000000` as the current working threshold.
 
 ### Bootstrap
 
@@ -61,7 +61,7 @@
 - Fixed the CLI entrypoint so tests can import the command builder without triggering `process.exit`.
 - Ran `pnpm build` successfully.
 - Ran `pnpm test` successfully.
-- Verified CLI help manually with `pnpm --filter @agent-wallet/cli exec node dist/index.js --help`.
+- Verified CLI help manually with `pnpm --filter @conduit/cli exec node dist/index.js --help`.
 - Verified backend manually by starting it and requesting `/health`.
 - Verified frontend manually by starting Vite and requesting the served HTML shell.
 
@@ -95,7 +95,7 @@
 - Added backend migration scripts and a Drizzle config file.
 - Added a root `docker-compose.yml` and `.env.example` for local runtime setup.
 - Verified that local PostgreSQL is reachable on the machine.
-- Created the local `agent_wallet` role and database for development.
+- Created the local `conduit` role and database for development.
 - Applied the backend SQL migration successfully.
 - Verified live backend + CLI create/status against PostgreSQL persistence.
 
@@ -105,8 +105,8 @@
   - audience: non-developers and users with limited Web3 familiarity
   - use case: securely grant an autonomous agent limited wallet rights
   - tone: reassuring, high-tech, simple, and secure
-- Locked `AGENT_WALLET_PASSKEY_SERVER_URL=https://passkeys.zerodev.app/api/v3/ec78db7a-024e-42b8-a404-d78986033fca`.
-- Wrote the remaining V1 execution plan in `docs/superpowers/plans/2026-03-25-agent-wallet-v1-completion.md`.
+- Locked `CONDUIT_PASSKEY_SERVER_URL=https://passkeys.zerodev.app/api/v3/ec78db7a-024e-42b8-a404-d78986033fca`.
+- Wrote the remaining V1 execution plan in `docs/superpowers/plans/2026-03-25-conduit-wallet-v1-completion.md`.
 
 ### Provisioning Flow Runtime
 
@@ -121,13 +121,13 @@
   - funding and ready-state rendering
 - Added frontend Vitest coverage for the provisioning path.
 - Added CLI coverage for `await` reaching a finalized `ready` payload.
-- Added `AGENT_WALLET_PUBLIC_RPC_URL_<chainId>` to `.env.example`.
+- Added `CONDUIT_PUBLIC_RPC_URL_<chainId>` to `.env.example`.
 
 ### Live Verification
 
 - Ran `pnpm build` successfully after the provisioning implementation.
 - Ran `pnpm test` successfully after the provisioning implementation.
-- Re-ran `DATABASE_URL=postgresql://agent_wallet:agent_wallet@127.0.0.1:5432/agent_wallet pnpm db:migrate` successfully.
+- Re-ran `DATABASE_URL=postgresql://conduit:conduit@127.0.0.1:5432/conduit pnpm db:migrate` successfully.
 - Re-verified CLI help manually.
 - Started backend live with PostgreSQL plus Base Sepolia RPC configuration.
 - Started frontend live with Vite.
@@ -161,9 +161,9 @@
 - Re-ran package-local test suites for shared, backend, frontend, and CLI successfully.
 - Re-ran `pnpm build` successfully for the full workspace.
 - Re-ran `pnpm test` successfully for the full workspace.
-- Re-ran `DATABASE_URL=postgresql://agent_wallet:agent_wallet@127.0.0.1:5432/agent_wallet pnpm db:migrate` successfully.
+- Re-ran `DATABASE_URL=postgresql://conduit:conduit@127.0.0.1:5432/conduit pnpm db:migrate` successfully.
 - Started the built backend with PostgreSQL plus Base Sepolia runtime configuration and verified `/health`.
-- Re-verified `agent-wallet --help` against the built CLI.
+- Re-verified `conduit-wallet --help` against the built CLI.
 - Re-verified live CLI `create` and `status` against the running backend.
 
 ### Local Env Autoload
@@ -174,8 +174,8 @@
 - Updated frontend Vite config so it resolves root `.env.local` and root `.env` from the monorepo root.
 - Re-ran `pnpm install`, `pnpm build`, and `pnpm test` successfully after the env-loader move.
 - Verified `pnpm db:migrate` succeeds with only a temporary root `.env.local`.
-- Verified the CLI entrypoint reads `AGENT_WALLET_BACKEND_URL` from a temporary root `.env.local`.
-- Verified frontend build succeeds with `AGENT_WALLET_PASSKEY_SERVER_URL` coming only from a temporary root `.env.local`.
+- Verified the CLI entrypoint reads `CONDUIT_BACKEND_URL` from a temporary root `.env.local`.
+- Verified frontend build succeeds with `CONDUIT_PASSKEY_SERVER_URL` coming only from a temporary root `.env.local`.
 
 ### Funding Refresh Loop
 
@@ -213,7 +213,7 @@
 
 ### First Permitted Call Path
 
-- Added `agent-wallet call` as the post-`ready` CLI command for submitting the first permitted contract call.
+- Added `conduit-wallet call` as the post-`ready` CLI command for submitting the first permitted contract call.
 - The CLI now rehydrates the ZeroDev or Kernel permission account from local state and uses the Kernel client to submit the first user operation.
 - This is the runtime path that deploys the wallet on first use if the account is still counterfactual.
 - Re-ran `pnpm test` successfully.
@@ -223,7 +223,7 @@
 
 - Fixed the CLI Kernel client so it no longer depends on ZeroDev-specific `zd_getUserOperationGasPrice` when using an Alchemy bundler.
 - Added an explicit `estimateFeesPerGas` override for user operations in the CLI Kernel hydration path.
-- Added CLI unit coverage for the custom fee-estimation hook used by `agent-wallet call`.
+- Added CLI unit coverage for the custom fee-estimation hook used by `conduit-wallet call`.
 - Re-ran `pnpm build` successfully.
 - Re-ran `pnpm test` successfully.
 
@@ -231,7 +231,7 @@
 
 - Exercised the real browser passkey flow manually against the local backend and frontend.
 - Reached `ready` for a real Base Sepolia wallet.
-- Verified a live `agent-wallet call` against Base Sepolia USDC on `approve(address,uint256)` for request `wal_c700ae7d9b64436c9dcac2456e4172cc`.
+- Verified a live `conduit-wallet call` against Base Sepolia USDC on `approve(address,uint256)` for request `wal_c700ae7d9b64436c9dcac2456e4172cc`.
 - Confirmed the call returned transaction hash `0x707e3da799586f62e92b49d5e818d6ae7d3eb208d35ce87258b198c0f0073ae1`.
 - Confirmed the wallet address `0x1144ff65e1407C7e8766bbAcB5dB37FbD79a8994` has deployed bytecode on-chain after the first permitted call via `eth_getCode`.
 
@@ -241,7 +241,7 @@
 - Renamed HTTP routes from `/v1/wallet-requests/...` to `/v1/wallets/...` as the canonical V1 API surface.
 - Renamed the SQL runtime shape to `wallets(wallet_id, ...)` and updated the migration to rename existing local `wallet_requests(id, ...)` installs in place.
 - Switched generated ids and examples from the `wr_` prefix to the `wal_` prefix.
-- Rebuilt `@agent-wallet/shared` so all workspace consumers picked up the renamed contract surface.
+- Rebuilt `@conduit/shared` so all workspace consumers picked up the renamed contract surface.
 - Re-ran the focused package tests for shared, backend, CLI, and frontend successfully.
 - Re-ran full workspace `pnpm build` successfully.
 - Re-ran full workspace `pnpm test` successfully.
@@ -252,7 +252,7 @@
 - Added backend proxy endpoints at `/v1/chains/:chainId/rpc` and `/v1/chains/:chainId/bundler`.
 - Changed CLI Kernel hydration so it derives its runtime transports from the stored backend URL instead of local chain env vars.
 - Kept session-key signing local to the CLI host; the backend only proxies RPC and bundler traffic.
-- Narrowed CLI local env needs to `AGENT_WALLET_BACKEND_URL` as an optional convenience override.
+- Narrowed CLI local env needs to `CONDUIT_BACKEND_URL` as an optional convenience override.
 - Updated `.env.example` to make the backend-only chain secrets explicit.
 - Re-ran focused backend and CLI tests successfully, then re-ran full workspace `pnpm build` and `pnpm test` successfully.
 - Re-validated the live Base Sepolia `call` path through the backend proxies with transaction hash `0xe2203902730242b8d18da7f69509c702f2dfe4d737ca98bd26e7babe257bd01e`.
@@ -260,7 +260,7 @@
 ### Shared Chain Registry
 
 - Kept the supported-chain list centralized in `packages/shared/src/chains.ts`.
-- Updated CLI help so `agent-wallet --help` and `agent-wallet create --help` explicitly list the supported chains from that shared registry.
+- Updated CLI help so `conduit-wallet --help` and `conduit-wallet create --help` explicitly list the supported chains from that shared registry.
 - Updated frontend and CLI runtime support checks to consume the shared chain registry instead of maintaining an independent hardcoded support list.
 - Moved the `viem` chain mapping itself into `packages/shared/src/chains.ts`, so frontend and CLI no longer keep separate runtime chain maps.
 - Confirmed the earlier `viem` resolution failure was caused by `packages/shared` not actually declaring `viem`; a stale lockfile/node_modules state had masked the real issue during earlier experiments.

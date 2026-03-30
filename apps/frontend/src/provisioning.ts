@@ -1,7 +1,7 @@
 import {
   PROJECT_DEFAULT_BACKEND_URL,
   resolveProvisioningRequestSchema,
-} from "@agent-wallet/shared";
+} from "@conduit/shared";
 import { z } from "zod";
 
 export type ProvisioningQuery = {

@@ -8,7 +8,7 @@ import type {
   WalletContext,
   WalletMode,
   WalletRequestStatus,
-} from "@agent-wallet/shared";
+} from "@conduit/shared";
 
 export const walletsTable = pgTable("wallets", {
   walletId: text("wallet_id").primaryKey(),

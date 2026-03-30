@@ -1,9 +1,10 @@
 {
-  "name": "@agent-wallet/cli",
+  "name": "@conduit/cli",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "bin": {
-    "agent-wallet": "dist/index.js"
+    "conduit-wallet": "dist/index.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -12,8 +13,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@agent-wallet/shared": "workspace:*",
-    "@agent-wallet/zerodev": "workspace:*",
+    "@conduit/shared": "workspace:*",
+    "@conduit/zerodev": "workspace:*",
     "@zerodev/sdk": "5.5.8",
     "commander": "^13.1.0",
     "dotenv": "^16.6.1",

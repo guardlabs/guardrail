@@ -2,8 +2,8 @@ import {
   getSupportedChainById,
   type LocalWalletRequest,
   type WalletRequest,
-} from "@agent-wallet/shared";
-import { createWeightedKernelRuntime } from "@agent-wallet/zerodev";
+} from "@conduit/shared";
+import { createWeightedKernelRuntime } from "@conduit/zerodev";
 import type { Chain, Hex, TypedData, TypedDataDefinition } from "viem";
 
 function getChain(chainId: number): Chain {

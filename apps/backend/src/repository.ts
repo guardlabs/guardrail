@@ -4,7 +4,7 @@ import type {
   WalletConfig,
   WalletContext,
   WalletRequest,
-} from "@agent-wallet/shared";
+} from "@conduit/shared";
 
 export type StoredWalletRequest = WalletRequest & {
   provisioningTokenHash: string;

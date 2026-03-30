@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { buildDefaultWalletConfig } from "@agent-wallet/shared";
+import { buildDefaultWalletConfig } from "@conduit/shared";
 import { createKernelAccount, toKernelPluginManager } from "@zerodev/sdk/accounts";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { createPublicClient, http } from "viem";

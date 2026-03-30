@@ -12,7 +12,7 @@ import {
   hexStringSchema,
   type CreateWalletRequestResponse,
   type WalletRequest,
-} from "@agent-wallet/shared";
+} from "@conduit/shared";
 import { bytesToHex, parseUnits, type TypedData, type TypedDataDefinition } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { resolveBackendUrl } from "./backend.js";
@@ -59,12 +59,12 @@ function buildNextSteps(
     walletAddressStatus: "owner_bound" as const,
     humanActionUrl: provisioningUrl,
     humanAction:
-      "Ask the human to open the provisioning URL and create the passkey owner for the weighted wallet.",
-    walletAddressCommand: `agent-wallet status ${walletId} --backend-url ${backendUrl}`,
-    statusCommand: `agent-wallet status ${walletId} --backend-url ${backendUrl}`,
-    awaitCommand: `agent-wallet await ${walletId} --backend-url ${backendUrl}`,
+      "Ask the human to open the provisioning URL and create the passkey owner for the Conduit Wallet.",
+    walletAddressCommand: `conduit-wallet status ${walletId} --backend-url ${backendUrl}`,
+    statusCommand: `conduit-wallet status ${walletId} --backend-url ${backendUrl}`,
+    awaitCommand: `conduit-wallet await ${walletId} --backend-url ${backendUrl}`,
     guidance: [
-      "Ask the human to open the provisioning URL and create the passkey owner.",
+      "Ask the human to open the provisioning URL and create the Conduit Wallet passkey owner.",
       "Wait for the wallet address to appear once the owner is bound.",
       "Fund the wallet on the target chain.",
       "Continue waiting until the request reaches ready.",

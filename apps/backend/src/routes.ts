@@ -17,7 +17,7 @@ import {
   type BackendSignerMessagePayload,
   type BackendSignerTypedDataPayload,
   type CreateWalletRequestInput,
-} from "@agent-wallet/shared";
+} from "@conduit/shared";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { verifyTypedData, type Address, type Hex } from "viem";
 import type { AppConfig } from "./config.js";
@@ -107,12 +107,12 @@ function buildNextSteps(
     walletAddressStatus: "owner_bound" as const,
     humanActionUrl: provisioningUrl,
     humanAction:
-      "Ask the human to open the provisioning URL and create the passkey owner for the weighted wallet.",
-    walletAddressCommand: `agent-wallet status ${walletId} --backend-url ${backendUrl}`,
-    statusCommand: `agent-wallet status ${walletId} --backend-url ${backendUrl}`,
-    awaitCommand: `agent-wallet await ${walletId} --backend-url ${backendUrl}`,
+      "Ask the human to open the provisioning URL and create the passkey owner for the Conduit Wallet.",
+    walletAddressCommand: `conduit-wallet status ${walletId} --backend-url ${backendUrl}`,
+    statusCommand: `conduit-wallet status ${walletId} --backend-url ${backendUrl}`,
+    awaitCommand: `conduit-wallet await ${walletId} --backend-url ${backendUrl}`,
     guidance: [
-      "Ask the human to open the provisioning URL and create the passkey owner.",
+      "Ask the human to open the provisioning URL and create the Conduit Wallet passkey owner.",
       "Wait for the wallet address to appear once the passkey owner is bound.",
       "Fund the wallet on the target chain so the backend can mark it ready.",
       "Continue waiting until the request reaches ready before sending runtime operations.",

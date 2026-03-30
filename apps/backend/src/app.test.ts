@@ -9,7 +9,7 @@ import {
   type OwnerPublicArtifacts,
   type RegularValidatorInitArtifact,
   type WalletContext,
-} from "@agent-wallet/shared";
+} from "@conduit/shared";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { buildApp } from "./app.js";
 import type { AppConfig } from "./config.js";
@@ -18,7 +18,7 @@ import type { WalletProvisioningService } from "./wallet.js";
 
 const testConfig: AppConfig = {
   port: 3000,
-  databaseUrl: "postgresql://test:test@127.0.0.1:5432/agent_wallet_test",
+  databaseUrl: "postgresql://test:test@127.0.0.1:5432/conduit_test",
   publicBackendUrl: "http://127.0.0.1:3000",
   frontendBaseUrl: "http://127.0.0.1:5173",
   minFundingWei: "500000000000000",
@@ -221,7 +221,7 @@ describe("backend app mode B", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       status: "ok",
-      service: "agent-wallet-backend",
+      service: "conduit-wallet-backend",
     });
 
     await app.close();

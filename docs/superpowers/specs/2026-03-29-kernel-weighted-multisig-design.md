@@ -170,7 +170,7 @@ The backend should not manually reimplement weighted-signature assembly if the o
 
 ## Provisioning Flow
 
-1. The CLI runs `agent-wallet create`.
+1. The CLI runs `conduit-wallet create`.
 2. The CLI generates the agent EOA locally.
 3. The CLI sends the backend:
    - `chainId`

@@ -1,10 +1,11 @@
 {
-  "name": "agent-wallet",
+  "name": "conduit-wallet",
   "private": true,
+  "license": "MIT",
   "packageManager": "pnpm@10.33.0",
   "scripts": {
     "build": "turbo build",
-    "db:migrate": "pnpm --filter @agent-wallet/backend db:migrate",
+    "db:migrate": "pnpm --filter @conduit/backend db:migrate",
     "dev": "turbo dev",
     "test": "turbo test",
     "typecheck": "turbo typecheck"

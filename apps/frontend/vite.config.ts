@@ -25,19 +25,19 @@ export default defineConfig(({ mode }) => {
     ],
     define: {
       __DEFAULT_BACKEND_URL__: JSON.stringify(
-        env.AGENT_WALLET_PUBLIC_BACKEND_URL ?? null,
+        env.CONDUIT_PUBLIC_BACKEND_URL ?? null,
       ),
       __PASSKEY_SERVER_URL__: JSON.stringify(
-        env.AGENT_WALLET_PASSKEY_SERVER_URL ?? null,
+        env.CONDUIT_PASSKEY_SERVER_URL ?? null,
       ),
       __BASE_SEPOLIA_RPC_URL__: JSON.stringify(
-        env.AGENT_WALLET_PUBLIC_RPC_URL_84532 ?? null,
+        env.CONDUIT_PUBLIC_RPC_URL_84532 ?? null,
       ),
       __BASE_SEPOLIA_BUNDLER_URL__: JSON.stringify(
-        env.AGENT_WALLET_BUNDLER_URL_84532 ?? null,
+        env.CONDUIT_BUNDLER_URL_84532 ?? null,
       ),
       __BASE_SEPOLIA_OUTGOING_BUDGET_POLICY_ADDRESS__: JSON.stringify(
-        env.AGENT_WALLET_OUTGOING_BUDGET_POLICY_ADDRESS_84532 ?? null,
+        env.CONDUIT_OUTGOING_BUDGET_POLICY_ADDRESS_84532 ?? null,
       ),
     },
   };

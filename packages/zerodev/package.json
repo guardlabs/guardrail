@@ -1,6 +1,7 @@
 {
-  "name": "@agent-wallet/zerodev",
+  "name": "@conduit/zerodev",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "exports": {
     ".": {
@@ -14,7 +15,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@agent-wallet/shared": "workspace:*",
+    "@conduit/shared": "workspace:*",
     "@zerodev/sdk": "5.5.8",
     "@zerodev/weighted-ecdsa-validator": "5.4.4",
     "viem": "2.47.6"

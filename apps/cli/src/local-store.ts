@@ -4,12 +4,12 @@ import { join } from "node:path";
 import {
   localWalletRequestSchema,
   type LocalWalletRequest,
-} from "@agent-wallet/shared";
+} from "@conduit/shared";
 
 function resolveStoreDirectory() {
   return (
-    process.env.AGENT_WALLET_LOCAL_STORE_DIR ??
-    join(homedir(), ".agent-wallet", "wallets")
+    process.env.CONDUIT_LOCAL_STORE_DIR ??
+    join(homedir(), ".conduit", "wallets")
   );
 }
 

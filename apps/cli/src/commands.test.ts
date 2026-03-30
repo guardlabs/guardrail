@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   PROJECT_WALLET_MODE,
   buildDefaultWalletConfig,
-} from "@agent-wallet/shared";
+} from "@conduit/shared";
 import {
   hydrateReadyWalletRequest,
   callReadyWalletTransaction,
@@ -33,12 +33,12 @@ describe("cli commands mode B", () => {
   let tempStoreDirectory = "";
 
   beforeEach(async () => {
-    tempStoreDirectory = await mkdtemp(join(tmpdir(), "agent-wallet-cli-"));
-    process.env.AGENT_WALLET_LOCAL_STORE_DIR = tempStoreDirectory;
+    tempStoreDirectory = await mkdtemp(join(tmpdir(), "conduit-wallet-cli-"));
+    process.env.CONDUIT_LOCAL_STORE_DIR = tempStoreDirectory;
   });
 
   afterEach(() => {
-    delete process.env.AGENT_WALLET_LOCAL_STORE_DIR;
+    delete process.env.CONDUIT_LOCAL_STORE_DIR;
     vi.restoreAllMocks();
   });
 
@@ -85,15 +85,15 @@ describe("cli commands mode B", () => {
             humanActionUrl:
               "http://127.0.0.1:5173/?walletId=wal_123&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
             humanAction:
-              "Ask the human to open the provisioning URL and create the passkey owner for the weighted wallet.",
+              "Ask the human to open the provisioning URL and create the passkey owner for the Conduit Wallet.",
             walletAddressCommand:
-              "agent-wallet status wal_123 --backend-url http://127.0.0.1:3000",
+              "conduit-wallet status wal_123 --backend-url http://127.0.0.1:3000",
             statusCommand:
-              "agent-wallet status wal_123 --backend-url http://127.0.0.1:3000",
+              "conduit-wallet status wal_123 --backend-url http://127.0.0.1:3000",
             awaitCommand:
-              "agent-wallet await wal_123 --backend-url http://127.0.0.1:3000",
+              "conduit-wallet await wal_123 --backend-url http://127.0.0.1:3000",
             guidance: [
-              "Ask the human to open the provisioning URL and create the passkey owner.",
+              "Ask the human to open the provisioning URL and create the Conduit Wallet passkey owner.",
               "Wait for the wallet address to appear once the owner is bound.",
               "Fund the wallet on the target chain.",
               "Continue waiting until the request reaches ready.",

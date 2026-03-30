@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import type { ResolveProvisioningResponse, WalletRequest } from "@agent-wallet/shared";
-import { PROJECT_DEFAULT_BACKEND_URL } from "@agent-wallet/shared";
+import type { ResolveProvisioningResponse, WalletRequest } from "@conduit/shared";
+import { PROJECT_DEFAULT_BACKEND_URL } from "@conduit/shared";
 import type { FrontendApi } from "./api.js";
 import { browserApi } from "./api.js";
 import type { PasskeyClient } from "./passkey.js";
@@ -124,7 +124,7 @@ export function App({
         passkeyClient ?? (await loadBrowserPasskeyClient());
       const provisioningArtifacts =
         await resolvedPasskeyClient.createProvisioningArtifacts({
-        displayName: "Agent Wallet",
+        displayName: "Conduit Wallet",
         walletConfig: request.walletConfig,
       });
 
@@ -156,11 +156,11 @@ export function App({
     <main className="app-shell">
       <section className="hero-panel">
         <div className="hero-copy">
-          <p className="eyebrow">Agent Wallet</p>
+          <p className="eyebrow">Conduit</p>
           <h1>Provision this wallet</h1>
           <p className="lede">
-            Create the passkey owner on this device, then fund the wallet if the
-            wallet requires it.
+            Create the Conduit Wallet passkey owner on this device, then fund
+            the wallet if activation requires it.
           </p>
         </div>
         <div className="hero-side">
@@ -192,8 +192,8 @@ export function App({
             </div>
 
             <p className="support-copy">
-              You are approving a wallet owner for one agent wallet. The agent
-              will not receive your passkey secret.
+              You are approving a passkey owner for one Conduit Wallet. The
+              agent will not receive your passkey secret.
             </p>
 
             <button

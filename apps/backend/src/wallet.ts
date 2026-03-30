@@ -6,7 +6,7 @@ import type {
   WalletConfig,
   WalletContext,
   WalletRequestStatus,
-} from "@agent-wallet/shared";
+} from "@conduit/shared";
 import type { AppConfig } from "./config.js";
 import { buildFundingState } from "./funding.js";
 

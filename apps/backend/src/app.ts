@@ -35,7 +35,7 @@ export function buildApp(options: BuildAppOptions = {}) {
 
   app.get("/health", async () => ({
     status: "ok",
-    service: "agent-wallet-backend",
+    service: "conduit-wallet-backend",
   }));
 
   app.get("/v1/health", async () => ({

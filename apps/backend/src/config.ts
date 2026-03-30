@@ -2,7 +2,7 @@ import {
   PROJECT_DEFAULT_BACKEND_URL,
   PROJECT_DEFAULT_FRONTEND_URL,
   SUPPORTED_CHAIN_IDS,
-} from "@agent-wallet/shared";
+} from "@conduit/shared";
 
 export const DEFAULT_PORT = 3000;
 export const DEFAULT_MIN_FUNDING_WEI = "500000000000000";
@@ -58,30 +58,30 @@ export function readConfig(env = process.env): AppConfig {
   }
 
   const supportedChainIds = parseSupportedChainIds(
-    env.AGENT_WALLET_SUPPORTED_CHAIN_IDS,
+    env.CONDUIT_SUPPORTED_CHAIN_IDS,
   );
 
   return {
     port: Number(env.PORT ?? DEFAULT_PORT),
     databaseUrl,
     publicBackendUrl:
-      env.AGENT_WALLET_PUBLIC_BACKEND_URL ?? PROJECT_DEFAULT_BACKEND_URL,
+      env.CONDUIT_PUBLIC_BACKEND_URL ?? PROJECT_DEFAULT_BACKEND_URL,
     frontendBaseUrl:
-      env.AGENT_WALLET_PUBLIC_FRONTEND_URL ?? PROJECT_DEFAULT_FRONTEND_URL,
-    minFundingWei: env.AGENT_WALLET_MIN_FUNDING_WEI ?? DEFAULT_MIN_FUNDING_WEI,
+      env.CONDUIT_PUBLIC_FRONTEND_URL ?? PROJECT_DEFAULT_FRONTEND_URL,
+    minFundingWei: env.CONDUIT_MIN_FUNDING_WEI ?? DEFAULT_MIN_FUNDING_WEI,
     requestTtlHours: Number(
-      env.AGENT_WALLET_REQUEST_TTL_HOURS ?? DEFAULT_REQUEST_TTL_HOURS,
+      env.CONDUIT_REQUEST_TTL_HOURS ?? DEFAULT_REQUEST_TTL_HOURS,
     ),
     supportedChainIds,
     bundlerUrlsByChain: collectChainUrlMap(
       env,
       supportedChainIds,
-      "AGENT_WALLET_BUNDLER_URL",
+      "CONDUIT_BUNDLER_URL",
     ),
     rpcUrlsByChain: collectChainUrlMap(
       env,
       supportedChainIds,
-      "AGENT_WALLET_PUBLIC_RPC_URL",
+      "CONDUIT_PUBLIC_RPC_URL",
     ),
   };
 }

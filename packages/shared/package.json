@@ -1,6 +1,7 @@
 {
-  "name": "@agent-wallet/shared",
+  "name": "@conduit/shared",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "exports": {
     ".": {

@@ -3,7 +3,7 @@ import {
   type OwnerPublicArtifacts,
   type RegularValidatorInitArtifact,
   type WalletConfig,
-} from "@agent-wallet/shared";
+} from "@conduit/shared";
 import { createKernelAccount, toKernelPluginManager } from "@zerodev/sdk/accounts";
 import { createKernelAccountClient } from "@zerodev/sdk";
 import { getEntryPoint, KERNEL_V3_1 } from "@zerodev/sdk/constants";

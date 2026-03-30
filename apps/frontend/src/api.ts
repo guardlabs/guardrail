@@ -6,7 +6,7 @@ import {
   type ResolveProvisioningResponse,
   type WalletRequest,
   walletRequestSchema,
-} from "@agent-wallet/shared";
+} from "@conduit/shared";
 
 async function fetchJson<T>(url: string, init: RequestInit): Promise<T> {
   const headers =

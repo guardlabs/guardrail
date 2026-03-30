@@ -6,7 +6,7 @@ import {
   buildDefaultWalletConfig,
   type ResolveProvisioningResponse,
   type WalletRequest,
-} from "@agent-wallet/shared";
+} from "@conduit/shared";
 import { App } from "./App.js";
 
 const walletConfig = buildDefaultWalletConfig({
@@ -141,7 +141,7 @@ describe("frontend app mode B", () => {
 
     await waitFor(() => {
       expect(createProvisioningArtifacts).toHaveBeenCalledWith({
-        displayName: "Agent Wallet",
+        displayName: "Conduit Wallet",
         walletConfig,
       });
     });

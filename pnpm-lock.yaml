@@ -17,7 +17,7 @@ importers:
 
   apps/backend:
     dependencies:
-      '@agent-wallet/shared':
+      '@conduit/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@fastify/cors':
@@ -57,10 +57,10 @@ importers:
 
   apps/cli:
     dependencies:
-      '@agent-wallet/shared':
+      '@conduit/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@agent-wallet/zerodev':
+      '@conduit/zerodev':
         specifier: workspace:*
         version: link:../../packages/zerodev
       '@zerodev/sdk':
@@ -94,10 +94,10 @@ importers:
 
   apps/frontend:
     dependencies:
-      '@agent-wallet/shared':
+      '@conduit/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@agent-wallet/zerodev':
+      '@conduit/zerodev':
         specifier: workspace:*
         version: link:../../packages/zerodev
       '@zerodev/passkey-validator':
@@ -180,7 +180,7 @@ importers:
 
   packages/zerodev:
     dependencies:
-      '@agent-wallet/shared':
+      '@conduit/shared':
         specifier: workspace:*
         version: link:../shared
       '@zerodev/sdk':

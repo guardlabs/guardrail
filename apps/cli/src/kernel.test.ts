@@ -4,8 +4,8 @@ import {
   buildDefaultWalletConfig,
   type LocalWalletRequest,
   type WalletRequest,
-} from "@agent-wallet/shared";
-import { createWeightedKernelRuntime } from "@agent-wallet/zerodev";
+} from "@conduit/shared";
+import { createWeightedKernelRuntime } from "@conduit/zerodev";
 import {
   callReadyWalletTransaction,
   ensureReadyWalletDeployed,
@@ -13,7 +13,7 @@ import {
   signReadyWalletTypedData,
 } from "./kernel.js";
 
-vi.mock("@agent-wallet/zerodev", () => ({
+vi.mock("@conduit/zerodev", () => ({
   createWeightedKernelRuntime: vi.fn(),
 }));
 

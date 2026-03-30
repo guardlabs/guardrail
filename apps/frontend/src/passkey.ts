@@ -2,8 +2,8 @@ import {
   getSupportedChainById,
   type RegularValidatorInitArtifact,
   type WalletConfig,
-} from "@agent-wallet/shared";
-import { createProvisioningWeightedValidator } from "@agent-wallet/zerodev";
+} from "@conduit/shared";
+import { createProvisioningWeightedValidator } from "@conduit/zerodev";
 import {
   PasskeyValidatorContractVersion,
   toPasskeyValidator,
@@ -56,7 +56,7 @@ export type PasskeyClient = {
 export const browserPasskeyClient: PasskeyClient = {
   async createProvisioningArtifacts({ displayName, walletConfig }) {
     if (!__PASSKEY_SERVER_URL__) {
-      throw new Error("Missing AGENT_WALLET_PASSKEY_SERVER_URL in frontend build.");
+      throw new Error("Missing CONDUIT_PASSKEY_SERVER_URL in frontend build.");
     }
 
     const rpcUrl = getPublicRpcUrl(walletConfig.chainId);

@@ -1,8 +1,8 @@
-# Agent Wallet V1 Technical Spec
+# Conduit Wallet V1 Technical Spec
 
 Date: 2026-03-25
 Status: Draft for implementation
-Source: `docs/superpowers/specs/2026-03-25-agent-wallet-design.md`
+Source: `docs/superpowers/specs/2026-03-25-conduit-wallet-design.md`
 
 ## Purpose
 
@@ -69,8 +69,8 @@ Practical consequence:
 Configuration names:
 
 - CLI flag: `--backend-url`
-- CLI environment variable: `AGENT_WALLET_BACKEND_URL`
-- frontend environment variable: `AGENT_WALLET_PUBLIC_BACKEND_URL`
+- CLI environment variable: `CONDUIT_BACKEND_URL`
+- frontend environment variable: `CONDUIT_PUBLIC_BACKEND_URL`
 
 Resolution order:
 
@@ -110,14 +110,14 @@ Bundler:
 
 Funding threshold:
 
-- `AGENT_WALLET_MIN_FUNDING_WEI` is configurable
+- `CONDUIT_MIN_FUNDING_WEI` is configurable
 - the current working value for V1 is `500000000000000`
 - this should be treated as a configured threshold, not as a USD-pegged value
 
 Passkey server:
 
 - passkey-backed owner creation uses ZeroDev's passkey service
-- `AGENT_WALLET_PASSKEY_SERVER_URL` is required for the real browser provisioning flow
+- `CONDUIT_PASSKEY_SERVER_URL` is required for the real browser provisioning flow
 - the current working value is `https://passkeys.zerodev.app/api/v3/ec78db7a-024e-42b8-a404-d78986033fca`
 
 Local environment loading:
@@ -126,7 +126,7 @@ Local environment loading:
 - backend and CLI must autoload root `.env.local`, then root `.env`, via `dotenv`
 - frontend must load root `.env.local` and root `.env` through Vite config rooted at the monorepo root
 - the root `.env.local` is the single local-development env file for the monorepo; per-package `.env.local` files are not required for V1
-- CLI local env usage must stay minimal and non-sensitive; V1 CLI may read `AGENT_WALLET_BACKEND_URL` as a convenience, but must not require RPC or bundler secrets
+- CLI local env usage must stay minimal and non-sensitive; V1 CLI may read `CONDUIT_BACKEND_URL` as a convenience, but must not require RPC or bundler secrets
 
 Recommended workspace layout:
 
@@ -388,7 +388,7 @@ Frontend configuration requirement:
 
 - the frontend deployment must have one configured default backend base URL pointing to the project-operated orchestrator
 - that default must be overrideable when the frontend is redeployed by a third party
-- the frontend environment variable name is `AGENT_WALLET_PUBLIC_BACKEND_URL`
+- the frontend environment variable name is `CONDUIT_PUBLIC_BACKEND_URL`
 
 ### Block C. Orchestration Backend
 
@@ -803,11 +803,11 @@ type AwaitWalletResult =
 
 Command boundary:
 
-- `agent-wallet create`
-- `agent-wallet status <wallet-id>`
-- `agent-wallet await <wallet-id>`
-- `agent-wallet --help`
-- `agent-wallet <command> --help`
+- `conduit-wallet create`
+- `conduit-wallet status <wallet-id>`
+- `conduit-wallet await <wallet-id>`
+- `conduit-wallet --help`
+- `conduit-wallet <command> --help`
 
 CLI behavior:
 
@@ -817,7 +817,7 @@ CLI behavior:
 
 CLI discoverability requirements:
 
-- `agent-wallet --help` is mandatory in V1
+- `conduit-wallet --help` is mandatory in V1
 - every subcommand must support `--help`
 - help output must list available commands, required arguments, supported flags, and one minimal example
 - help output should stay concise and stable enough for agents to parse visually
@@ -828,16 +828,16 @@ CLI configuration requirement:
 - the CLI must work with the project default backend when no override is provided
 - the CLI must support an explicit backend URL override through its command interface
 - the CLI override flag name is `--backend-url`
-- the CLI environment variable name is `AGENT_WALLET_BACKEND_URL`
+- the CLI environment variable name is `CONDUIT_BACKEND_URL`
 - the root help and `create --help` output must document `--backend-url`
 - the root help and `create --help` output must also list the currently supported chains from the shared chain registry
-- the distributed CLI must not require `AGENT_WALLET_PUBLIC_RPC_URL_<chainId>` or `AGENT_WALLET_BUNDLER_URL_<chainId>`
+- the distributed CLI must not require `CONDUIT_PUBLIC_RPC_URL_<chainId>` or `CONDUIT_BUNDLER_URL_<chainId>`
 - the CLI signs with the local session key, but reaches chain RPC and bundler infrastructure through backend proxy endpoints
 
 Example:
 
 ```bash
-agent-wallet create \
+conduit-wallet create \
   --chain-id 8453 \
   --target-contract 0x1234... \
   --allowed-method 0xa9059cbb \

@@ -1,4 +1,4 @@
-import type { FundingState } from "@agent-wallet/shared";
+import type { FundingState } from "@conduit/shared";
 
 export function compareWei(left: string, right: string) {
   const leftWei = BigInt(left);

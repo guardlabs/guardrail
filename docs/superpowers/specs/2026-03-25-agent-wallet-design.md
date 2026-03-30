@@ -1,11 +1,11 @@
-# Agent Wallet Design
+# Conduit Wallet Design
 
 Date: 2026-03-25
 Status: Approved for planning
 
 ## Summary
 
-`agent-wallet` provisions a smart wallet for an agent-triggered Web3 task. A skill running through a local CLI asks for a wallet scoped to a specific chain, target contract, and allowed methods. A human receives a URL, opens it in the browser, creates a passkey that becomes the durable owner/admin of the smart wallet, funds the counterfactual wallet address, and enables the wallet to be activated on first use. The agent generates and keeps its own session private key locally; only the session public key is shared with the orchestration backend.
+`conduit-wallet` provisions a smart wallet for an agent-triggered Web3 task. A skill running through a local CLI asks for a wallet scoped to a specific chain, target contract, and allowed methods. A human receives a URL, opens it in the browser, creates a passkey that becomes the durable owner/admin of the smart wallet, funds the counterfactual wallet address, and enables the wallet to be activated on first use. The agent generates and keeps its own session private key locally; only the session public key is shared with the orchestration backend.
 
 The system is intentionally split into three independent blocks:
 

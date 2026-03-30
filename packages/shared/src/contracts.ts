@@ -410,7 +410,7 @@ export function getBackendSignerAuthorizationTypedData(
 ) {
   return {
     domain: {
-      name: "Agent Wallet Backend Signer",
+      name: "Conduit Wallet Backend Signer",
       version: "1",
     },
     primaryType: "BackendSignerAuthorization" as const,

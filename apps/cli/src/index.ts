@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { fileURLToPath } from "node:url";
 import { Command, Option } from "commander";
-import { supportedChains } from "@agent-wallet/shared";
+import { supportedChains } from "@conduit/shared";
 import {
   registerAwaitCommand,
   registerCallCommand,
@@ -28,9 +28,9 @@ export function buildProgram() {
   const supportedChainsText = formatSupportedChains();
 
   program
-    .name("agent-wallet")
+    .name("conduit-wallet")
     .description(
-      `Provision and manage an agent-scoped smart wallet\n\nSupported chains:\n  ${supportedChainsText}`,
+      `Provision and manage secure wallet rails for autonomous agents\n\nSupported chains:\n  ${supportedChainsText}`,
     )
     .showHelpAfterError()
     .showSuggestionAfterError(true);
@@ -47,7 +47,7 @@ export function buildProgram() {
       "after",
       `
 Example:
-  agent-wallet create --chain-id 84532 --backend-url http://127.0.0.1:3000
+  conduit-wallet create --chain-id 84532 --backend-url http://127.0.0.1:3000
       `.trimEnd(),
     );
   addBackendOption(createCommand);
@@ -61,7 +61,7 @@ Example:
       "after",
       `
 Example:
-  agent-wallet status wal_123 --backend-url http://127.0.0.1:3000
+  conduit-wallet status wal_123 --backend-url http://127.0.0.1:3000
       `.trimEnd(),
     );
   addBackendOption(statusCommand);
@@ -76,7 +76,7 @@ Example:
       "after",
       `
 Example:
-  agent-wallet await wal_123 --interval-ms 3000 --backend-url http://127.0.0.1:3000
+  conduit-wallet await wal_123 --interval-ms 3000 --backend-url http://127.0.0.1:3000
       `.trimEnd(),
     );
   addBackendOption(awaitCommand);
@@ -93,7 +93,7 @@ Example:
       "after",
       `
 Example:
-  agent-wallet call wal_123 --to 0x1111111111111111111111111111111111111111 --data 0xa9059cbb --value-wei 0
+  conduit-wallet call wal_123 --to 0x1111111111111111111111111111111111111111 --data 0xa9059cbb --value-wei 0
       `.trimEnd(),
     );
   registerCallCommand(callCommand);
@@ -108,7 +108,7 @@ Example:
       "after",
       `
 Example:
-  agent-wallet sign-typed-data wal_123 --typed-data-file /tmp/typed-data.json
+  conduit-wallet sign-typed-data wal_123 --typed-data-file /tmp/typed-data.json
       `.trimEnd(),
     );
   registerSignTypedDataCommand(signTypedDataCommand);

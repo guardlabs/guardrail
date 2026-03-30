@@ -6,7 +6,7 @@ import {
   hashBackendSignerPayload,
   type BackendSignerMessagePayload,
   type BackendSignerTypedDataPayload,
-} from "@agent-wallet/shared";
+} from "@conduit/shared";
 import type {
   Address,
   Hex,
