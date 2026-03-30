@@ -12,14 +12,11 @@
   <img src="https://img.shields.io/badge/package%20manager-pnpm%2010-F69220" alt="Package manager: pnpm 10" />
 </p>
 
-It combines three actors:
-- a human passkey used during wallet provisioning,
-- an agent-held key used by the CLI at runtime,
-- a backend co-signer that is intended to enforce wallet policies.
+Conduit Wallet is an EVM wallet architecture for autonomous agents that is designed to stay usable by the agent without handing it a long-lived EOA private key. In many agent setups today, the wallet is just an EOA whose private key sits on disk or in local runtime state, which means any agent with file access or terminal access can potentially read it, exfiltrate it, or misuse it.
 
-Conduit is the brand. Conduit Wallet is the wallet product built on top of it.
+With Conduit, the wallet is owned by a human passkey rather than by a single private key controlled by the agent. The system then creates two additional actors: an agent key used by the CLI at runtime, and a Conduit backend co-signer. Transactions initiated by the agent must be co-signed by the backend, which is where security policies are enforced. The intended model is that the backend only signs operations that match the wallet's policy, such as allowlisted contracts, permitted methods, and spend limits over time in assets like ETH or USDC.
 
-Today, the repository already covers wallet provisioning, backend-assisted co-signing, local agent runtime, and a small provisioning frontend. Policy enforcement by the backend is the next major step.
+Today, the repository already covers wallet provisioning, backend-assisted co-signing, local agent runtime, and a small provisioning frontend. Full policy enforcement by the backend is the next major step.
 
 ## How It Works
 
