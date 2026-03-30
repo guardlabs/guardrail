@@ -8,8 +8,6 @@
   <img src="https://img.shields.io/badge/license-MIT-10b981" alt="License: MIT" />
   <img src="https://img.shields.io/badge/status-pre--release-6b7280" alt="Status: pre-release" />
   <img src="https://img.shields.io/badge/chain-Base%20Sepolia-0052FF" alt="Chain: Base Sepolia" />
-  <img src="https://img.shields.io/badge/runtime-Node.js%2022%2B-339933" alt="Runtime: Node.js 22+" />
-  <img src="https://img.shields.io/badge/package%20manager-pnpm%2010-F69220" alt="Package manager: pnpm 10" />
 </p>
 
 Conduit Wallet is an EVM wallet for autonomous agents that avoids putting a long-lived EOA private key on disk. In many agent setups, the wallet key is stored locally, which means an agent with file access or terminal access can read it, leak it, or misuse it.
@@ -164,8 +162,8 @@ pnpm --filter @conduit/cli dev -- --help
 
 Useful local URLs:
 
-- frontend: `http://127.0.0.1:5173`
-- backend: `http://127.0.0.1:3000`
+- frontend: `http://localhost:5173`
+- backend: `http://localhost:3000`
 
 ### Local End-to-End Flow
 
@@ -174,14 +172,14 @@ Create a wallet request locally:
 ```bash
 pnpm --filter @conduit/cli dev -- create \
   --chain-id 84532 \
-  --backend-url http://127.0.0.1:3000
+  --backend-url http://localhost:3000
 ```
 
 Open the returned provisioning URL in a browser, create the passkey, fund the wallet on Base Sepolia, then wait for readiness:
 
 ```bash
 pnpm --filter @conduit/cli dev -- await wal_xxx \
-  --backend-url http://127.0.0.1:3000
+  --backend-url http://localhost:3000
 ```
 
 Local wallet state is stored under:
