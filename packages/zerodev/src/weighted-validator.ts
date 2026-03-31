@@ -10,6 +10,7 @@ import { getEntryPoint, KERNEL_V3_1 } from "@zerodev/sdk/constants";
 import { createWeightedECDSAValidator } from "@zerodev/weighted-ecdsa-validator";
 import type { Address, Chain, Client, Hex, LocalAccount } from "viem";
 import { createPublicClient, encodeAbiParameters, http } from "viem";
+import { prepareUserOperation, toPackedUserOperation } from "viem/account-abstraction";
 import { estimateFeesPerGas } from "viem/actions";
 import { privateKeyToAccount, toAccount } from "viem/accounts";
 import { createBackendRemoteSigner } from "./backend-remote-signer.js";
@@ -55,6 +56,21 @@ function decodeOwnerPublicKey(owner: OwnerPublicArtifacts) {
     pubX: BigInt(`0x${normalized.slice(0, 64)}`),
     pubY: BigInt(`0x${normalized.slice(64, 128)}`),
     authenticatorIdHash: `0x${normalized.slice(128, 192)}` as Hex,
+  };
+}
+
+function normalizePackedUserOperation(
+  userOperation: ReturnType<typeof toPackedUserOperation>,
+) {
+  return {
+    sender: userOperation.sender,
+    nonce: userOperation.nonce.toString(),
+    initCode: userOperation.initCode,
+    callData: userOperation.callData,
+    accountGasLimits: userOperation.accountGasLimits,
+    preVerificationGas: userOperation.preVerificationGas.toString(),
+    gasFees: userOperation.gasFees,
+    paymasterAndData: userOperation.paymasterAndData,
   };
 }
 
@@ -137,21 +153,27 @@ async function createRuntimeKernelPluginManager(
     agentPrivateKey: Hex;
   },
 ) {
-  const { weightedValidator } = await createRuntimeWeightedValidator(client, {
-    walletId: input.walletId,
-    walletAddress: input.walletAddress,
-    walletConfig: input.walletConfig,
-    backendBaseUrl: input.backendBaseUrl,
-    agentPrivateKey: input.agentPrivateKey,
-  });
+  const { backendRemoteSigner, weightedValidator } = await createRuntimeWeightedValidator(
+    client,
+    {
+      walletId: input.walletId,
+      walletAddress: input.walletAddress,
+      walletConfig: input.walletConfig,
+      backendBaseUrl: input.backendBaseUrl,
+      agentPrivateKey: input.agentPrivateKey,
+    },
+  );
 
   if (!input.ownerPublicArtifacts || !input.regularValidatorInitArtifact) {
-    return toKernelPluginManager(client, {
-      regular: weightedValidator,
-      entryPoint: getEntryPoint("0.7"),
-      kernelVersion: KERNEL_V3_1,
-      chainId: input.chain.id,
-    });
+    return {
+      backendRemoteSigner,
+      kernelPluginManager: await toKernelPluginManager(client, {
+        regular: weightedValidator,
+        entryPoint: getEntryPoint("0.7"),
+        kernelVersion: KERNEL_V3_1,
+        chainId: input.chain.id,
+      }),
+    };
   }
 
   const expectedEnableData = await weightedValidator.getEnableData(input.walletAddress);
@@ -170,18 +192,21 @@ async function createRuntimeKernelPluginManager(
     throw new Error("Stored weighted validator enable data does not match the runtime config.");
   }
 
-  return toKernelPluginManager(client, {
-    sudo: createStaticPasskeyValidator({
-      walletConfig: input.walletConfig,
-      owner: input.ownerPublicArtifacts,
+  return {
+    backendRemoteSigner,
+    kernelPluginManager: await toKernelPluginManager(client, {
+      sudo: createStaticPasskeyValidator({
+        walletConfig: input.walletConfig,
+        owner: input.ownerPublicArtifacts,
+      }),
+      regular: weightedValidator,
+      pluginEnableSignature:
+        input.regularValidatorInitArtifact.pluginEnableSignature as Hex,
+      entryPoint: getEntryPoint("0.7"),
+      kernelVersion: KERNEL_V3_1,
+      chainId: input.chain.id,
     }),
-    regular: weightedValidator,
-    pluginEnableSignature:
-      input.regularValidatorInitArtifact.pluginEnableSignature as Hex,
-    entryPoint: getEntryPoint("0.7"),
-    kernelVersion: KERNEL_V3_1,
-    chainId: input.chain.id,
-  });
+  };
 }
 
 export async function createProvisioningWeightedValidator(
@@ -263,16 +288,17 @@ export async function createWeightedKernelRuntime(input: {
     transport: http(input.rpcUrl),
   });
 
-  const kernelPluginManager = await createRuntimeKernelPluginManager(publicClient, {
-    chain: input.chain,
-    walletId: input.walletId,
-    walletAddress: input.walletAddress,
-    walletConfig: input.walletConfig,
-    ownerPublicArtifacts: input.ownerPublicArtifacts,
-    regularValidatorInitArtifact: input.regularValidatorInitArtifact,
-    backendBaseUrl: input.backendBaseUrl,
-    agentPrivateKey: input.agentPrivateKey,
-  });
+  const { backendRemoteSigner, kernelPluginManager } =
+    await createRuntimeKernelPluginManager(publicClient, {
+      chain: input.chain,
+      walletId: input.walletId,
+      walletAddress: input.walletAddress,
+      walletConfig: input.walletConfig,
+      ownerPublicArtifacts: input.ownerPublicArtifacts,
+      regularValidatorInitArtifact: input.regularValidatorInitArtifact,
+      backendBaseUrl: input.backendBaseUrl,
+      agentPrivateKey: input.agentPrivateKey,
+    });
 
   const kernelAccount = await createKernelAccount(publicClient, {
     address: input.walletAddress,
@@ -284,6 +310,7 @@ export async function createWeightedKernelRuntime(input: {
   return {
     publicClient,
     kernelAccount,
+    backendRemoteSigner,
     kernelClient: createKernelAccountClient({
       account: kernelAccount,
       chain: input.chain,
@@ -291,6 +318,30 @@ export async function createWeightedKernelRuntime(input: {
       client: publicClient,
       userOperation: {
         estimateFeesPerGas: async () => estimateFeesPerGas(publicClient),
+        prepareUserOperation: async (client, args) => {
+          let normalizedArgs = args;
+          const clientAccount = client.account as
+            | {
+                authorization?: unknown;
+                eip7702Authorization?: () => Promise<unknown>;
+              }
+            | undefined;
+
+          if (clientAccount?.authorization) {
+            const authorization =
+              args.authorization ?? (await clientAccount.eip7702Authorization?.());
+            normalizedArgs = {
+              ...args,
+              authorization,
+            };
+          }
+
+          const userOperation = await prepareUserOperation(client, normalizedArgs);
+          backendRemoteSigner.attachPreparedUserOperation(
+            normalizePackedUserOperation(toPackedUserOperation(userOperation as never)),
+          );
+          return userOperation;
+        },
       },
     }),
   };

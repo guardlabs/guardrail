@@ -213,6 +213,12 @@ async function getWalletPersistenceState(databaseUrl: string, walletId: string) 
       deployment: {
         status: string;
       };
+      runtime_policy_state: {
+        usdc: {
+          periodStartedAt: string;
+          consumedAmountMinor: string;
+        } | null;
+      };
       used_signing_request_ids: string[];
     }>(
       `
@@ -220,6 +226,7 @@ async function getWalletPersistenceState(databaseUrl: string, walletId: string) 
           status,
           counterfactual_wallet_address,
           deployment,
+          runtime_policy_state,
           used_signing_request_ids
         from wallets
         where wallet_id = $1
@@ -235,6 +242,24 @@ async function getWalletPersistenceState(databaseUrl: string, walletId: string) 
   } finally {
     await pool.end();
   }
+}
+
+async function runCliFailure(
+  args: string[],
+  env: NodeJS.ProcessEnv,
+) {
+  try {
+    await runCommand({
+      command: "node",
+      args: [cliEntry, ...args],
+      cwd: workspaceRoot,
+      env,
+    });
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+
+  throw new Error(`Expected CLI command "${args.join(" ")}" to fail.`);
 }
 
 async function runCliJson(
@@ -280,6 +305,9 @@ describe("headless provisioning e2e", () => {
       const frontendUrl = `http://127.0.0.1:${frontendPort}`;
       const anvilUrl = `http://127.0.0.1:${anvilPort}`;
       const bundlerUrl = `http://127.0.0.1:${bundlerPort}`;
+      const allowedGenericTarget = "0x1111111111111111111111111111111111111111";
+      const allowedGenericSelector = "0xdeadbeef";
+      const deniedGenericSelector = "0xaabbccdd";
       const tempStoreDirectory = await mkdtemp(join(tmpdir(), "conduit-wallet-e2e-"));
       const postgresHandle = await ensurePostgres(postgresProjectName);
       const { databaseUrl } = postgresHandle;
@@ -377,7 +405,21 @@ describe("headless provisioning e2e", () => {
           CONDUIT_LOCAL_STORE_DIR: tempStoreDirectory,
         };
         const createResult = await runCliJson(
-          ["create", "--chain-id", "84532", "--backend-url", backendUrl],
+          [
+            "create",
+            "--chain-id",
+            "84532",
+            "--backend-url",
+            backendUrl,
+            "--allow-call",
+            `${allowedGenericTarget}:${allowedGenericSelector}`,
+            "--usdc-period",
+            "daily",
+            "--usdc-max",
+            "0.25",
+            "--usdc-allow",
+            "transferWithAuthorization",
+          ],
           cliEnv,
         );
         const walletId = String(createResult.walletId);
@@ -391,6 +433,7 @@ describe("headless provisioning e2e", () => {
         const createdWallet = await getWalletPersistenceState(databaseUrl, walletId);
         expect(createdWallet.status).toBe("created");
         expect(createdWallet.counterfactual_wallet_address).toBeNull();
+        expect(createdWallet.runtime_policy_state.usdc).toBeNull();
         expect(createdWallet.used_signing_request_ids).toEqual([]);
 
         const published = await publishHeadlessOwnerArtifacts({
@@ -459,84 +502,114 @@ describe("headless provisioning e2e", () => {
         expect(localWallet.regularValidatorInitArtifact).toEqual(
           walletRequest.regularValidatorInitArtifact,
         );
+        expect(localWallet.policy).toEqual(walletRequest.policy);
+        expect(walletRequest.policy).toEqual({
+          contractAllowlist: [
+            {
+              contractAddress: allowedGenericTarget,
+              allowedSelectors: [allowedGenericSelector],
+            },
+          ],
+          usdcPolicy: {
+            period: "daily",
+            maxAmountMinor: "250000",
+            allowedOperations: ["transferWithAuthorization"],
+          },
+        });
         expect(localWallet.lastKnownStatus).toBe("ready");
         expect(walletRequest.deployment.status).toMatch(/^(undeployed|deployed)$/);
 
-        const signingRequestCountBeforeTypedData = (
+        const signingRequestCountBeforeDeniedTypedData = (
           await getWalletPersistenceState(databaseUrl, walletId)
         ).used_signing_request_ids.length;
-        const typedDataPayload = {
-          domain: {
-            name: "Conduit Wallet E2E",
-            version: "1",
-            chainId: 84532,
-            verifyingContract: localWallet.walletAddress,
-          },
-          types: {
-            RuntimeApproval: [
-              { name: "walletId", type: "string" },
-              { name: "action", type: "string" },
-            ],
-          },
-          primaryType: "RuntimeApproval",
-          message: {
-            walletId,
-            action: "sign-typed-data",
-          },
-        };
-        const signTypedDataResult = await runCliJson(
+        const deniedTypedDataError = await runCliFailure(
           [
             "sign-typed-data",
             walletId,
             "--typed-data-json",
-            JSON.stringify(typedDataPayload),
+            JSON.stringify({
+              domain: {
+                name: "Conduit Wallet E2E",
+                version: "1",
+                chainId: 84532,
+                verifyingContract: localWallet.walletAddress,
+              },
+              types: {
+                RuntimeApproval: [
+                  { name: "walletId", type: "string" },
+                  { name: "action", type: "string" },
+                ],
+              },
+              primaryType: "RuntimeApproval",
+              message: {
+                walletId,
+                action: "sign-typed-data",
+              },
+            }),
           ],
           cliEnv,
         );
-        const persistedAfterTypedData = await getWalletPersistenceState(databaseUrl, walletId);
+        const persistedAfterDeniedTypedData = await getWalletPersistenceState(databaseUrl, walletId);
 
-        expect(signTypedDataResult.walletId).toBe(walletId);
-        expect(signTypedDataResult.walletAddress).toBe(localWallet.walletAddress);
-        expect(signTypedDataResult.signature).toMatch(/^0x[a-fA-F0-9]+$/);
-        expect(persistedAfterTypedData.deployment.status).toBe("deployed");
-        expect(persistedAfterTypedData.used_signing_request_ids.length).toBeGreaterThanOrEqual(
-          signingRequestCountBeforeTypedData + 2,
+        expect(deniedTypedDataError).toContain("Backend signer request failed");
+        expect(deniedTypedDataError).toContain(
+          "Only official USDC typed data are supported by the backend policy.",
         );
+        expect(persistedAfterDeniedTypedData.deployment.status).toBe("deployed");
+        expect(
+          persistedAfterDeniedTypedData.used_signing_request_ids.length,
+        ).toBeGreaterThanOrEqual(signingRequestCountBeforeDeniedTypedData + 1);
 
-        const agentBalanceBeforeCall = await anvilPublicClient.getBalance({
-          address: localWallet.agentAddress,
-        });
-        const signingRequestCountBeforeCall =
-          persistedAfterTypedData.used_signing_request_ids.length;
-        const callResult = await runCliJson(
+        const signingRequestCountBeforeAllowedCall =
+          persistedAfterDeniedTypedData.used_signing_request_ids.length;
+        const allowedCallResult = await runCliJson(
           [
             "call",
             walletId,
             "--to",
-            localWallet.agentAddress,
+            allowedGenericTarget,
             "--data",
-            "0x",
+            allowedGenericSelector,
             "--value-wei",
-            "1",
+            "0",
           ],
           cliEnv,
         );
-        const callReceipt = await anvilPublicClient.waitForTransactionReceipt({
-          hash: callResult.transactionHash as `0x${string}`,
+        const allowedCallReceipt = await anvilPublicClient.waitForTransactionReceipt({
+          hash: allowedCallResult.transactionHash as `0x${string}`,
         });
-        const agentBalanceAfterCall = await anvilPublicClient.getBalance({
-          address: localWallet.agentAddress,
-        });
-        const persistedAfterCall = await getWalletPersistenceState(databaseUrl, walletId);
+        const persistedAfterAllowedCall = await getWalletPersistenceState(databaseUrl, walletId);
 
-        expect(callResult.walletId).toBe(walletId);
-        expect(callResult.walletAddress).toBe(localWallet.walletAddress);
-        expect(callResult.transactionHash).toMatch(/^0x[a-fA-F0-9]{64}$/);
-        expect(callReceipt.status).toBe("success");
-        expect(agentBalanceAfterCall - agentBalanceBeforeCall).toBe(1n);
-        expect(persistedAfterCall.deployment.status).toBe("deployed");
-        expect(persistedAfterCall.used_signing_request_ids.length).toBeGreaterThanOrEqual(
-          signingRequestCountBeforeCall + 1,
+        expect(allowedCallResult.walletId).toBe(walletId);
+        expect(allowedCallResult.walletAddress).toBe(localWallet.walletAddress);
+        expect(allowedCallResult.transactionHash).toMatch(/^0x[a-fA-F0-9]{64}$/);
+        expect(allowedCallReceipt.status).toBe("success");
+        expect(persistedAfterAllowedCall.deployment.status).toBe("deployed");
+        expect(persistedAfterAllowedCall.used_signing_request_ids.length).toBeGreaterThanOrEqual(
+          signingRequestCountBeforeAllowedCall + 1,
+        );
+
+        const signingRequestCountBeforeDeniedCall =
+          persistedAfterAllowedCall.used_signing_request_ids.length;
+        const deniedCallError = await runCliFailure(
+          [
+            "call",
+            walletId,
+            "--to",
+            allowedGenericTarget,
+            "--data",
+            deniedGenericSelector,
+            "--value-wei",
+            "0",
+          ],
+          cliEnv,
+        );
+        const persistedAfterDeniedCall = await getWalletPersistenceState(databaseUrl, walletId);
+
+        expect(deniedCallError).toContain("Backend signer request failed");
+        expect(deniedCallError).toContain("runtime allowlist");
+        expect(persistedAfterDeniedCall.used_signing_request_ids.length).toBe(
+          signingRequestCountBeforeDeniedCall,
         );
 
         if (!x402Server) {
@@ -607,6 +680,41 @@ describe("headless provisioning e2e", () => {
         expect(x402Server.settlements[0]?.transactionHash).toBe(
           settlementResponse.transaction,
         );
+
+        const persistedAfterX402 = await getWalletPersistenceState(databaseUrl, walletId);
+
+        expect(persistedAfterX402.runtime_policy_state.usdc).toMatchObject({
+          consumedAmountMinor: x402Server.paymentAmount.toString(),
+        });
+
+        const merchantUsdcBeforeDeniedX402 = merchantUsdcAfter;
+        const payerUsdcBeforeDeniedX402 = payerUsdcAfter;
+        const deniedX402Error = await runCliFailure(
+          [
+            "x402-fetch",
+            walletId,
+            x402Server.protectedUrl,
+          ],
+          cliEnv,
+        );
+        const merchantUsdcAfterDeniedX402 = await getOfficialUsdcBalance({
+          rpcUrl: anvilUrl,
+          address: x402Server.merchantAddress as Address,
+        });
+        const payerUsdcAfterDeniedX402 = await getOfficialUsdcBalance({
+          rpcUrl: anvilUrl,
+          address: localWallet.walletAddress as Address,
+        });
+        const persistedAfterDeniedX402 = await getWalletPersistenceState(databaseUrl, walletId);
+
+        expect(deniedX402Error).toContain("Backend signer request failed");
+        expect(deniedX402Error).toContain("configured USDC budget has been exceeded");
+        expect(merchantUsdcAfterDeniedX402).toBe(merchantUsdcBeforeDeniedX402);
+        expect(payerUsdcAfterDeniedX402).toBe(payerUsdcBeforeDeniedX402);
+        expect(x402Server.settlements).toHaveLength(1);
+        expect(persistedAfterDeniedX402.runtime_policy_state.usdc).toMatchObject({
+          consumedAmountMinor: x402Server.paymentAmount.toString(),
+        });
       } finally {
         await x402Server?.stop();
         await backendProcess.stop();

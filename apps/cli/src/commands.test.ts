@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   PROJECT_WALLET_MODE,
   buildDefaultWalletConfig,
+  getSupportedChainById,
   x402PaymentPayloadSchema,
 } from "@conduit/shared";
 import {
@@ -32,6 +33,17 @@ vi.mock("./kernel.js", () => ({
   signReadyWalletTypedData: vi.fn(),
 }));
 
+function createRuntimePolicy() {
+  return {
+    contractAllowlist: [
+      {
+        contractAddress: "0x4444444444444444444444444444444444444444",
+        allowedSelectors: ["0xa9059cbb"],
+      },
+    ],
+  };
+}
+
 describe("cli commands mode B", () => {
   let tempStoreDirectory = "";
 
@@ -56,11 +68,25 @@ describe("cli commands mode B", () => {
   });
 
   it("creates a mode B wallet request and persists local runtime state", async () => {
+    const expectedPolicy = {
+      contractAllowlist: [
+        {
+          contractAddress: "0x2222222222222222222222222222222222222222",
+          allowedSelectors: ["0xa9059cbb", "0x095ea7b3"],
+        },
+      ],
+      usdcPolicy: {
+        period: "daily",
+        maxAmountMinor: "125000000",
+        allowedOperations: ["transfer", "approve", "permit"],
+      },
+    };
     const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
       const requestBody = JSON.parse(String(init?.body)) as {
         chainId: number;
         walletMode: string;
         agentAddress: string;
+        policy: typeof expectedPolicy;
       };
       const walletConfig = buildDefaultWalletConfig({
         chainId: requestBody.chainId,
@@ -77,6 +103,7 @@ describe("cli commands mode B", () => {
           agentAddress: requestBody.agentAddress,
           backendAddress: "0x1111111111111111111111111111111111111111",
           walletConfig,
+          policy: requestBody.policy,
           deployment: {
             status: "undeployed",
           },
@@ -112,6 +139,12 @@ describe("cli commands mode B", () => {
     const result = await executeCreate({
       chainId: "84532",
       backendUrl: "http://127.0.0.1:3000",
+      allowCall: [
+        "0x2222222222222222222222222222222222222222:transfer(address,uint256),0x095ea7b3",
+      ],
+      usdcPeriod: "daily",
+      usdcMax: "125",
+      usdcAllow: "transfer,approve,permit",
     });
 
     expect(result.walletId).toBe("wal_123");
@@ -126,6 +159,7 @@ describe("cli commands mode B", () => {
       "0x1111111111111111111111111111111111111111",
     );
     expect(persistedRequest.deployment.status).toBe("undeployed");
+    expect(persistedRequest.policy).toEqual(expectedPolicy);
 
     const [createUrl, createInit] = fetchMock.mock.calls[0] ?? [];
     expect(createUrl).toBe("http://127.0.0.1:3000/v1/wallets");
@@ -133,7 +167,33 @@ describe("cli commands mode B", () => {
       walletMode: PROJECT_WALLET_MODE,
       chainId: 84532,
       agentAddress: result.agentAddress,
+      policy: expectedPolicy,
     });
+  });
+
+  it("rejects create when the USDC policy is only partially configured", async () => {
+    await expect(
+      executeCreate({
+        chainId: "84532",
+        backendUrl: "http://127.0.0.1:3000",
+        usdcPeriod: "daily",
+        usdcMax: "10",
+      }),
+    ).rejects.toThrow(/usdc.*all three/i);
+  });
+
+  it("rejects create when official USDC is placed in the generic allowlist", async () => {
+    const supportedChain = getSupportedChainById(84532);
+
+    expect(supportedChain).toBeTruthy();
+
+    await expect(
+      executeCreate({
+        chainId: "84532",
+        backendUrl: "http://127.0.0.1:3000",
+        allowCall: [`${supportedChain!.officialUsdcAddress}:0xa9059cbb`],
+      }),
+    ).rejects.toThrow(/official usdc/i);
   });
 
   it("reads wallet status from the backend API", async () => {
@@ -154,6 +214,7 @@ describe("cli commands mode B", () => {
           walletConfig,
           agentAddress: walletConfig.regularValidator.signers[0]?.address,
           backendAddress: walletConfig.regularValidator.signers[1]?.address,
+          policy: createRuntimePolicy(),
           funding: {
             status: "unverified",
             minimumRequiredWei: "500000000000000",
@@ -192,6 +253,7 @@ describe("cli commands mode B", () => {
         "http://127.0.0.1:5173/?walletId=wal_123&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
       chainId: 84532,
       walletConfig,
+      policy: createRuntimePolicy(),
       agentAddress: walletConfig.regularValidator.signers[0]?.address ?? "",
       agentPrivateKey:
         "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -213,6 +275,7 @@ describe("cli commands mode B", () => {
             walletId: "wal_123",
             status: "ready",
             walletConfig,
+            policy: createRuntimePolicy(),
             agentAddress: walletConfig.regularValidator.signers[0]?.address,
             backendAddress: walletConfig.regularValidator.signers[1]?.address,
             counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
@@ -285,6 +348,7 @@ describe("cli commands mode B", () => {
         "http://127.0.0.1:5173/?walletId=wal_123&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
       chainId: 84532,
       walletConfig,
+      policy: createRuntimePolicy(),
       agentAddress: walletConfig.regularValidator.signers[0]?.address ?? "",
       agentPrivateKey:
         "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -309,6 +373,7 @@ describe("cli commands mode B", () => {
           walletId: "wal_123",
           status: "ready",
           walletConfig,
+          policy: createRuntimePolicy(),
           agentAddress: walletConfig.regularValidator.signers[0]?.address,
           backendAddress: walletConfig.regularValidator.signers[1]?.address,
           ownerPublicArtifacts: {
@@ -384,6 +449,7 @@ describe("cli commands mode B", () => {
         "http://127.0.0.1:5173/?walletId=wal_123&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
       chainId: 84532,
       walletConfig,
+      policy: createRuntimePolicy(),
       agentAddress: walletConfig.regularValidator.signers[0]?.address ?? "",
       agentPrivateKey:
         "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -414,6 +480,7 @@ describe("cli commands mode B", () => {
           walletId: "wal_123",
           status: "ready",
           walletConfig,
+          policy: createRuntimePolicy(),
           agentAddress: walletConfig.regularValidator.signers[0]?.address,
           backendAddress: walletConfig.regularValidator.signers[1]?.address,
           ownerPublicArtifacts: {
@@ -534,6 +601,7 @@ describe("cli commands mode B", () => {
         "http://127.0.0.1:5173/?walletId=wal_123&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
       chainId: 84532,
       walletConfig,
+      policy: createRuntimePolicy(),
       agentAddress: walletConfig.regularValidator.signers[0]?.address ?? "",
       agentPrivateKey:
         "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -564,6 +632,7 @@ describe("cli commands mode B", () => {
           walletId: "wal_123",
           status: "ready",
           walletConfig,
+          policy: createRuntimePolicy(),
           agentAddress: walletConfig.regularValidator.signers[0]?.address,
           backendAddress: walletConfig.regularValidator.signers[1]?.address,
           ownerPublicArtifacts: {

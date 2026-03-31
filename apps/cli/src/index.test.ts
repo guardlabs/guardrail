@@ -33,6 +33,10 @@ describe("cli help", () => {
     const createHelp = createCommand?.helpInformation();
 
     expect(createHelp).toContain("--chain-id");
+    expect(createHelp).toContain("--allow-call");
+    expect(createHelp).toContain("--usdc-period");
+    expect(createHelp).toContain("--usdc-max");
+    expect(createHelp).toContain("--usdc-allow");
     expect(createHelp).toContain("--backend-url");
     expect(createHelp).toContain("supported chains");
     expect(createHelp).toContain("84532 (Base Sepolia)");

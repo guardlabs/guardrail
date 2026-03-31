@@ -2,8 +2,25 @@ import { describe, expect, it, vi } from "vitest";
 import {
   PROJECT_WALLET_MODE,
   buildDefaultWalletConfig,
+  type WalletPolicy,
 } from "@conduit/shared";
 import { browserApi } from "./api.js";
+
+function createRuntimePolicy(): WalletPolicy {
+  return {
+    contractAllowlist: [
+      {
+        contractAddress: "0x4444444444444444444444444444444444444444",
+        allowedSelectors: ["0xa9059cbb"],
+      },
+    ],
+    usdcPolicy: {
+      period: "daily",
+      maxAmountMinor: "1500000",
+      allowedOperations: ["transfer", "approve", "increaseAllowance", "permit", "transferWithAuthorization"],
+    },
+  };
+}
 
 describe("frontend api mode B", () => {
   it("publishes the regular validator init artifact with owner artifacts", async () => {
@@ -19,6 +36,7 @@ describe("frontend api mode B", () => {
         walletId: "wal_test",
         status: "owner_bound",
         walletConfig,
+        policy: createRuntimePolicy(),
         agentAddress: walletConfig.regularValidator.signers[0]?.address,
         backendAddress: walletConfig.regularValidator.signers[1]?.address,
         ownerPublicArtifacts: {
@@ -99,6 +117,7 @@ describe("frontend api mode B", () => {
         walletId: "wal_test",
         status: "owner_bound",
         walletConfig,
+        policy: createRuntimePolicy(),
         agentAddress: walletConfig.regularValidator.signers[0]?.address,
         backendAddress: walletConfig.regularValidator.signers[1]?.address,
         counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",

@@ -1,11 +1,15 @@
 import {
-  backendSignMessageRequestSchema,
+  backendDeployWalletRequestSchema,
   backendSignResponseSchema,
   backendSignTypedDataRequestSchema,
+  backendSignUserOperationRequestSchema,
   getBackendSignerAuthorizationTypedData,
-  hashBackendSignerPayload,
-  type BackendSignerMessagePayload,
+  hashBackendSignerRequestBody,
+  type BackendPackedUserOperation,
+  type BackendSingleCallOperation,
+  type BackendTypedDataSignaturePayload,
   type BackendSignerTypedDataPayload,
+  type BackendUserOperationSignaturePayload,
 } from "@conduit/shared";
 import type {
   Address,
@@ -42,31 +46,24 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   return (await response.json()) as T;
 }
 
-function normalizeMessage(message: SignableMessage): BackendSignerMessagePayload["message"] {
-  if (typeof message === "string") {
-    return {
-      kind: "text",
-      text: message,
-    };
-  }
-
+function normalizeRawMessage(message: SignableMessage) {
   if (typeof message === "object" && message !== null && "raw" in message) {
     const rawValue = message.raw;
 
-    if (typeof rawValue === "string") {
-      return {
-        kind: "raw",
-        raw: isHex(rawValue) ? rawValue : toHex(rawValue),
-      };
-    }
+      if (typeof rawValue === "string") {
+        return {
+          kind: "raw" as const,
+          raw: isHex(rawValue) ? rawValue : toHex(rawValue),
+        };
+      }
 
-    return {
-      kind: "raw",
-      raw: toHex(rawValue),
-    };
+      return {
+        kind: "raw" as const,
+        raw: toHex(rawValue),
+      };
   }
 
-  throw new Error("Unsupported signMessage payload for backend remote signer.");
+  throw new Error("Backend user-operation signing requires a raw 32-byte message payload.");
 }
 
 function buildRequestId() {
@@ -85,12 +82,27 @@ export function createBackendRemoteSigner(input: {
   agentSigner: LocalAccount;
 }) {
   const backendBaseUrl = input.backendBaseUrl.replace(/\/+$/, "");
+  let currentSigningContext:
+    | {
+        kind: "user_operation";
+        operation: BackendSingleCallOperation;
+        userOperation?: BackendPackedUserOperation;
+      }
+    | {
+        kind: "deploy_wallet";
+        userOperation?: BackendPackedUserOperation;
+      }
+    | {
+        kind: "typed_data";
+        typedData: BackendSignerTypedDataPayload;
+      }
+    | null = null;
 
   async function authorizeRequest(
-    method: "sign_message" | "sign_typed_data",
-    payload: BackendSignerMessagePayload | BackendSignerTypedDataPayload,
+    method: "sign_typed_data_v1" | "sign_user_operation_v1" | "deploy_wallet_v1",
+    body: Record<string, unknown>,
   ) {
-    const bodyHash = hashBackendSignerPayload(method, payload);
+    const bodyHash = hashBackendSignerRequestBody(method, body as never);
     const authPayload = {
       walletAddress: input.walletAddress,
       backendSignerAddress: input.backendSignerAddress,
@@ -110,22 +122,55 @@ export function createBackendRemoteSigner(input: {
     };
   }
 
-  return toAccount({
+  const account = toAccount({
     address: input.backendSignerAddress,
     async signMessage({ message }) {
-      const payload = {
-        message: normalizeMessage(message),
-      } satisfies BackendSignerMessagePayload;
-      const auth = await authorizeRequest("sign_message", payload);
-      const response = backendSignResponseSchema.parse(
-        await postJson(
-          `${backendBaseUrl}/v1/wallets/${input.walletId}/backend-sign`,
-          backendSignMessageRequestSchema.parse({
-            auth,
-            payload,
-          }),
-        ),
-      );
+      const signaturePayload = {
+        kind: "user_operation_hash",
+        message: normalizeRawMessage(message),
+      } satisfies BackendUserOperationSignaturePayload;
+      const context = currentSigningContext;
+
+      if (
+        !context ||
+        context.kind === "typed_data" ||
+        !context.userOperation
+      ) {
+        throw new Error(
+          "Backend remote signer is missing a prepared user-operation context for signMessage.",
+        );
+      }
+
+      const response =
+        context.kind === "deploy_wallet"
+          ? backendSignResponseSchema.parse(
+              await postJson(
+                `${backendBaseUrl}/v1/wallets/${input.walletId}/backend-deploy-wallet`,
+                backendDeployWalletRequestSchema.parse({
+                  auth: await authorizeRequest("deploy_wallet_v1", {
+                    userOperation: context.userOperation,
+                    signaturePayload,
+                  }),
+                  userOperation: context.userOperation,
+                  signaturePayload,
+                }),
+              ),
+            )
+          : backendSignResponseSchema.parse(
+              await postJson(
+                `${backendBaseUrl}/v1/wallets/${input.walletId}/backend-sign-user-operation`,
+                backendSignUserOperationRequestSchema.parse({
+                  auth: await authorizeRequest("sign_user_operation_v1", {
+                    operation: context.operation,
+                    userOperation: context.userOperation,
+                    signaturePayload,
+                  }),
+                  operation: context.operation,
+                  userOperation: context.userOperation,
+                  signaturePayload,
+                }),
+              ),
+            );
 
       return response.signature as Hex;
     },
@@ -133,22 +178,93 @@ export function createBackendRemoteSigner(input: {
       const TTypedData extends TypedData | Record<string, unknown>,
       TPrimaryType extends keyof TTypedData | "EIP712Domain" = keyof TTypedData,
     >(typedData: TypedDataDefinition<TTypedData, TPrimaryType>) {
-      const payload = {
+      const typedDataPayload = {
         domain: (typedData.domain ?? {}) as Record<string, unknown>,
         types: typedData.types as Record<string, Array<{ name: string; type: string }>>,
         primaryType: typedData.primaryType as string,
         message: (typedData.message ?? {}) as Record<string, unknown>,
       } as BackendSignerTypedDataPayload;
-      const auth = await authorizeRequest("sign_typed_data", payload);
-      const response = backendSignResponseSchema.parse(
-        await postJson(
-          `${backendBaseUrl}/v1/wallets/${input.walletId}/backend-sign`,
-          backendSignTypedDataRequestSchema.parse({
-            auth,
-            payload,
-          }),
-        ),
-      );
+      const typedDataSignaturePayload = {
+        kind: "kernel_wrapped_typed_data",
+        typedData: typedDataPayload,
+      } satisfies BackendTypedDataSignaturePayload;
+      const context = currentSigningContext;
+
+      let response: { signature: string };
+
+      if (context?.kind === "typed_data") {
+        response = backendSignResponseSchema.parse(
+          await postJson(
+            `${backendBaseUrl}/v1/wallets/${input.walletId}/backend-sign-typed-data`,
+            backendSignTypedDataRequestSchema.parse({
+              auth: await authorizeRequest("sign_typed_data_v1", {
+                typedData: context.typedData,
+                signaturePayload: typedDataSignaturePayload,
+              }),
+              typedData: context.typedData,
+              signaturePayload: typedDataSignaturePayload,
+            }),
+          ),
+        );
+      } else if (context && context.userOperation) {
+        if (context.kind === "deploy_wallet") {
+          response = backendSignResponseSchema.parse(
+            await postJson(
+              `${backendBaseUrl}/v1/wallets/${input.walletId}/backend-deploy-wallet`,
+              backendDeployWalletRequestSchema.parse({
+                auth: await authorizeRequest("deploy_wallet_v1", {
+                  userOperation: context.userOperation,
+                  signaturePayload: {
+                    kind: "weighted_validator_approve",
+                    typedData: typedDataPayload,
+                  },
+                }),
+                userOperation: context.userOperation,
+                signaturePayload: {
+                  kind: "weighted_validator_approve",
+                  typedData: typedDataPayload,
+                },
+              }),
+            ),
+          );
+        } else {
+          response = backendSignResponseSchema.parse(
+            await postJson(
+              `${backendBaseUrl}/v1/wallets/${input.walletId}/backend-sign-user-operation`,
+              backendSignUserOperationRequestSchema.parse({
+                auth: await authorizeRequest("sign_user_operation_v1", {
+                  operation: context.operation,
+                  userOperation: context.userOperation,
+                  signaturePayload: {
+                    kind: "weighted_validator_approve",
+                    typedData: typedDataPayload,
+                  },
+                }),
+                operation: context.operation,
+                userOperation: context.userOperation,
+                signaturePayload: {
+                  kind: "weighted_validator_approve",
+                  typedData: typedDataPayload,
+                },
+              }),
+            ),
+          );
+        }
+      } else {
+        response = backendSignResponseSchema.parse(
+          await postJson(
+            `${backendBaseUrl}/v1/wallets/${input.walletId}/backend-sign-typed-data`,
+            backendSignTypedDataRequestSchema.parse({
+              auth: await authorizeRequest("sign_typed_data_v1", {
+                typedData: typedDataPayload,
+                signaturePayload: typedDataSignaturePayload,
+              }),
+              typedData: typedDataPayload,
+              signaturePayload: typedDataSignaturePayload,
+            }),
+          ),
+        );
+      }
 
       return response.signature as Hex;
     },
@@ -156,4 +272,49 @@ export function createBackendRemoteSigner(input: {
       throw new Error("Backend remote signer does not support transactions.");
     },
   });
+
+  return {
+    ...account,
+    beginUserOperationSigning(operation: BackendSingleCallOperation) {
+      currentSigningContext = {
+        kind: "user_operation",
+        operation,
+      };
+    },
+    beginDeployWalletSigning() {
+      currentSigningContext = {
+        kind: "deploy_wallet",
+      };
+    },
+    beginTypedDataSigning(typedData: BackendSignerTypedDataPayload) {
+      currentSigningContext = {
+        kind: "typed_data",
+        typedData,
+      };
+    },
+    attachPreparedUserOperation(userOperation: BackendPackedUserOperation) {
+      if (!currentSigningContext) {
+        throw new Error("Cannot attach a prepared user operation without an active context.");
+      }
+
+      if (currentSigningContext.kind === "typed_data") {
+        throw new Error("Cannot attach a prepared user operation while signing typed data.");
+      }
+
+      currentSigningContext =
+        currentSigningContext.kind === "deploy_wallet"
+          ? {
+              kind: "deploy_wallet",
+              userOperation,
+            }
+          : {
+              kind: "user_operation",
+              operation: currentSigningContext.operation,
+              userOperation,
+            };
+    },
+    clearSigningContext() {
+      currentSigningContext = null;
+    },
+  };
 }

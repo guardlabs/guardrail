@@ -7,14 +7,17 @@ import type {
   WalletConfig,
   WalletContext,
   WalletMode,
+  WalletPolicy,
   WalletRequestStatus,
 } from "@conduit/shared";
+import type { RuntimePolicyState } from "../repository.js";
 
 export const walletsTable = pgTable("wallets", {
   walletId: text("wallet_id").primaryKey(),
   walletMode: text("wallet_mode").$type<WalletMode>().notNull(),
   status: text("status").$type<WalletRequestStatus>().notNull(),
   walletConfig: jsonb("wallet_config").$type<WalletConfig>().notNull(),
+  policy: jsonb("policy").$type<WalletPolicy>().notNull(),
   agentAddress: text("agent_address").notNull(),
   backendAddress: text("backend_address").notNull(),
   backendPrivateKey: text("backend_private_key").notNull(),
@@ -24,6 +27,7 @@ export const walletsTable = pgTable("wallets", {
   counterfactualWalletAddress: text("counterfactual_wallet_address"),
   funding: jsonb("funding").$type<FundingState>().notNull(),
   deployment: jsonb("deployment").$type<DeploymentState>().notNull(),
+  runtimePolicyState: jsonb("runtime_policy_state").$type<RuntimePolicyState>().notNull(),
   walletContext: jsonb("wallet_context").$type<WalletContext>(),
   usedSigningRequestIds: jsonb("used_signing_request_ids").$type<string[]>().notNull(),
   errorCode: text("error_code"),

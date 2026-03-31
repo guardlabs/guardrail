@@ -46,11 +46,23 @@ export function buildProgram() {
       `create a wallet provisioning request\n\nsupported chains:\n  ${supportedChainsText}`,
     )
     .requiredOption("--chain-id <chainId>", "eip-155 chain id")
+    .option(
+      "--allow-call <address:methods...>",
+      "allow a non-USDC contract call by address and selectors or Solidity signatures",
+      (value, previous: string[] = []) => [...previous, value],
+      [],
+    )
+    .option("--usdc-period <period>", "official USDC budget period: daily, weekly, or monthly")
+    .option("--usdc-max <amount>", "official USDC budget ceiling in human-readable USDC")
+    .option(
+      "--usdc-allow <operations>",
+      "comma-separated official USDC operations to allow",
+    )
     .addHelpText(
       "after",
       `
 Example:
-  conduit-wallet create --chain-id 84532 --backend-url http://127.0.0.1:3000
+  conduit-wallet create --chain-id 84532 --allow-call 0x1111111111111111111111111111111111111111:transfer(address,uint256) --backend-url http://127.0.0.1:3000
       `.trimEnd(),
     );
   addBackendOption(createCommand);

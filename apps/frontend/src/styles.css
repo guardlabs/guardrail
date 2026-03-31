@@ -204,7 +204,8 @@ select {
 
 .wallet-readout,
 .funding-callout,
-.workspace-side {
+.workspace-side,
+.policy-panel {
   border-top: 1px solid oklch(84% 0.02 220);
   padding-top: 1rem;
 }
@@ -230,6 +231,38 @@ select {
   display: grid;
   align-content: start;
   gap: 1rem;
+}
+
+.policy-panel {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.policy-panel h3,
+.policy-copy {
+  margin: 0;
+}
+
+.policy-copy {
+  color: oklch(33% 0.03 210);
+}
+
+.policy-line {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.policy-line span {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  color: oklch(50% 0.04 210);
+}
+
+.policy-line strong {
+  font-size: 0.96rem;
+  color: oklch(21% 0.04 220);
+  overflow-wrap: anywhere;
 }
 
 .detail-line {

@@ -1,4 +1,5 @@
 import {
+  type BackendSignerTypedDataPayload,
   getSupportedChainById,
   type LocalWalletRequest,
   type WalletRequest,
@@ -56,6 +57,17 @@ async function hydrateKernelRuntime(localRequest: LocalWalletRequest) {
   });
 }
 
+function toBackendTypedDataPayload(
+  typedData: TypedDataDefinition<TypedData, string>,
+): BackendSignerTypedDataPayload {
+  return {
+    domain: (typedData.domain ?? {}) as unknown as BackendSignerTypedDataPayload["domain"],
+    types: typedData.types as unknown as BackendSignerTypedDataPayload["types"],
+    primaryType: typedData.primaryType as string,
+    message: (typedData.message ?? {}) as unknown as BackendSignerTypedDataPayload["message"],
+  };
+}
+
 export async function hydrateReadyWalletRequest(input: {
   walletRequest: WalletRequest;
   localRequest: LocalWalletRequest;
@@ -98,16 +110,27 @@ export async function callReadyWalletTransaction(input: {
   }
 
   const runtime = await hydrateKernelRuntime(input.localRequest);
-  const transactionHash = await runtime.kernelClient.sendTransaction({
+  runtime.backendRemoteSigner.beginUserOperationSigning({
+    kind: "single_call",
     to: input.call.to,
+    value: input.call.valueWei,
     data: input.call.data,
-    value: BigInt(input.call.valueWei),
   });
 
-  return {
-    walletAddress: runtime.kernelAccount.address,
-    transactionHash,
-  };
+  try {
+    const transactionHash = await runtime.kernelClient.sendTransaction({
+      to: input.call.to,
+      data: input.call.data,
+      value: BigInt(input.call.valueWei),
+    });
+
+    return {
+      walletAddress: runtime.kernelAccount.address,
+      transactionHash,
+    };
+  } finally {
+    runtime.backendRemoteSigner.clearSigningContext();
+  }
 }
 
 export async function ensureReadyWalletDeployed(input: {
@@ -130,22 +153,28 @@ export async function ensureReadyWalletDeployed(input: {
     };
   }
 
-  const transactionHash = await runtime.kernelClient.sendTransaction({
-    to: input.localRequest.agentAddress as `0x${string}`,
-    data: "0x",
-    value: 0n,
-  });
+  runtime.backendRemoteSigner.beginDeployWalletSigning();
 
-  await runtime.publicClient.waitForTransactionReceipt({
-    hash: transactionHash,
-  });
+  try {
+    const transactionHash = await runtime.kernelClient.sendTransaction({
+      to: input.localRequest.agentAddress as `0x${string}`,
+      data: "0x",
+      value: 0n,
+    });
 
-  return {
-    walletAddress: runtime.kernelAccount.address,
-    deployed: true,
-    deployedByThisCall: true,
-    transactionHash,
-  };
+    await runtime.publicClient.waitForTransactionReceipt({
+      hash: transactionHash,
+    });
+
+    return {
+      walletAddress: runtime.kernelAccount.address,
+      deployed: true,
+      deployedByThisCall: true,
+      transactionHash,
+    };
+  } finally {
+    runtime.backendRemoteSigner.clearSigningContext();
+  }
 }
 
 export async function signReadyWalletTypedData(input: {
@@ -157,10 +186,18 @@ export async function signReadyWalletTypedData(input: {
   }
 
   const runtime = await hydrateKernelRuntime(input.localRequest);
-  const signature = await runtime.kernelAccount.signTypedData(input.typedData);
+  runtime.backendRemoteSigner.beginTypedDataSigning(
+    toBackendTypedDataPayload(input.typedData),
+  );
 
-  return {
-    walletAddress: runtime.kernelAccount.address,
-    signature: signature as Hex,
-  };
+  try {
+    const signature = await runtime.kernelAccount.signTypedData(input.typedData);
+
+    return {
+      walletAddress: runtime.kernelAccount.address,
+      signature: signature as Hex,
+    };
+  } finally {
+    runtime.backendRemoteSigner.clearSigningContext();
+  }
 }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import type { ResolveProvisioningResponse, WalletRequest } from "@conduit/shared";
+import type { ResolveProvisioningResponse, WalletPolicy, WalletRequest } from "@conduit/shared";
 import { PROJECT_DEFAULT_BACKEND_URL } from "@conduit/shared";
+import { formatUnits } from "viem";
 import type { FrontendApi } from "./api.js";
 import { browserApi } from "./api.js";
 import type { PasskeyClient } from "./passkey.js";
@@ -18,6 +19,38 @@ type AppProps = {
 async function loadBrowserPasskeyClient() {
   const module = await import("./passkey.js");
   return module.browserPasskeyClient;
+}
+
+function formatUsdcBudget(policy: WalletPolicy["usdcPolicy"]) {
+  if (!policy) {
+    return null;
+  }
+
+  const periodLabel =
+    policy.period === "daily"
+      ? "day"
+      : policy.period === "weekly"
+        ? "week"
+        : "month";
+
+  return `${formatUnits(BigInt(policy.maxAmountMinor), 6)} USDC per ${periodLabel}`;
+}
+
+function describeRuntimePolicy(policy: WalletPolicy) {
+  const contractSummary = policy.contractAllowlist?.length
+    ? `${policy.contractAllowlist.length} contract${
+        policy.contractAllowlist.length > 1 ? "s" : ""
+      } with explicit selectors only`
+    : null;
+  const usdcSummary = policy.usdcPolicy
+    ? `Official USDC only: ${policy.usdcPolicy.allowedOperations.join(", ")}`
+    : null;
+
+  return {
+    contractSummary,
+    usdcSummary,
+    usdcBudgetSummary: formatUsdcBudget(policy.usdcPolicy),
+  };
 }
 
 export function App({
@@ -151,6 +184,7 @@ export function App({
 
   const status = request?.status ?? "created";
   const funding = request?.funding;
+  const policySummary = request ? describeRuntimePolicy(request.policy) : null;
 
   return (
     <main className="app-shell">
@@ -265,6 +299,34 @@ export function App({
               <span>Minimum funding</span>
               <code>{funding?.minimumRequiredWei ?? "Pending"}</code>
             </div>
+            {request ? (
+              <div className="policy-panel">
+                <p className="section-kicker">Runtime policy</p>
+                <h3>Agent + backend co-signer</h3>
+                <p className="policy-copy">
+                  Deny by default. The passkey keeps full admin access and does not use
+                  this policy.
+                </p>
+                {policySummary?.contractSummary ? (
+                  <div className="policy-line">
+                    <span>Contracts</span>
+                    <strong>{policySummary.contractSummary}</strong>
+                  </div>
+                ) : null}
+                {policySummary?.usdcSummary ? (
+                  <div className="policy-line">
+                    <span>USDC</span>
+                    <strong>{policySummary.usdcSummary}</strong>
+                  </div>
+                ) : null}
+                {policySummary?.usdcBudgetSummary ? (
+                  <div className="policy-line">
+                    <span>Budget</span>
+                    <strong>{policySummary.usdcBudgetSummary}</strong>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </aside>
         </section>
       )}

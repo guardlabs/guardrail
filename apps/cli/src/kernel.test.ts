@@ -17,6 +17,27 @@ vi.mock("@conduit/zerodev", () => ({
   createWeightedKernelRuntime: vi.fn(),
 }));
 
+function createRuntimePolicy() {
+  return {
+    contractAllowlist: [
+      {
+        contractAddress: "0x4444444444444444444444444444444444444444",
+        allowedSelectors: ["0xa9059cbb"],
+      },
+    ],
+  };
+}
+
+function createMockBackendRemoteSigner() {
+  return {
+    beginUserOperationSigning: vi.fn(),
+    beginDeployWalletSigning: vi.fn(),
+    beginTypedDataSigning: vi.fn(),
+    attachPreparedUserOperation: vi.fn(),
+    clearSigningContext: vi.fn(),
+  };
+}
+
 function buildLocalWalletRequest(
   overrides: Partial<LocalWalletRequest> = {},
 ): LocalWalletRequest {
@@ -34,6 +55,7 @@ function buildLocalWalletRequest(
       "http://127.0.0.1:5173/?walletId=wal_123&token=token_123&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
     chainId: 84532,
     walletConfig,
+    policy: createRuntimePolicy(),
     agentAddress: walletConfig.regularValidator.signers[0]?.address ?? "",
     agentPrivateKey:
       "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -66,6 +88,7 @@ function buildReadyWalletRequest(
     walletId: "wal_123",
     status: "ready",
     walletConfig,
+    policy: createRuntimePolicy(),
     agentAddress: "0x95b4d8f3a9f0ac9d4d7f9ef42fb0f4f6e11d1111",
     backendAddress: "0x1111111111111111111111111111111111111111",
     ownerPublicArtifacts: {
@@ -113,6 +136,7 @@ describe("kernel runtime mode B", () => {
       kernelAccount: {
         address: "0x2222222222222222222222222222222222222222",
       },
+      backendRemoteSigner: createMockBackendRemoteSigner(),
       kernelClient: {
         sendTransaction: vi.fn(),
       },
@@ -161,10 +185,12 @@ describe("kernel runtime mode B", () => {
 
   it("sends a transaction through the weighted runtime client", async () => {
     const sendTransaction = vi.fn(async () => "0xtransactionhash" as const);
+    const backendRemoteSigner = createMockBackendRemoteSigner();
     vi.mocked(createWeightedKernelRuntime).mockResolvedValue({
       kernelAccount: {
         address: "0x2222222222222222222222222222222222222222",
       },
+      backendRemoteSigner,
       kernelClient: {
         sendTransaction,
       },
@@ -188,6 +214,13 @@ describe("kernel runtime mode B", () => {
       data: "0xa9059cbb",
       value: 0n,
     });
+    expect(backendRemoteSigner.beginUserOperationSigning).toHaveBeenCalledWith({
+      kind: "single_call",
+      to: "0x1111111111111111111111111111111111111111",
+      data: "0xa9059cbb",
+      value: "0",
+    });
+    expect(backendRemoteSigner.clearSigningContext).toHaveBeenCalled();
     expect(result).toEqual({
       walletAddress: "0x2222222222222222222222222222222222222222",
       transactionHash: "0xtransactionhash",
@@ -196,11 +229,13 @@ describe("kernel runtime mode B", () => {
 
   it("signs typed data through the weighted runtime account", async () => {
     const signTypedData = vi.fn(async () => "0xsignedtypeddata" as const);
+    const backendRemoteSigner = createMockBackendRemoteSigner();
     vi.mocked(createWeightedKernelRuntime).mockResolvedValue({
       kernelAccount: {
         address: "0x2222222222222222222222222222222222222222",
         signTypedData,
       },
+      backendRemoteSigner,
       kernelClient: {
         sendTransaction: vi.fn(),
       },
@@ -247,6 +282,12 @@ describe("kernel runtime mode B", () => {
         primaryType: "TransferWithAuthorization",
       }),
     );
+    expect(backendRemoteSigner.beginTypedDataSigning).toHaveBeenCalledWith(
+      expect.objectContaining({
+        primaryType: "TransferWithAuthorization",
+      }),
+    );
+    expect(backendRemoteSigner.clearSigningContext).toHaveBeenCalled();
     expect(result).toEqual({
       walletAddress: "0x2222222222222222222222222222222222222222",
       signature: "0xsignedtypeddata",
@@ -262,10 +303,12 @@ describe("kernel runtime mode B", () => {
       transactionHash: "0xdeploymenthash",
     }));
     const sendTransaction = vi.fn(async () => "0xdeploymenthash" as const);
+    const backendRemoteSigner = createMockBackendRemoteSigner();
     vi.mocked(createWeightedKernelRuntime).mockResolvedValue({
       kernelAccount: {
         address: "0x2222222222222222222222222222222222222222",
       },
+      backendRemoteSigner,
       kernelClient: {
         sendTransaction,
       },
@@ -287,6 +330,8 @@ describe("kernel runtime mode B", () => {
       data: "0x",
       value: 0n,
     });
+    expect(backendRemoteSigner.beginDeployWalletSigning).toHaveBeenCalled();
+    expect(backendRemoteSigner.clearSigningContext).toHaveBeenCalled();
     expect(waitForTransactionReceipt).toHaveBeenCalledWith({
       hash: "0xdeploymenthash",
     });

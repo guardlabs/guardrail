@@ -135,7 +135,15 @@ That means:
 - the passkey remains the human-controlled admin path
 - the backend co-signer is the place where Conduit can enforce policies before approving agent-triggered transactions
 
-Today, the repository already covers wallet provisioning, backend-assisted co-signing, local agent runtime, and a small provisioning frontend. Full policy enforcement by the backend is the next major step.
+Runtime policy is opinionated and deny-by-default on the `agent + backend` path:
+
+- the passkey keeps full admin access and does not go through backend policy checks
+- the backend only co-signs calls that were explicitly attached to the wallet request at creation time
+- generic runtime calls use a strict `contract address + method selector` allowlist
+- official USDC uses a dedicated policy with an explicit operation allowlist and a daily, weekly, or monthly budget
+- typed data are denied by default unless they match an explicitly supported official USDC flow such as `Permit` or `TransferWithAuthorization`
+
+The provisioning frontend shows the attached runtime policy before the human creates the passkey owner.
 
 The current implementation targets Base Sepolia.
 
@@ -238,8 +246,23 @@ Create a wallet request locally:
 ```bash
 pnpm --filter @conduit/cli dev -- create \
   --chain-id 84532 \
+  --allow-call '0x1111111111111111111111111111111111111111:0xdeadbeef' \
+  --usdc-period daily \
+  --usdc-max 25 \
+  --usdc-allow transferWithAuthorization \
   --backend-url http://localhost:3000
 ```
+
+The runtime policy is required. Provide at least one of:
+
+- `--allow-call <address>:<methodOrSelector>[,<methodOrSelector>...]` for non-USDC calls
+- `--usdc-period`, `--usdc-max`, and `--usdc-allow` together for official USDC
+
+Notes:
+
+- `--allow-call` accepts either raw `0x` selectors or Solidity signatures such as `'0x1111...:approve(address,uint256)'`
+- the official USDC contract is reserved for `--usdc-*` options and is rejected from the generic allowlist
+- native `ETH` value is not allowed on the `agent + backend` runtime path in this version
 
 Open the returned provisioning URL in a browser, create the passkey, fund the wallet on Base Sepolia, then wait for readiness:
 
@@ -283,9 +306,12 @@ The headless provisioning e2e lives under `tests/e2e` and runs the real CLI plus
 
 It covers the flow through `ready`, then exercises:
 
-- one co-signed `sign-typed-data` call
-- one co-signed transaction
-- one `conduit-wallet x402-fetch ...` round-trip that performs `402 -> PAYMENT-SIGNATURE -> 200` using exact EIP-3009 settlement on official Base Sepolia USDC
+- deployment through the dedicated backend deploy route
+- one allowlisted co-signed transaction
+- one denied transaction rejected by the backend policy
+- one denied arbitrary typed-data signature
+- one successful `conduit-wallet x402-fetch ...` round-trip using exact EIP-3009 settlement on official Base Sepolia USDC
+- one denied x402 round-trip after the configured USDC budget is exhausted
 
 Before running it, make sure either `CONDUIT_E2E_FORK_URL` or `CONDUIT_PUBLIC_RPC_URL_84532` points to a Base Sepolia RPC URL. The test starts its own backend, Anvil, and Alto processes locally.
 
@@ -315,4 +341,7 @@ This repository is still pre-deployment:
 - the npm package name is a placeholder
 - the repository badges are intentionally static until the public repo and package coordinates are finalized
 - Base Sepolia is the only supported chain
-- backend policy enforcement is planned and not fully implemented yet
+- runtime policy is intentionally narrow and opinionated in this version:
+  - non-USDC calls require an explicit contract + selector allowlist
+  - official USDC is supported only through the dedicated USDC policy
+  - typed data are denied except for explicitly supported official USDC flows

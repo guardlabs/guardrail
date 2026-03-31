@@ -10,6 +10,7 @@ function serialize(row: WalletRow): StoredWalletRequest {
     walletMode: row.walletMode,
     status: row.status,
     walletConfig: row.walletConfig,
+    policy: row.policy,
     agentAddress: row.agentAddress,
     backendAddress: row.backendAddress,
     provisioningTokenHash: row.provisioningTokenHash,
@@ -19,6 +20,7 @@ function serialize(row: WalletRow): StoredWalletRequest {
     counterfactualWalletAddress: row.counterfactualWalletAddress ?? undefined,
     funding: row.funding,
     deployment: row.deployment,
+    runtimePolicyState: row.runtimePolicyState,
     walletContext: row.walletContext ?? undefined,
     usedSigningRequestIds: row.usedSigningRequestIds,
     errorCode: row.errorCode ?? undefined,
@@ -44,6 +46,7 @@ export function createPostgresWalletRequestRepository(
         walletMode: request.walletMode,
         status: request.status,
         walletConfig: request.walletConfig,
+        policy: request.policy,
         agentAddress: request.agentAddress,
         backendAddress: request.backendAddress,
         backendPrivateKey: request.backendPrivateKey,
@@ -53,6 +56,7 @@ export function createPostgresWalletRequestRepository(
         counterfactualWalletAddress: request.counterfactualWalletAddress,
         funding: request.funding,
         deployment: request.deployment,
+        runtimePolicyState: request.runtimePolicyState,
         walletContext: request.walletContext,
         usedSigningRequestIds: request.usedSigningRequestIds,
         errorCode: request.errorCode,
@@ -165,6 +169,20 @@ export function createPostgresWalletRequestRepository(
         .where(eq(walletsTable.walletId, walletId));
 
       return "ok";
+    },
+
+    async updateRuntimePolicyState({ walletId, runtimePolicyState, updatedAt }) {
+      const rows = await db
+        .update(walletsTable)
+        .set({
+          runtimePolicyState,
+          updatedAt: new Date(updatedAt),
+        })
+        .where(eq(walletsTable.walletId, walletId))
+        .returning();
+
+      const row = rows[0];
+      return row ? serialize(row) : null;
     },
   };
 }

@@ -2,20 +2,21 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   PROJECT_WALLET_MODE,
-  backendSignMessageRequestSchema,
+  backendDeployWalletRequestSchema,
   backendSignResponseSchema,
   backendSignTypedDataRequestSchema,
+  backendSignUserOperationRequestSchema,
   buildDefaultWalletConfig,
   canTransitionStatus,
   createWalletRequestInputSchema,
   createWalletRequestResponseSchema,
   getBackendSignerAuthorizationTypedData,
   getWalletRequestResponseSchema,
-  hashBackendSignerPayload,
+  hashBackendSignerRequestBody,
   publishOwnerArtifactsInputSchema,
   resolveProvisioningResponseSchema,
-  type BackendSignerMessagePayload,
-  type BackendSignerTypedDataPayload,
+  type BackendSignerMethod,
+  type BackendUserOperationSignaturePayload,
   type CreateWalletRequestInput,
 } from "@conduit/shared";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
@@ -24,6 +25,12 @@ import type { AppConfig } from "./config.js";
 import type { ChainRelayService, RelayTarget } from "./chain-relay.js";
 import type { StoredWalletRequest, WalletRequestRepository } from "./repository.js";
 import { toPublicWalletRequest } from "./repository.js";
+import {
+  createInitialRuntimePolicyState,
+  evaluateDeployWalletPolicy,
+  evaluateTypedDataPolicy,
+  evaluateUserOperationPolicy,
+} from "./runtime-policy.js";
 import type { WalletProvisioningService } from "./wallet.js";
 
 function createWalletId() {
@@ -59,6 +66,22 @@ function createProvisioningUrl(input: {
   return url.toString();
 }
 
+function createBackendSignerAccount(agentAddress: string) {
+  const normalizedAgentAddress = agentAddress.toLowerCase();
+
+  while (true) {
+    const backendPrivateKey = generatePrivateKey();
+    const backendAccount = privateKeyToAccount(backendPrivateKey);
+
+    if (backendAccount.address.toLowerCase() < normalizedAgentAddress) {
+      return {
+        backendPrivateKey,
+        backendAccount,
+      };
+    }
+  }
+}
+
 function buildInitialRequest(
   payload: CreateWalletRequestInput,
   config: AppConfig,
@@ -67,8 +90,9 @@ function buildInitialRequest(
   const provisioningToken = createProvisioningToken();
   const walletId = createWalletId();
   const timestamp = now.toISOString();
-  const backendPrivateKey = generatePrivateKey();
-  const backendAccount = privateKeyToAccount(backendPrivateKey);
+  const { backendPrivateKey, backendAccount } = createBackendSignerAccount(
+    payload.agentAddress,
+  );
   const walletConfig = buildDefaultWalletConfig({
     chainId: payload.chainId,
     agentAddress: payload.agentAddress,
@@ -82,6 +106,7 @@ function buildInitialRequest(
       walletMode: PROJECT_WALLET_MODE,
       status: "created",
       walletConfig,
+      policy: payload.policy,
       agentAddress: payload.agentAddress,
       backendAddress: backendAccount.address,
       backendPrivateKey,
@@ -93,6 +118,7 @@ function buildInitialRequest(
       deployment: {
         status: "undeployed",
       },
+      runtimePolicyState: createInitialRuntimePolicyState(),
       usedSigningRequestIds: [],
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -183,30 +209,18 @@ function isAllowedRelayMethod(target: RelayTarget, method: string) {
   return ALLOWED_BUNDLER_RELAY_METHODS.has(method);
 }
 
-function normalizeBackendSignMessage(
-  payload: BackendSignerMessagePayload,
-): string | { raw: Hex } {
-  if (payload.message.kind === "text") {
-    return payload.message.text;
-  }
-
-  return {
-    raw: payload.message.raw as Hex,
-  };
-}
-
 async function verifyBackendSignerAuthorization(input: {
   request: StoredWalletRequest;
   auth: {
     walletAddress: string;
     backendSignerAddress: string;
-    method: "sign_message" | "sign_typed_data";
+    method: BackendSignerMethod;
     bodyHash: string;
     requestId: string;
     expiresAt: string;
     agentSignature: string;
   };
-  payload: BackendSignerMessagePayload | BackendSignerTypedDataPayload;
+  body: Record<string, unknown>;
 }) {
   if (!input.request.walletContext) {
     return {
@@ -259,7 +273,10 @@ async function verifyBackendSignerAuthorization(input: {
     };
   }
 
-  const expectedBodyHash = hashBackendSignerPayload(input.auth.method, input.payload);
+  const expectedBodyHash = hashBackendSignerRequestBody(
+    input.auth.method,
+    input.body as never,
+  );
 
   if (expectedBodyHash.toLowerCase() !== input.auth.bodyHash.toLowerCase()) {
     return {
@@ -295,6 +312,23 @@ async function verifyBackendSignerAuthorization(input: {
   return {
     ok: true as const,
   };
+}
+
+function signBackendUserOperationPayload(input: {
+  backendPrivateKey: Hex;
+  signaturePayload: BackendUserOperationSignaturePayload;
+}) {
+  const backendAccount = privateKeyToAccount(input.backendPrivateKey);
+
+  if (input.signaturePayload.kind === "weighted_validator_approve") {
+    return backendAccount.signTypedData(input.signaturePayload.typedData as never);
+  }
+
+  return backendAccount.signMessage({
+    message: {
+      raw: input.signaturePayload.message.raw as Hex,
+    },
+  });
 }
 
 export function registerRoutes(
@@ -392,6 +426,7 @@ export function registerRoutes(
       agentAddress: nextRequest.agentAddress,
       backendAddress: nextRequest.backendAddress,
       walletConfig: nextRequest.walletConfig,
+      policy: nextRequest.policy,
       provisioningUrl,
       deployment: nextRequest.deployment,
       expiresAt: nextRequest.expiresAt,
@@ -466,7 +501,7 @@ export function registerRoutes(
     return reply.send(getWalletRequestResponseSchema.parse(toPublicWalletRequest(updatedRequest)));
   });
 
-  app.post("/v1/wallets/:walletId/backend-sign", async (request, reply) => {
+  app.post("/v1/wallets/:walletId/backend-sign-typed-data", async (request, reply) => {
     const params = request.params as { walletId: string };
     const walletRequest = await repository.findById(params.walletId);
 
@@ -476,23 +511,35 @@ export function registerRoutes(
       });
     }
 
-    const rawBody = request.body as { auth?: { method?: unknown } };
-    const authMethod = rawBody.auth?.method;
-    const parsedRequest =
-      authMethod === "sign_typed_data"
-        ? backendSignTypedDataRequestSchema.parse(request.body)
-        : backendSignMessageRequestSchema.parse(request.body);
+    const parsedRequest = backendSignTypedDataRequestSchema.parse(request.body);
 
     const verification = await verifyBackendSignerAuthorization({
       request: walletRequest,
       auth: parsedRequest.auth,
-      payload: parsedRequest.payload,
+      body: {
+        typedData: parsedRequest.typedData,
+        signaturePayload: parsedRequest.signaturePayload,
+      },
     });
 
     if (!verification.ok) {
       return reply.status(verification.statusCode).send({
         error: verification.error,
         message: verification.message,
+      });
+    }
+
+    const policyDecision = evaluateTypedDataPolicy({
+      request: walletRequest,
+      typedData: parsedRequest.typedData,
+      signaturePayload: parsedRequest.signaturePayload,
+      now: new Date(),
+    });
+
+    if (!policyDecision.ok) {
+      return reply.status(policyDecision.statusCode).send({
+        error: policyDecision.error,
+        message: policyDecision.message,
       });
     }
 
@@ -515,16 +562,174 @@ export function registerRoutes(
       });
     }
 
+    if (policyDecision.runtimePolicyState) {
+      await repository.updateRuntimePolicyState({
+        walletId: walletRequest.walletId,
+        runtimePolicyState: policyDecision.runtimePolicyState,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
     const backendAccount = privateKeyToAccount(walletRequest.backendPrivateKey as Hex);
 
-    const signature =
-      parsedRequest.auth.method === "sign_typed_data"
-        ? await backendAccount.signTypedData(parsedRequest.payload as never)
-        : await backendAccount.signMessage({
-            message: normalizeBackendSignMessage(
-              parsedRequest.payload as BackendSignerMessagePayload,
-            ),
-          });
+    const signature = await backendAccount.signTypedData(
+      parsedRequest.signaturePayload.typedData as never,
+    );
+
+    return reply.send(
+      backendSignResponseSchema.parse({
+        signature,
+      }),
+    );
+  });
+
+  app.post("/v1/wallets/:walletId/backend-sign-user-operation", async (request, reply) => {
+    const params = request.params as { walletId: string };
+    const walletRequest = await repository.findById(params.walletId);
+
+    if (!walletRequest) {
+      return reply.status(404).send({
+        error: "request_not_found",
+      });
+    }
+
+    const parsedRequest = backendSignUserOperationRequestSchema.parse(request.body);
+
+    const verification = await verifyBackendSignerAuthorization({
+      request: walletRequest,
+      auth: parsedRequest.auth,
+      body: {
+        operation: parsedRequest.operation,
+        userOperation: parsedRequest.userOperation,
+        signaturePayload: parsedRequest.signaturePayload,
+      },
+    });
+
+    if (!verification.ok) {
+      return reply.status(verification.statusCode).send({
+        error: verification.error,
+        message: verification.message,
+      });
+    }
+
+    const policyDecision = evaluateUserOperationPolicy({
+      request: walletRequest,
+      operation: parsedRequest.operation,
+      userOperation: parsedRequest.userOperation,
+      signaturePayload: parsedRequest.signaturePayload,
+      now: new Date(),
+    });
+
+    if (!policyDecision.ok) {
+      return reply.status(policyDecision.statusCode).send({
+        error: policyDecision.error,
+        message: policyDecision.message,
+      });
+    }
+
+    const replay = await repository.recordUsedSigningRequestId({
+      walletId: walletRequest.walletId,
+      requestId: parsedRequest.auth.requestId,
+      updatedAt: new Date().toISOString(),
+    });
+
+    if (replay === "not_found") {
+      return reply.status(404).send({
+        error: "request_not_found",
+      });
+    }
+
+    if (replay === "duplicate") {
+      return reply.status(409).send({
+        error: "request_replayed",
+        message: "This backend signer requestId has already been used.",
+      });
+    }
+
+    if (policyDecision.runtimePolicyState) {
+      await repository.updateRuntimePolicyState({
+        walletId: walletRequest.walletId,
+        runtimePolicyState: policyDecision.runtimePolicyState,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
+    const signature = await signBackendUserOperationPayload({
+      backendPrivateKey: walletRequest.backendPrivateKey as Hex,
+      signaturePayload: parsedRequest.signaturePayload,
+    });
+
+    return reply.send(
+      backendSignResponseSchema.parse({
+        signature,
+      }),
+    );
+  });
+
+  app.post("/v1/wallets/:walletId/backend-deploy-wallet", async (request, reply) => {
+    const params = request.params as { walletId: string };
+    const walletRequest = await repository.findById(params.walletId);
+
+    if (!walletRequest) {
+      return reply.status(404).send({
+        error: "request_not_found",
+      });
+    }
+
+    const parsedRequest = backendDeployWalletRequestSchema.parse(request.body);
+
+    const verification = await verifyBackendSignerAuthorization({
+      request: walletRequest,
+      auth: parsedRequest.auth,
+      body: {
+        userOperation: parsedRequest.userOperation,
+        signaturePayload: parsedRequest.signaturePayload,
+      },
+    });
+
+    if (!verification.ok) {
+      return reply.status(verification.statusCode).send({
+        error: verification.error,
+        message: verification.message,
+      });
+    }
+
+    const policyDecision = evaluateDeployWalletPolicy({
+      request: walletRequest,
+      userOperation: parsedRequest.userOperation,
+      signaturePayload: parsedRequest.signaturePayload,
+    });
+
+    if (!policyDecision.ok) {
+      return reply.status(policyDecision.statusCode).send({
+        error: policyDecision.error,
+        message: policyDecision.message,
+      });
+    }
+
+    const replay = await repository.recordUsedSigningRequestId({
+      walletId: walletRequest.walletId,
+      requestId: parsedRequest.auth.requestId,
+      updatedAt: new Date().toISOString(),
+    });
+
+    if (replay === "not_found") {
+      return reply.status(404).send({
+        error: "request_not_found",
+      });
+    }
+
+    if (replay === "duplicate") {
+      return reply.status(409).send({
+        error: "request_replayed",
+        message: "This backend signer requestId has already been used.",
+      });
+    }
+
+    const signature = await signBackendUserOperationPayload({
+      backendPrivateKey: walletRequest.backendPrivateKey as Hex,
+      signaturePayload: parsedRequest.signaturePayload,
+    });
 
     return reply.send(
       backendSignResponseSchema.parse({
@@ -567,6 +772,7 @@ export function registerRoutes(
         walletId: walletRequest.walletId,
         status: walletRequest.status,
         walletConfig: walletRequest.walletConfig,
+        policy: walletRequest.policy,
         agentAddress: walletRequest.agentAddress,
         backendAddress: walletRequest.backendAddress,
         ownerPublicArtifacts: walletRequest.ownerPublicArtifacts,

@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import type { Command } from "commander";
 import {
   PROJECT_WALLET_MODE,
+  bytes4HexSchema,
   bytes32HexSchema,
   createWalletRequestInputSchema,
   createWalletRequestResponseSchema,
@@ -10,6 +11,7 @@ import {
   getWalletRequestResponseSchema,
   getSupportedChainById,
   hexStringSchema,
+  walletPolicySchema,
   x402PaymentPayloadSchema,
   x402PaymentRequiredSchema,
   x402PaymentRequirementsSchema,
@@ -17,7 +19,13 @@ import {
   type CreateWalletRequestResponse,
   type WalletRequest,
 } from "@conduit/shared";
-import { bytesToHex, parseUnits, type TypedData, type TypedDataDefinition } from "viem";
+import {
+  bytesToHex,
+  parseUnits,
+  toFunctionSelector,
+  type TypedData,
+  type TypedDataDefinition,
+} from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { resolveBackendUrl } from "./backend.js";
 import { fetchJson } from "./http.js";
@@ -92,6 +100,191 @@ function parseUint256(value: string, label: string) {
   }
 
   return BigInt(normalized);
+}
+
+function normalizeBytes4Selector(value: string) {
+  return bytes4HexSchema.parse(value.trim().toLowerCase()) as `0x${string}`;
+}
+
+function normalizeMethodOrSelector(value: string) {
+  const normalized = value.trim();
+
+  if (bytes4HexSchema.safeParse(normalized).success) {
+    return normalizeBytes4Selector(normalized);
+  }
+
+  if (!normalized.includes("(") || !normalized.endsWith(")")) {
+    throw new Error(
+      `Unsupported method "${value}". Expected a Solidity signature or 0x-prefixed 4-byte selector.`,
+    );
+  }
+
+  return normalizeBytes4Selector(toFunctionSelector(normalized));
+}
+
+function splitMethodList(value: string) {
+  const methods: string[] = [];
+  let depth = 0;
+  let current = "";
+
+  for (const character of value) {
+    if (character === "(") {
+      depth += 1;
+      current += character;
+      continue;
+    }
+
+    if (character === ")") {
+      if (depth === 0) {
+        throw new Error(`Invalid method list "${value}". Parentheses are unbalanced.`);
+      }
+
+      depth -= 1;
+      current += character;
+      continue;
+    }
+
+    if (character === "," && depth === 0) {
+      const normalized = current.trim();
+
+      if (normalized) {
+        methods.push(normalized);
+      }
+
+      current = "";
+      continue;
+    }
+
+    current += character;
+  }
+
+  if (depth !== 0) {
+    throw new Error(`Invalid method list "${value}". Parentheses are unbalanced.`);
+  }
+
+  const normalized = current.trim();
+
+  if (normalized) {
+    methods.push(normalized);
+  }
+
+  return methods;
+}
+
+function buildCreateWalletPolicy(input: {
+  chainId: number;
+  allowCall?: string[];
+  usdcPeriod?: string;
+  usdcMax?: string;
+  usdcAllow?: string;
+}) {
+  const supportedChain = getSupportedChainById(input.chainId);
+
+  if (!supportedChain) {
+    throw new Error(`Unsupported chain ${input.chainId}.`);
+  }
+
+  const hasUsdcInput =
+    input.usdcPeriod !== undefined ||
+    input.usdcMax !== undefined ||
+    input.usdcAllow !== undefined;
+  const hasCompleteUsdcInput =
+    input.usdcPeriod !== undefined &&
+    input.usdcMax !== undefined &&
+    input.usdcAllow !== undefined;
+
+  if (hasUsdcInput && !hasCompleteUsdcInput) {
+    throw new Error(
+      "USDC policy requires all three options: --usdc-period, --usdc-max, and --usdc-allow.",
+    );
+  }
+
+  const contractAllowlist =
+    input.allowCall
+      ?.map((entry) => {
+        const separatorIndex = entry.indexOf(":");
+
+        if (separatorIndex <= 0 || separatorIndex === entry.length - 1) {
+          throw new Error(
+            `Invalid --allow-call value "${entry}". Expected <address>:<methodOrSelector>[,<methodOrSelector>...].`,
+          );
+        }
+
+        const contractAddress = evmAddressSchema.parse(
+          entry.slice(0, separatorIndex).trim(),
+        );
+        const rawMethods = splitMethodList(entry.slice(separatorIndex + 1));
+
+        if (rawMethods.length === 0) {
+          throw new Error(`Invalid --allow-call value "${entry}". No methods were provided.`);
+        }
+
+        return {
+          contractAddress,
+          allowedSelectors: [...new Set(rawMethods.map(normalizeMethodOrSelector))],
+        };
+      })
+      .reduce<Array<{ contractAddress: string; allowedSelectors: Array<`0x${string}`> }>>(
+        (entries, entry) => {
+          const existing = entries.find(
+            (candidate) =>
+              candidate.contractAddress.toLowerCase() ===
+              entry.contractAddress.toLowerCase(),
+          );
+
+          if (!existing) {
+            entries.push(entry);
+            return entries;
+          }
+
+          existing.allowedSelectors = [
+            ...new Set([...existing.allowedSelectors, ...entry.allowedSelectors]),
+          ];
+          return entries;
+        },
+        [],
+      ) ?? undefined;
+
+  if (
+    contractAllowlist?.some(
+      (entry) =>
+        entry.contractAddress.toLowerCase() ===
+        supportedChain.officialUsdcAddress.toLowerCase(),
+    )
+  ) {
+    throw new Error(
+      "Official USDC must not appear in the generic allowlist. Use the dedicated USDC policy instead.",
+    );
+  }
+
+  const usdcPolicy = hasCompleteUsdcInput
+    ? {
+        period: input.usdcPeriod,
+        maxAmountMinor: parseUnits(
+          input.usdcMax!.trim(),
+          supportedChain.officialUsdcDecimals,
+        ).toString(),
+        allowedOperations: [
+          ...new Set(
+            input.usdcAllow!
+              .split(",")
+              .map((value) => value.trim())
+              .filter(Boolean),
+          ),
+        ],
+      }
+    : undefined;
+
+  if (!contractAllowlist?.length && !usdcPolicy) {
+    throw new Error(
+      "Provide at least one runtime policy mechanism with --allow-call or the full USDC policy options.",
+    );
+  }
+
+  return walletPolicySchema.parse({
+    contractAllowlist: contractAllowlist?.length ? contractAllowlist : undefined,
+    usdcPolicy,
+  });
 }
 
 function buildDefaultAuthorizationNonce() {
@@ -255,6 +448,10 @@ export function buildOfficialUsdcTransferWithAuthorizationTypedData(input: {
 export async function executeCreate(options: {
   chainId: string;
   backendUrl?: string;
+  allowCall?: string[];
+  usdcPeriod?: string;
+  usdcMax?: string;
+  usdcAllow?: string;
 }) {
   const backendUrl = resolveBackendUrl(options.backendUrl);
   const chainId = Number(options.chainId);
@@ -266,10 +463,18 @@ export async function executeCreate(options: {
 
   const agentPrivateKey = generatePrivateKey();
   const agentAccount = privateKeyToAccount(agentPrivateKey);
+  const policy = buildCreateWalletPolicy({
+    chainId,
+    allowCall: options.allowCall,
+    usdcPeriod: options.usdcPeriod,
+    usdcMax: options.usdcMax,
+    usdcAllow: options.usdcAllow,
+  });
   const payload = createWalletRequestInputSchema.parse({
     walletMode: PROJECT_WALLET_MODE,
     chainId,
     agentAddress: agentAccount.address,
+    policy,
   });
 
   const backendResponse = await fetchJson<CreateWalletRequestResponse>(
@@ -302,6 +507,7 @@ export async function executeCreate(options: {
     provisioningUrl: response.provisioningUrl,
     chainId: response.walletConfig.chainId,
     walletConfig: response.walletConfig,
+    policy: response.policy,
     agentAddress: response.agentAddress,
     agentPrivateKey,
     backendAddress: response.backendAddress,
@@ -663,6 +869,10 @@ export function registerCreateCommand(command: Command) {
     const result = await executeCreate({
       chainId: options.chainId,
       backendUrl: resolveCommandBackendUrl(command, options),
+      allowCall: options.allowCall,
+      usdcPeriod: options.usdcPeriod,
+      usdcMax: options.usdcMax,
+      usdcAllow: options.usdcAllow,
     });
 
     printJson(result);

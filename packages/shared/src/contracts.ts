@@ -1,5 +1,6 @@
 import { keccak256, toBytes } from "viem";
 import { z } from "zod";
+import { getSupportedChainById } from "./chains.js";
 
 export const PROJECT_DEFAULT_BACKEND_URL = "http://127.0.0.1:3000";
 export const PROJECT_DEFAULT_FRONTEND_URL = "http://127.0.0.1:5173";
@@ -27,6 +28,10 @@ export const hexStringSchema = z
 export const bytes32HexSchema = z
   .string()
   .regex(/^0x[a-fA-F0-9]{64}$/, "Expected a 32-byte hex string");
+
+export const bytes4HexSchema = z
+  .string()
+  .regex(/^0x[a-fA-F0-9]{8}$/, "Expected a 4-byte hex selector");
 
 export const evmAddressSchema = z
   .string()
@@ -116,6 +121,41 @@ export const walletContextSchema = z.object({
   weightedValidator: weightedValidatorConfigSchema,
 });
 
+export const contractAllowlistEntrySchema = z.object({
+  contractAddress: evmAddressSchema,
+  allowedSelectors: z.array(bytes4HexSchema).min(1),
+});
+
+export const usdcPolicyPeriodSchema = z.enum(["daily", "weekly", "monthly"]);
+
+export const usdcPolicyOperationSchema = z.enum([
+  "transfer",
+  "approve",
+  "increaseAllowance",
+  "permit",
+  "transferWithAuthorization",
+]);
+
+export const usdcPolicySchema = z.object({
+  period: usdcPolicyPeriodSchema,
+  maxAmountMinor: z.string().regex(/^\d+$/, "Expected an unsigned integer string"),
+  allowedOperations: z.array(usdcPolicyOperationSchema).min(1),
+});
+
+export const walletPolicySchema = z
+  .object({
+    contractAllowlist: z.array(contractAllowlistEntrySchema).min(1).optional(),
+    usdcPolicy: usdcPolicySchema.optional(),
+  })
+  .superRefine((input, ctx) => {
+    if (!input.contractAllowlist && !input.usdcPolicy) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Wallet policy must include at least one policy mechanism.",
+      });
+    }
+  });
+
 export const walletRequestSchema = z.object({
   walletMode: walletModeSchema,
   walletId: z.string().min(1),
@@ -126,6 +166,7 @@ export const walletRequestSchema = z.object({
   ownerPublicArtifacts: ownerPublicArtifactsSchema.optional(),
   regularValidatorInitArtifact: regularValidatorInitArtifactSchema.optional(),
   counterfactualWalletAddress: evmAddressSchema.optional(),
+  policy: walletPolicySchema,
   funding: fundingStateSchema,
   deployment: deploymentStateSchema,
   walletContext: walletContextSchema.optional(),
@@ -140,6 +181,28 @@ export const createWalletRequestInputSchema = z.object({
   walletMode: walletModeSchema,
   chainId: z.number().int().positive(),
   agentAddress: evmAddressSchema,
+  policy: walletPolicySchema,
+}).superRefine((input, ctx) => {
+  const supportedChain = getSupportedChainById(input.chainId);
+
+  if (!supportedChain || !input.policy.contractAllowlist) {
+    return;
+  }
+
+  const containsOfficialUsdc = input.policy.contractAllowlist.some(
+    (entry) =>
+      entry.contractAddress.toLowerCase() ===
+      supportedChain.officialUsdcAddress.toLowerCase(),
+  );
+
+  if (containsOfficialUsdc) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message:
+        "Official USDC must not appear in the generic contract allowlist. Use usdcPolicy instead.",
+      path: ["policy", "contractAllowlist"],
+    });
+  }
 });
 
 export const createWalletRequestResponseSchema = z.object({
@@ -149,6 +212,7 @@ export const createWalletRequestResponseSchema = z.object({
   agentAddress: evmAddressSchema,
   backendAddress: evmAddressSchema,
   walletConfig: walletConfigSchema,
+  policy: walletPolicySchema,
   provisioningUrl: z.string().url(),
   deployment: deploymentStateSchema,
   expiresAt: z.string().datetime({ offset: true }),
@@ -176,6 +240,7 @@ export const resolveProvisioningResponseSchema = z.object({
   walletId: z.string().min(1),
   status: walletRequestStatusSchema,
   walletConfig: walletConfigSchema,
+  policy: walletPolicySchema,
   agentAddress: evmAddressSchema,
   backendAddress: evmAddressSchema,
   ownerPublicArtifacts: ownerPublicArtifactsSchema.optional(),
@@ -200,6 +265,7 @@ export const localWalletRequestSchema = z
     provisioningUrl: z.string().url(),
     chainId: z.number().int().positive(),
     walletConfig: walletConfigSchema,
+    policy: walletPolicySchema,
     agentAddress: evmAddressSchema,
     agentPrivateKey: hexStringSchema,
     backendAddress: evmAddressSchema,
@@ -242,7 +308,11 @@ export const localWalletRequestSchema = z
     }
   });
 
-export const backendSignerMethodSchema = z.enum(["sign_message", "sign_typed_data"]);
+export const backendSignerMethodSchema = z.enum([
+  "sign_typed_data_v1",
+  "sign_user_operation_v1",
+  "deploy_wallet_v1",
+]);
 
 const jsonPrimitiveSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
@@ -289,18 +359,84 @@ export const backendSignerAuthEnvelopeSchema = backendSignerAuthPayloadSchema.ex
   agentSignature: hexStringSchema,
 });
 
-export const backendSignMessageRequestSchema = z.object({
-  auth: backendSignerAuthEnvelopeSchema.extend({
-    method: z.literal("sign_message"),
+export const backendPackedUserOperationSchema = z.object({
+  sender: evmAddressSchema,
+  nonce: z.string().regex(/^\d+$/, "Expected an unsigned integer nonce."),
+  initCode: hexStringSchema,
+  callData: hexStringSchema,
+  accountGasLimits: bytes32HexSchema,
+  preVerificationGas: z
+    .string()
+    .regex(/^\d+$/, "Expected an unsigned integer preVerificationGas."),
+  gasFees: bytes32HexSchema,
+  paymasterAndData: hexStringSchema,
+});
+
+export const backendSingleCallOperationSchema = z.object({
+  kind: z.literal("single_call"),
+  to: evmAddressSchema,
+  value: z.string().regex(/^\d+$/, "Expected an unsigned integer value."),
+  data: hexStringSchema,
+});
+
+export const backendUserOperationSignaturePayloadSchema = z.union([
+  z.object({
+    kind: z.literal("weighted_validator_approve"),
+    typedData: backendSignerTypedDataPayloadSchema,
   }),
-  payload: backendSignerMessagePayloadSchema,
+  z.object({
+    kind: z.literal("user_operation_hash"),
+    message: z.object({
+      kind: z.literal("raw"),
+      raw: bytes32HexSchema,
+    }),
+  }),
+]);
+
+export const backendTypedDataSignaturePayloadSchema = z.object({
+  kind: z.literal("kernel_wrapped_typed_data"),
+  typedData: backendSignerTypedDataPayloadSchema,
+});
+
+export const backendSignTypedDataBodySchema = z.object({
+  typedData: backendSignerTypedDataPayloadSchema,
+  signaturePayload: backendTypedDataSignaturePayloadSchema,
 });
 
 export const backendSignTypedDataRequestSchema = z.object({
   auth: backendSignerAuthEnvelopeSchema.extend({
-    method: z.literal("sign_typed_data"),
+    method: z.literal("sign_typed_data_v1"),
   }),
-  payload: backendSignerTypedDataPayloadSchema,
+  typedData: backendSignerTypedDataPayloadSchema,
+  signaturePayload: backendTypedDataSignaturePayloadSchema,
+});
+
+export const backendSignUserOperationBodySchema = z.object({
+  operation: backendSingleCallOperationSchema,
+  userOperation: backendPackedUserOperationSchema,
+  signaturePayload: backendUserOperationSignaturePayloadSchema,
+});
+
+export const backendSignUserOperationRequestSchema = z.object({
+  auth: backendSignerAuthEnvelopeSchema.extend({
+    method: z.literal("sign_user_operation_v1"),
+  }),
+  operation: backendSingleCallOperationSchema,
+  userOperation: backendPackedUserOperationSchema,
+  signaturePayload: backendUserOperationSignaturePayloadSchema,
+});
+
+export const backendDeployWalletBodySchema = z.object({
+  userOperation: backendPackedUserOperationSchema,
+  signaturePayload: backendUserOperationSignaturePayloadSchema,
+});
+
+export const backendDeployWalletRequestSchema = z.object({
+  auth: backendSignerAuthEnvelopeSchema.extend({
+    method: z.literal("deploy_wallet_v1"),
+  }),
+  userOperation: backendPackedUserOperationSchema,
+  signaturePayload: backendUserOperationSignaturePayloadSchema,
 });
 
 export const backendSignResponseSchema = z.object({
@@ -453,15 +589,15 @@ function stableStringifyValue(value: JsonValue): string {
     .join(",")}}`;
 }
 
-export function hashBackendSignerPayload(
+export function hashBackendSignerRequestBody(
   method: BackendSignerMethod,
-  payload: BackendSignerMessagePayload | BackendSignerTypedDataPayload,
+  body: JsonValue,
 ) {
   return keccak256(
     toBytes(
       stableStringifyValue({
         method,
-        payload,
+        body,
       }),
     ),
   );
@@ -502,6 +638,7 @@ export type RegularValidatorInitArtifact = z.infer<
 export type FundingState = z.infer<typeof fundingStateSchema>;
 export type DeploymentState = z.infer<typeof deploymentStateSchema>;
 export type WalletContext = z.infer<typeof walletContextSchema>;
+export type WalletPolicy = z.infer<typeof walletPolicySchema>;
 export type WalletRequest = z.infer<typeof walletRequestSchema>;
 export type CreateWalletRequestInput = z.infer<typeof createWalletRequestInputSchema>;
 export type CreateWalletRequestResponse = z.infer<
@@ -517,6 +654,14 @@ export type BackendSignerMessagePayload = z.infer<
 >;
 export type BackendSignerTypedDataPayload = z.infer<
   typeof backendSignerTypedDataPayloadSchema
+>;
+export type BackendTypedDataSignaturePayload = z.infer<
+  typeof backendTypedDataSignaturePayloadSchema
+>;
+export type BackendPackedUserOperation = z.infer<typeof backendPackedUserOperationSchema>;
+export type BackendSingleCallOperation = z.infer<typeof backendSingleCallOperationSchema>;
+export type BackendUserOperationSignaturePayload = z.infer<
+  typeof backendUserOperationSignaturePayloadSchema
 >;
 export type BackendSignerAuthPayload = z.infer<
   typeof backendSignerAuthPayloadSchema

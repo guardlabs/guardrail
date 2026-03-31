@@ -5,6 +5,7 @@ import {
   PROJECT_WALLET_MODE,
   buildDefaultWalletConfig,
   type ResolveProvisioningResponse,
+  type WalletPolicy,
   type WalletRequest,
 } from "@conduit/shared";
 import { App } from "./App.js";
@@ -20,6 +21,22 @@ const regularValidatorInitArtifact = {
   pluginEnableSignature: "0x5678",
 } as const;
 
+function createRuntimePolicy(): WalletPolicy {
+  return {
+    contractAllowlist: [
+      {
+        contractAddress: "0x4444444444444444444444444444444444444444",
+        allowedSelectors: ["0xa9059cbb"],
+      },
+    ],
+    usdcPolicy: {
+      period: "daily",
+      maxAmountMinor: "1500000",
+      allowedOperations: ["transfer", "approve", "increaseAllowance", "permit", "transferWithAuthorization"],
+    },
+  };
+}
+
 function buildProvisioningResponse(
   overrides: Partial<ResolveProvisioningResponse> = {},
 ): ResolveProvisioningResponse {
@@ -28,6 +45,7 @@ function buildProvisioningResponse(
     walletId: "wal_test",
     status: "created",
     walletConfig,
+    policy: createRuntimePolicy(),
     agentAddress: walletConfig.regularValidator.signers[0]?.address ?? "",
     backendAddress: walletConfig.regularValidator.signers[1]?.address ?? "",
     ownerPublicArtifacts: undefined,
@@ -53,6 +71,7 @@ function buildWalletRequest(
     walletId: "wal_test",
     status: "ready",
     walletConfig,
+    policy: createRuntimePolicy(),
     agentAddress: walletConfig.regularValidator.signers[0]?.address ?? "",
     backendAddress: walletConfig.regularValidator.signers[1]?.address ?? "",
     counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
@@ -161,6 +180,8 @@ describe("frontend app mode B", () => {
     expect(await screen.findByText(/wallet ready/i)).toBeInTheDocument();
     expect(screen.getByText(/0x2222/i)).toBeInTheDocument();
     expect(screen.getByText(walletConfig.regularValidator.threshold.toString())).toBeInTheDocument();
+    expect(screen.getByText(/deny by default/i)).toBeInTheDocument();
+    expect(screen.getByText(/transferwithauthorization/i)).toBeInTheDocument();
   });
 
   it("shows a clear error when the provisioning link is incomplete", () => {

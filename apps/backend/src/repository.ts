@@ -6,10 +6,18 @@ import type {
   WalletRequest,
 } from "@conduit/shared";
 
+export type RuntimePolicyState = {
+  usdc: {
+    periodStartedAt: string;
+    consumedAmountMinor: string;
+  } | null;
+};
+
 export type StoredWalletRequest = WalletRequest & {
   provisioningTokenHash: string;
   backendPrivateKey: string;
   usedSigningRequestIds: string[];
+  runtimePolicyState: RuntimePolicyState;
 };
 
 export type WalletRequestRepository = {
@@ -44,6 +52,11 @@ export type WalletRequestRepository = {
     requestId: string;
     updatedAt: string;
   }): Promise<"ok" | "duplicate" | "not_found">;
+  updateRuntimePolicyState(input: {
+    walletId: string;
+    runtimePolicyState: RuntimePolicyState;
+    updatedAt: string;
+  }): Promise<StoredWalletRequest | null>;
 };
 
 export function toPublicWalletRequest(request: StoredWalletRequest): WalletRequest {
@@ -51,6 +64,7 @@ export function toPublicWalletRequest(request: StoredWalletRequest): WalletReque
     provisioningTokenHash: _tokenHash,
     backendPrivateKey: _backendPrivateKey,
     usedSigningRequestIds: _usedSigningRequestIds,
+    runtimePolicyState: _runtimePolicyState,
     ...publicRequest
   } = request;
   return publicRequest;

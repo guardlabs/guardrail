@@ -4,12 +4,13 @@ import {
   PROJECT_WALLET_MODE,
   buildDefaultWalletConfig,
   getBackendSignerAuthorizationTypedData,
-  hashBackendSignerPayload,
+  hashBackendSignerRequestBody,
   type FundingState,
   type OwnerPublicArtifacts,
   type RegularValidatorInitArtifact,
   type WalletContext,
 } from "@conduit/shared";
+import { hashTypedData } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { buildApp } from "./app.js";
 import type { AppConfig } from "./config.js";
@@ -111,6 +112,20 @@ function createTestRepository(): WalletRequestRepository {
       });
 
       return "ok";
+    },
+    async updateRuntimePolicyState({ walletId, runtimePolicyState, updatedAt }) {
+      const request = requests.get(walletId);
+      if (!request) {
+        return null;
+      }
+
+      const updatedRequest: StoredWalletRequest = {
+        ...request,
+        runtimePolicyState,
+        updatedAt,
+      };
+      requests.set(walletId, updatedRequest);
+      return updatedRequest;
     },
   };
 }
@@ -231,6 +246,26 @@ function createRegularValidatorInitArtifact(): RegularValidatorInitArtifact {
   };
 }
 
+function createFutureIsoDate(minutesFromNow: number) {
+  return new Date(Date.now() + minutesFromNow * 60 * 1000).toISOString();
+}
+
+function createRuntimePolicy() {
+  return {
+    contractAllowlist: [
+      {
+        contractAddress: "0x4444444444444444444444444444444444444444",
+        allowedSelectors: ["0xa9059cbb"],
+      },
+    ],
+    usdcPolicy: {
+      period: "daily" as const,
+      maxAmountMinor: "1000000000",
+      allowedOperations: ["transfer", "approve", "increaseAllowance", "permit", "transferWithAuthorization"],
+    },
+  };
+}
+
 describe("backend app mode B", () => {
   it("serves a health endpoint", async () => {
     const app = buildApp({
@@ -274,6 +309,7 @@ describe("backend app mode B", () => {
         walletMode: PROJECT_WALLET_MODE,
         chainId: 84532,
         agentAddress: agentAccount.address,
+        policy: createRuntimePolicy(),
       },
     });
 
@@ -283,6 +319,12 @@ describe("backend app mode B", () => {
       walletId: string;
       backendAddress: string;
       walletConfig: { chainId: number };
+      policy: {
+        contractAllowlist: Array<{
+          contractAddress: string;
+          allowedSelectors: string[];
+        }>;
+      };
       provisioningUrl: string;
     };
 
@@ -301,7 +343,11 @@ describe("backend app mode B", () => {
       walletConfig: {
         chainId: 84532,
       },
+      policy: createRuntimePolicy(),
     });
+    expect(createdWallet.backendAddress.toLowerCase() < agentAccount.address.toLowerCase()).toBe(
+      true,
+    );
     expect(createdWallet.provisioningUrl).toContain(`walletId=${createdWallet.walletId}`);
 
     await app.close();
@@ -330,6 +376,7 @@ describe("backend app mode B", () => {
         walletMode: PROJECT_WALLET_MODE,
         chainId: 84532,
         agentAddress: agentAccount.address,
+        policy: createRuntimePolicy(),
       },
     });
 
@@ -526,6 +573,7 @@ describe("backend app mode B", () => {
         walletMode: PROJECT_WALLET_MODE,
         chainId: 84532,
         agentAddress: agentAccount.address,
+        policy: createRuntimePolicy(),
       },
     });
 
@@ -573,6 +621,7 @@ describe("backend app mode B", () => {
         walletMode: PROJECT_WALLET_MODE,
         chainId: 84532,
         agentAddress: agentAccount.address,
+        policy: createRuntimePolicy(),
       },
     });
 
@@ -625,6 +674,7 @@ describe("backend app mode B", () => {
         walletMode: PROJECT_WALLET_MODE,
         chainId: 84532,
         agentAddress: agentAccount.address,
+        policy: createRuntimePolicy(),
       },
     });
 
@@ -654,19 +704,82 @@ describe("backend app mode B", () => {
       };
       backendAddress: string;
     };
-    const payload = {
-      message: {
-        kind: "raw" as const,
-        raw: "0x1234",
+    const body = {
+      typedData: {
+        domain: {
+          name: "USDC",
+          version: "2",
+          chainId: 84532,
+          verifyingContract: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+        },
+        primaryType: "Permit",
+        types: {
+          Permit: [
+            { name: "owner", type: "address" },
+            { name: "spender", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "nonce", type: "uint256" },
+            { name: "deadline", type: "uint256" },
+          ],
+        },
+        message: {
+          owner: readyWallet.walletContext.walletAddress,
+          spender: "0x3333333333333333333333333333333333333333",
+          value: "1",
+          nonce: "0",
+          deadline: "100",
+        },
+      },
+      signaturePayload: {
+        kind: "kernel_wrapped_typed_data" as const,
+        typedData: {
+          domain: {
+            name: "Kernel",
+            version: "0.3.1",
+            chainId: 84532,
+            verifyingContract: readyWallet.walletContext.walletAddress,
+          },
+          types: {
+            Kernel: [{ name: "hash", type: "bytes32" }],
+          },
+          primaryType: "Kernel",
+          message: {
+            hash: hashTypedData({
+              domain: {
+                name: "USDC",
+                version: "2",
+                chainId: 84532,
+                verifyingContract: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+              },
+              primaryType: "Permit",
+              types: {
+                Permit: [
+                  { name: "owner", type: "address" },
+                  { name: "spender", type: "address" },
+                  { name: "value", type: "uint256" },
+                  { name: "nonce", type: "uint256" },
+                  { name: "deadline", type: "uint256" },
+                ],
+              },
+              message: {
+                owner: readyWallet.walletContext.walletAddress,
+                spender: "0x3333333333333333333333333333333333333333",
+                value: "1",
+                nonce: "0",
+                deadline: "100",
+              },
+            } as never),
+          },
+        },
       },
     };
     const authPayload = {
       walletAddress: readyWallet.walletContext.walletAddress,
       backendSignerAddress: readyWallet.backendAddress,
-      method: "sign_message" as const,
-      bodyHash: hashBackendSignerPayload("sign_message", payload),
+      method: "sign_typed_data_v1" as const,
+      bodyHash: hashBackendSignerRequestBody("sign_typed_data_v1", body),
       requestId: "req_replay_guard",
-      expiresAt: "2026-03-30T18:00:00.000Z",
+      expiresAt: createFutureIsoDate(5),
     };
     const agentSignature = await agentAccount.signTypedData(
       getBackendSignerAuthorizationTypedData(authPayload),
@@ -674,13 +787,14 @@ describe("backend app mode B", () => {
 
     const signResponse = await app.inject({
       method: "POST",
-      url: `/v1/wallets/${createdWallet.walletId}/backend-sign`,
+      url: `/v1/wallets/${createdWallet.walletId}/backend-sign-typed-data`,
       payload: {
         auth: {
           ...authPayload,
           agentSignature,
         },
-        payload,
+        typedData: body.typedData,
+        signaturePayload: body.signaturePayload,
       },
     });
 
@@ -689,13 +803,14 @@ describe("backend app mode B", () => {
 
     const replayedResponse = await app.inject({
       method: "POST",
-      url: `/v1/wallets/${createdWallet.walletId}/backend-sign`,
+      url: `/v1/wallets/${createdWallet.walletId}/backend-sign-typed-data`,
       payload: {
         auth: {
           ...authPayload,
           agentSignature,
         },
-        payload,
+        typedData: body.typedData,
+        signaturePayload: body.signaturePayload,
       },
     });
 

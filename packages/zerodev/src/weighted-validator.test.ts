@@ -3,6 +3,7 @@ import { buildDefaultWalletConfig } from "@conduit/shared";
 import { createKernelAccount, toKernelPluginManager } from "@zerodev/sdk/accounts";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { createPublicClient, http } from "viem";
+import { hashTypedData } from "viem";
 import { baseSepolia } from "viem/chains";
 import { createBackendRemoteSigner } from "./backend-remote-signer.js";
 import {
@@ -34,7 +35,7 @@ vi.mock("@zerodev/sdk", async () => {
 });
 
 describe("mode B zerodev helpers", () => {
-  it("sends authenticated backend sign requests through the remote signer", async () => {
+  it("sends authenticated typed-data sign requests through the remote signer", async () => {
     const agentPrivateKey = generatePrivateKey();
     const agentSigner = privateKeyToAccount(agentPrivateKey);
     const fetchMock = vi.fn().mockResolvedValue({
@@ -54,15 +55,52 @@ describe("mode B zerodev helpers", () => {
       agentSigner,
     });
 
-    const signature = await remoteSigner.signMessage({
-      message: {
-        raw: "0x1234",
+    const originalTypedData = {
+      domain: {
+        name: "USDC",
+        version: "2",
+        chainId: 84532,
+        verifyingContract: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
       },
-    });
+      primaryType: "Permit",
+      types: {
+        Permit: [
+          { name: "owner", type: "address" },
+          { name: "spender", type: "address" },
+          { name: "value", type: "uint256" },
+          { name: "nonce", type: "uint256" },
+          { name: "deadline", type: "uint256" },
+        ],
+      },
+      message: {
+        owner: "0x2222222222222222222222222222222222222222",
+        spender: "0x3333333333333333333333333333333333333333",
+        value: "1",
+        nonce: "0",
+        deadline: "100",
+      },
+    } as const;
+    remoteSigner.beginTypedDataSigning(originalTypedData as never);
+
+    const signature = await remoteSigner.signTypedData({
+      domain: {
+        name: "Kernel",
+        version: "0.3.1",
+        chainId: 84532,
+        verifyingContract: "0x2222222222222222222222222222222222222222",
+      },
+      primaryType: "Kernel",
+      types: {
+        Kernel: [{ name: "hash", type: "bytes32" }],
+      },
+      message: {
+        hash: hashTypedData(originalTypedData as never),
+      },
+    } as never);
 
     expect(signature).toBe("0xdeadbeef");
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://127.0.0.1:3000/v1/wallets/wal_123/backend-sign",
+      "http://127.0.0.1:3000/v1/wallets/wal_123/backend-sign-typed-data",
       expect.objectContaining({
         method: "POST",
       }),
@@ -76,25 +114,27 @@ describe("mode B zerodev helpers", () => {
         expiresAt: string;
         agentSignature: string;
       };
-      payload: {
-        message: {
-          kind: string;
-          raw: string;
+      typedData: {
+        primaryType: string;
+      };
+      signaturePayload: {
+        kind: string;
+        typedData: {
+          primaryType: string;
         };
       };
     };
 
-    expect(requestBody.payload.message).toEqual({
-      kind: "raw",
-      raw: "0x1234",
-    });
+    expect(requestBody.typedData.primaryType).toBe("Permit");
+    expect(requestBody.signaturePayload.kind).toBe("kernel_wrapped_typed_data");
+    expect(requestBody.signaturePayload.typedData.primaryType).toBe("Kernel");
     expect(requestBody.auth.walletAddress).toBe(
       "0x2222222222222222222222222222222222222222",
     );
     expect(requestBody.auth.backendSignerAddress).toBe(
       "0x1111111111111111111111111111111111111111",
     );
-    expect(requestBody.auth.method).toBe("sign_message");
+    expect(requestBody.auth.method).toBe("sign_typed_data_v1");
     expect(requestBody.auth.requestId).toMatch(/^req_/);
     expect(requestBody.auth.agentSignature).toMatch(/^0x[a-f0-9]+$/);
   });
