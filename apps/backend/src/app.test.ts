@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   type DeploymentState,
   PROJECT_WALLET_MODE,
@@ -32,6 +32,17 @@ const testConfig: AppConfig = {
 
 function createTestRepository(): WalletRequestRepository {
   const requests = new Map<string, StoredWalletRequest>();
+  const consumptions = new Map<
+    string,
+    Array<{
+      walletId: string;
+      asset: "usdc";
+      operation: string;
+      amountMinor: string;
+      requestId: string;
+      createdAt: string;
+    }>
+  >();
 
   return {
     async create(request) {
@@ -126,6 +137,17 @@ function createTestRepository(): WalletRequestRepository {
       };
       requests.set(walletId, updatedRequest);
       return updatedRequest;
+    },
+    async listRuntimePolicyConsumptionsSince({ walletId, asset, createdAtGte }) {
+      return (consumptions.get(walletId) ?? []).filter(
+        (entry) =>
+          entry.asset === asset &&
+          new Date(entry.createdAt).getTime() >= new Date(createdAtGte).getTime(),
+      );
+    },
+    async createRuntimePolicyConsumption(input) {
+      const next = consumptions.get(input.walletId) ?? [];
+      consumptions.set(input.walletId, [...next, input]);
     },
   };
 }
@@ -266,6 +288,20 @@ function createRuntimePolicy() {
   };
 }
 
+function expectLogEvent(
+  spy: ReturnType<typeof vi.spyOn>,
+  event: string,
+  expectedFields: Record<string, unknown>,
+) {
+  expect(spy).toHaveBeenCalledWith(
+    expect.objectContaining({
+      event,
+      ...expectedFields,
+    }),
+    expect.any(String),
+  );
+}
+
 describe("backend app mode B", () => {
   it("serves a health endpoint", async () => {
     const app = buildApp({
@@ -301,6 +337,7 @@ describe("backend app mode B", () => {
         },
       }),
     });
+    const infoSpy = vi.spyOn(app.log, "info");
 
     const createResponse = await app.inject({
       method: "POST",
@@ -349,6 +386,11 @@ describe("backend app mode B", () => {
       true,
     );
     expect(createdWallet.provisioningUrl).toContain(`walletId=${createdWallet.walletId}`);
+    expectLogEvent(infoSpy, "wallet_request_created", {
+      walletId: createdWallet.walletId,
+      chainId: 84532,
+      status: "created",
+    });
 
     await app.close();
   });
@@ -368,6 +410,7 @@ describe("backend app mode B", () => {
         },
       }),
     });
+    const infoSpy = vi.spyOn(app.log, "info");
 
     const createResponse = await app.inject({
       method: "POST",
@@ -376,7 +419,13 @@ describe("backend app mode B", () => {
         walletMode: PROJECT_WALLET_MODE,
         chainId: 84532,
         agentAddress: agentAccount.address,
-        policy: createRuntimePolicy(),
+        policy: {
+          usdcPolicy: {
+            period: "daily",
+            maxAmountMinor: "1000000000",
+            allowedOperations: ["transferWithAuthorization"],
+          },
+        },
       },
     });
 
@@ -408,6 +457,11 @@ describe("backend app mode B", () => {
         walletAddress: "0x2222222222222222222222222222222222222222",
         agentAddress: agentAccount.address,
       },
+    });
+    expectLogEvent(infoSpy, "wallet_status_updated", {
+      walletId: createdWallet.walletId,
+      status: "ready",
+      previousStatus: "created",
     });
 
     await app.close();
@@ -666,6 +720,8 @@ describe("backend app mode B", () => {
         },
       }),
     });
+    const infoSpy = vi.spyOn(app.log, "info");
+    const debugSpy = vi.spyOn(app.log, "debug");
 
     const createResponse = await app.inject({
       method: "POST",
@@ -800,6 +856,11 @@ describe("backend app mode B", () => {
 
     expect(signResponse.statusCode).toBe(200);
     expect(signResponse.json().signature).toMatch(/^0x[a-f0-9]+$/);
+    expectLogEvent(infoSpy, "backend_signature_granted", {
+      walletId: createdWallet.walletId,
+      route: "backend-sign-typed-data",
+      method: "sign_typed_data_v1",
+    });
 
     const replayedResponse = await app.inject({
       method: "POST",
@@ -817,6 +878,177 @@ describe("backend app mode B", () => {
     expect(replayedResponse.statusCode).toBe(409);
     expect(replayedResponse.json()).toMatchObject({
       error: "request_replayed",
+    });
+    expectLogEvent(debugSpy, "backend_signer_request_replayed", {
+      walletId: createdWallet.walletId,
+      route: "backend-sign-typed-data",
+      requestId: "req_replay_guard",
+    });
+
+    await app.close();
+  });
+
+  it("logs policy denials at debug level", async () => {
+    const agentAccount = privateKeyToAccount(generatePrivateKey());
+    const app = buildApp({
+      config: testConfig,
+      repository: createTestRepository(),
+      walletProvisioningService: createTestWalletProvisioningService({
+        funding: {
+          status: "verified",
+          minimumRequiredWei: testConfig.minFundingWei,
+          balanceWei: "600000000000000",
+          checkedAt: "2026-03-29T12:00:00.000Z",
+        },
+      }),
+    });
+    const debugSpy = vi.spyOn(app.log, "debug");
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/wallets",
+      payload: {
+        walletMode: PROJECT_WALLET_MODE,
+        chainId: 84532,
+        agentAddress: agentAccount.address,
+        policy: {
+          usdcPolicy: {
+            period: "daily",
+            maxAmountMinor: "1000000000",
+            allowedOperations: ["transferWithAuthorization"],
+          },
+        },
+      },
+    });
+
+    const createdWallet = createResponse.json() as {
+      walletId: string;
+      provisioningUrl: string;
+      backendAddress: string;
+    };
+    const token = extractProvisioningToken(createdWallet.provisioningUrl);
+
+    const ownerArtifactsResponse = await app.inject({
+      method: "POST",
+      url: `/v1/provisioning/${createdWallet.walletId}/owner-artifacts?t=${encodeURIComponent(token)}`,
+      payload: {
+        owner: {
+          credentialId: "credential-id",
+          publicKey: "0x1234",
+        },
+        counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
+        regularValidatorInitArtifact: createRegularValidatorInitArtifact(),
+      },
+    });
+
+    const readyWallet = ownerArtifactsResponse.json() as {
+      walletContext: {
+        walletAddress: string;
+      };
+      backendAddress: string;
+    };
+    const body = {
+      typedData: {
+        domain: {
+          name: "USDC",
+          version: "2",
+          chainId: 84532,
+          verifyingContract: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+        },
+        primaryType: "Permit",
+        types: {
+          Permit: [
+            { name: "owner", type: "address" },
+            { name: "spender", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "nonce", type: "uint256" },
+            { name: "deadline", type: "uint256" },
+          ],
+        },
+        message: {
+          owner: readyWallet.walletContext.walletAddress,
+          spender: "0x3333333333333333333333333333333333333333",
+          value: "1",
+          nonce: "0",
+          deadline: "100",
+        },
+      },
+      signaturePayload: {
+        kind: "kernel_wrapped_typed_data" as const,
+        typedData: {
+          domain: {
+            name: "Kernel",
+            version: "0.3.1",
+            chainId: 84532,
+            verifyingContract: readyWallet.walletContext.walletAddress,
+          },
+          types: {
+            Kernel: [{ name: "hash", type: "bytes32" }],
+          },
+          primaryType: "Kernel",
+          message: {
+            hash: hashTypedData({
+              domain: {
+                name: "USDC",
+                version: "2",
+                chainId: 84532,
+                verifyingContract: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+              },
+              primaryType: "Permit",
+              types: {
+                Permit: [
+                  { name: "owner", type: "address" },
+                  { name: "spender", type: "address" },
+                  { name: "value", type: "uint256" },
+                  { name: "nonce", type: "uint256" },
+                  { name: "deadline", type: "uint256" },
+                ],
+              },
+              message: {
+                owner: readyWallet.walletContext.walletAddress,
+                spender: "0x3333333333333333333333333333333333333333",
+                value: "1",
+                nonce: "0",
+                deadline: "100",
+              },
+            } as never),
+          },
+        },
+      },
+    };
+    const authPayload = {
+      walletAddress: readyWallet.walletContext.walletAddress,
+      backendSignerAddress: readyWallet.backendAddress,
+      method: "sign_typed_data_v1" as const,
+      bodyHash: hashBackendSignerRequestBody("sign_typed_data_v1", body),
+      requestId: "req_policy_denied",
+      expiresAt: createFutureIsoDate(5),
+    };
+    const agentSignature = await agentAccount.signTypedData(
+      getBackendSignerAuthorizationTypedData(authPayload),
+    );
+
+    const deniedResponse = await app.inject({
+      method: "POST",
+      url: `/v1/wallets/${createdWallet.walletId}/backend-sign-typed-data`,
+      payload: {
+        auth: {
+          ...authPayload,
+          agentSignature,
+        },
+        typedData: body.typedData,
+        signaturePayload: body.signaturePayload,
+      },
+    });
+
+    expect(deniedResponse.statusCode).toBe(403);
+    expect(deniedResponse.json()).toMatchObject({
+      error: "usdc_operation_not_allowed",
+    });
+    expectLogEvent(debugSpy, "runtime_policy_denied", {
+      walletId: createdWallet.walletId,
+      route: "backend-sign-typed-data",
+      policyError: "usdc_operation_not_allowed",
     });
 
     await app.close();

@@ -14,7 +14,7 @@ import {
   type Hex,
 } from "viem";
 import { entryPoint07Address } from "viem/account-abstraction";
-import type { RuntimePolicyState } from "./repository.js";
+import type { RuntimePolicyConsumption, RuntimePolicyState } from "./repository.js";
 import type { StoredWalletRequest } from "./repository.js";
 
 const WEIGHTED_VALIDATOR_DOMAIN_NAME = "WeightedECDSAValidator";
@@ -32,7 +32,14 @@ const usdcAbi = parseAbi([
 ]);
 
 type PolicyDecision =
-  | { ok: true; runtimePolicyState?: RuntimePolicyState }
+  | {
+      ok: true;
+      consumption?: {
+        asset: RuntimePolicyConsumption["asset"];
+        operation: string;
+        amountMinor: string;
+      };
+    }
   | { ok: false; statusCode: number; error: string; message: string };
 
 function deny(statusCode: number, error: string, message: string): PolicyDecision {
@@ -56,25 +63,21 @@ function parseNumericString(value: unknown, label: string) {
   throw new Error(`${label} must be an unsigned integer.`);
 }
 
-function createWindowStart(period: "daily" | "weekly" | "monthly", now: Date) {
-  if (period === "monthly") {
-    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0));
-  }
+function createConsumptionLowerBound(period: "daily" | "weekly" | "monthly", now: Date) {
+  const durationMs =
+    period === "monthly"
+      ? 30 * 24 * 60 * 60 * 1000
+      : period === "weekly"
+        ? 7 * 24 * 60 * 60 * 1000
+        : 24 * 60 * 60 * 1000;
 
-  if (period === "weekly") {
-    const start = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0),
-    );
-    const dayOffset = (start.getUTCDay() + 6) % 7;
-    start.setUTCDate(start.getUTCDate() - dayOffset);
-    return start;
-  }
-
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
+  return new Date(now.getTime() - durationMs);
 }
 
 function consumeUsdcBudget(input: {
   request: StoredWalletRequest;
+  recentConsumptions: RuntimePolicyConsumption[];
+  operation: string;
   amountMinor: bigint;
   now: Date;
 }): PolicyDecision {
@@ -84,17 +87,15 @@ function consumeUsdcBudget(input: {
     return deny(403, "usdc_policy_missing", "No USDC policy is configured for this wallet.");
   }
 
-  const windowStart = createWindowStart(usdcPolicy.period, input.now).toISOString();
-  const currentState =
-    input.request.runtimePolicyState.usdc &&
-    input.request.runtimePolicyState.usdc.periodStartedAt === windowStart
-      ? input.request.runtimePolicyState.usdc
-      : {
-          periodStartedAt: windowStart,
-          consumedAmountMinor: "0",
-        };
-  const nextConsumedAmount =
-    BigInt(currentState.consumedAmountMinor) + input.amountMinor;
+  const lowerBound = createConsumptionLowerBound(usdcPolicy.period, input.now);
+  const consumedAmount = input.recentConsumptions.reduce((total, consumption) => {
+    if (new Date(consumption.createdAt).getTime() < lowerBound.getTime()) {
+      return total;
+    }
+
+    return total + BigInt(consumption.amountMinor);
+  }, 0n);
+  const nextConsumedAmount = consumedAmount + input.amountMinor;
 
   if (nextConsumedAmount > BigInt(usdcPolicy.maxAmountMinor)) {
     return deny(403, "usdc_budget_exceeded", "The configured USDC budget has been exceeded.");
@@ -102,12 +103,10 @@ function consumeUsdcBudget(input: {
 
   return {
     ok: true,
-    runtimePolicyState: {
-      ...input.request.runtimePolicyState,
-      usdc: {
-        periodStartedAt: currentState.periodStartedAt,
-        consumedAmountMinor: nextConsumedAmount.toString(),
-      },
+    consumption: {
+      asset: "usdc",
+      operation: input.operation,
+      amountMinor: input.amountMinor.toString(),
     },
   };
 }
@@ -282,6 +281,7 @@ function enforceGenericContractAllowlist(input: {
 
 function enforceUsdcTransactionPolicy(input: {
   request: StoredWalletRequest;
+  recentConsumptions: RuntimePolicyConsumption[];
   operation: BackendSingleCallOperation;
   now: Date;
 }): PolicyDecision {
@@ -334,6 +334,8 @@ function enforceUsdcTransactionPolicy(input: {
 
   return consumeUsdcBudget({
     request: input.request,
+    recentConsumptions: input.recentConsumptions,
+    operation: decoded.functionName,
     amountMinor: decoded.amountMinor,
     now: input.now,
   });
@@ -341,6 +343,7 @@ function enforceUsdcTransactionPolicy(input: {
 
 function enforceUsdcTypedDataPolicy(input: {
   request: StoredWalletRequest;
+  recentConsumptions: RuntimePolicyConsumption[];
   typedData: BackendSignerTypedDataPayload;
   now: Date;
 }): PolicyDecision {
@@ -382,6 +385,8 @@ function enforceUsdcTypedDataPolicy(input: {
     const amountMinor = parseNumericString(input.typedData.message.value, "Permit value");
     return consumeUsdcBudget({
       request: input.request,
+      recentConsumptions: input.recentConsumptions,
+      operation: "permit",
       amountMinor,
       now: input.now,
     });
@@ -413,6 +418,8 @@ function enforceUsdcTypedDataPolicy(input: {
     );
     return consumeUsdcBudget({
       request: input.request,
+      recentConsumptions: input.recentConsumptions,
+      operation: "transferWithAuthorization",
       amountMinor,
       now: input.now,
     });
@@ -433,6 +440,7 @@ export function createInitialRuntimePolicyState(): RuntimePolicyState {
 
 export function evaluateTypedDataPolicy(input: {
   request: StoredWalletRequest;
+  recentUsdcConsumptions: RuntimePolicyConsumption[];
   typedData: BackendSignerTypedDataPayload;
   signaturePayload: {
     kind: "kernel_wrapped_typed_data";
@@ -469,11 +477,17 @@ export function evaluateTypedDataPolicy(input: {
     );
   }
 
-  return enforceUsdcTypedDataPolicy(input);
+  return enforceUsdcTypedDataPolicy({
+    request: input.request,
+    recentConsumptions: input.recentUsdcConsumptions,
+    typedData: input.typedData,
+    now: input.now,
+  });
 }
 
 export function evaluateUserOperationPolicy(input: {
   request: StoredWalletRequest;
+  recentUsdcConsumptions: RuntimePolicyConsumption[];
   operation: BackendSingleCallOperation;
   userOperation: BackendPackedUserOperation;
   signaturePayload: BackendUserOperationSignaturePayload;
@@ -538,6 +552,7 @@ export function evaluateUserOperationPolicy(input: {
   if (input.operation.to.toLowerCase() === supportedChain.officialUsdcAddress.toLowerCase()) {
     return enforceUsdcTransactionPolicy({
       request: input.request,
+      recentConsumptions: input.recentUsdcConsumptions,
       operation: input.operation,
       now: input.now,
     });
@@ -606,4 +621,11 @@ export function evaluateDeployWalletPolicy(input: {
   }
 
   return { ok: true };
+}
+
+export function getRuntimePolicyConsumptionWindowStart(
+  period: "daily" | "weekly" | "monthly",
+  now: Date,
+) {
+  return createConsumptionLowerBound(period, now);
 }

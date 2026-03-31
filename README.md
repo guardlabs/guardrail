@@ -140,7 +140,7 @@ Runtime policy is opinionated and deny-by-default on the `agent + backend` path:
 - the passkey keeps full admin access and does not go through backend policy checks
 - the backend only co-signs calls that were explicitly attached to the wallet request at creation time
 - generic runtime calls use a strict `contract address + method selector` allowlist
-- official USDC uses a dedicated policy with an explicit operation allowlist and a daily, weekly, or monthly budget
+- official USDC uses a dedicated policy with an explicit operation allowlist and a daily, weekly, or monthly sliding budget
 - typed data are denied by default unless they match an explicitly supported official USDC flow such as `Permit` or `TransferWithAuthorization`
 
 The provisioning frontend shows the attached runtime policy before the human creates the passkey owner.
@@ -222,6 +222,8 @@ Backend:
 pnpm --filter @conduit/backend dev
 ```
 
+Backend logs are pretty-printed in local development by default. Use `LOG_LEVEL=debug pnpm --filter @conduit/backend dev` to include debug-level policy and authorization logs.
+
 Frontend:
 
 ```bash
@@ -262,6 +264,7 @@ Notes:
 
 - `--allow-call` accepts either raw `0x` selectors or Solidity signatures such as `'0x1111...:approve(address,uint256)'`
 - the official USDC contract is reserved for `--usdc-*` options and is rejected from the generic allowlist
+- `daily`, `weekly`, and `monthly` USDC budgets are enforced as exact sliding windows over the trailing 24 hours, 7 days, or 30 days
 - native `ETH` value is not allowed on the `agent + backend` runtime path in this version
 
 Open the returned provisioning URL in a browser, create the passkey, fund the wallet on Base Sepolia, then wait for readiness:

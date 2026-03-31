@@ -584,6 +584,142 @@ describe("cli commands mode B", () => {
     expect(persistedRequest.deployment.status).toBe("deployed");
   });
 
+  it("resyncs local owner_bound state before signing typed data when the backend is already ready", async () => {
+    const walletConfig = buildDefaultWalletConfig({
+      chainId: 84532,
+      agentAddress: "0x95b4d8f3a9f0ac9d4d7f9ef42fb0f4f6e11d1111",
+      backendAddress: "0x1111111111111111111111111111111111111111",
+    });
+    await saveLocalWalletRequest({
+      walletMode: PROJECT_WALLET_MODE,
+      walletId: "wal_123",
+      backendBaseUrl: "http://127.0.0.1:3000",
+      provisioningUrl:
+        "http://127.0.0.1:5173/?walletId=wal_123&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
+      chainId: 84532,
+      walletConfig,
+      policy: createRuntimePolicy(),
+      agentAddress: walletConfig.regularValidator.signers[0]?.address ?? "",
+      agentPrivateKey:
+        "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      backendAddress: walletConfig.regularValidator.signers[1]?.address ?? "",
+      walletAddress: "0x2222222222222222222222222222222222222222",
+      ownerPublicArtifacts: {
+        credentialId: "credential-id",
+        publicKey: "0x1234",
+      },
+      regularValidatorInitArtifact: {
+        validatorAddress: "0x3333333333333333333333333333333333333333",
+        enableData: "0x1234",
+        pluginEnableSignature: "0x5678",
+      },
+      createdAt: "2026-03-29T12:00:00.000Z",
+      lastKnownStatus: "owner_bound",
+      deployment: {
+        status: "deployed",
+      },
+    });
+    vi.mocked(ensureReadyWalletDeployed).mockResolvedValue({
+      walletAddress: "0x2222222222222222222222222222222222222222",
+      deployed: true,
+      deployedByThisCall: false,
+    });
+    vi.mocked(signReadyWalletTypedData).mockResolvedValue({
+      walletAddress: "0x2222222222222222222222222222222222222222",
+      signature: "0xsignedtypeddata",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          walletMode: PROJECT_WALLET_MODE,
+          walletId: "wal_123",
+          status: "ready",
+          walletConfig,
+          policy: createRuntimePolicy(),
+          agentAddress: walletConfig.regularValidator.signers[0]?.address,
+          backendAddress: walletConfig.regularValidator.signers[1]?.address,
+          ownerPublicArtifacts: {
+            credentialId: "credential-id",
+            publicKey: "0x1234",
+          },
+          regularValidatorInitArtifact: {
+            validatorAddress: "0x3333333333333333333333333333333333333333",
+            enableData: "0x1234",
+            pluginEnableSignature: "0x5678",
+          },
+          counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
+          funding: {
+            status: "verified",
+            minimumRequiredWei: "500000000000000",
+            balanceWei: "700000000000000",
+            checkedAt: "2026-03-29T12:05:00.000Z",
+          },
+          deployment: {
+            status: "deployed",
+          },
+          walletContext: {
+            walletAddress: "0x2222222222222222222222222222222222222222",
+            chainId: 84532,
+            kernelVersion: "3.1",
+            entryPointVersion: "0.7",
+            owner: {
+              credentialId: "credential-id",
+              publicKey: "0x1234",
+            },
+            agentAddress: walletConfig.regularValidator.signers[0]?.address,
+            backendAddress: walletConfig.regularValidator.signers[1]?.address,
+            weightedValidator: walletConfig.regularValidator,
+          },
+          createdAt: "2026-03-29T12:00:00.000Z",
+          updatedAt: "2026-03-29T12:05:00.000Z",
+          expiresAt: "2026-03-30T12:00:00.000Z",
+        }),
+      }),
+    );
+
+    const typedData = buildOfficialUsdcTransferWithAuthorizationTypedData({
+      chainId: 84532,
+      from: "0x2222222222222222222222222222222222222222",
+      to: "0x1111111111111111111111111111111111111111",
+      amountUsdc: "1.25",
+      validAfter: "0",
+      validBefore: "1893456000",
+      nonce:
+        "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    });
+
+    const result = await executeSignTypedData({
+      walletId: "wal_123",
+      typedDataJson: JSON.stringify(typedData),
+    });
+
+    expect(vi.mocked(ensureReadyWalletDeployed)).toHaveBeenCalledWith({
+      localRequest: expect.objectContaining({
+        walletId: "wal_123",
+        lastKnownStatus: "ready",
+      }),
+    });
+    expect(vi.mocked(signReadyWalletTypedData)).toHaveBeenCalledWith({
+      localRequest: expect.objectContaining({
+        walletId: "wal_123",
+        lastKnownStatus: "ready",
+      }),
+      typedData: expect.objectContaining({
+        primaryType: "TransferWithAuthorization",
+      }),
+    });
+    const persistedRequest = await readLocalWalletRequest("wal_123");
+    expect(persistedRequest.lastKnownStatus).toBe("ready");
+    expect(result).toEqual({
+      walletId: "wal_123",
+      walletAddress: "0x2222222222222222222222222222222222222222",
+      typedData,
+      signature: "0xsignedtypeddata",
+    });
+  });
+
   it("builds a spec-aligned x402 PAYMENT-SIGNATURE header through the deployed smart wallet signer", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-03-30T12:00:00.000Z"));

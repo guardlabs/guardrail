@@ -1,5 +1,5 @@
 import cors from "@fastify/cors";
-import Fastify from "fastify";
+import Fastify, { type FastifyServerOptions } from "fastify";
 import { createChainRelayService, type ChainRelayService } from "./chain-relay.js";
 import { readConfig, type AppConfig } from "./config.js";
 import { createPostgresWalletRequestRepository } from "./postgres-repository.js";
@@ -17,10 +17,36 @@ type BuildAppOptions = {
   chainRelayService?: ChainRelayService;
 };
 
+export function buildLoggerOptions(
+  env: NodeJS.ProcessEnv = process.env,
+): FastifyServerOptions["logger"] {
+  const level = env.LOG_LEVEL ?? "info";
+  const shouldUsePrettyLogs =
+    env.NODE_ENV !== "production" && env.NODE_ENV !== "test";
+
+  if (!shouldUsePrettyLogs) {
+    return {
+      level,
+    };
+  }
+
+  return {
+    level,
+    transport: {
+      target: "pino-pretty",
+      options: {
+        colorize: true,
+        ignore: "pid,hostname",
+        translateTime: "SYS:standard",
+      },
+    },
+  };
+}
+
 export function buildApp(options: BuildAppOptions = {}) {
   const config = options.config ?? readConfig();
   const app = Fastify({
-    logger: true,
+    logger: buildLoggerOptions(process.env),
     disableRequestLogging: true,
   });
   const repository = options.repository ?? createPostgresWalletRequestRepository(config.databaseUrl);

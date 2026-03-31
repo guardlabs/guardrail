@@ -10,7 +10,7 @@ import type {
   WalletPolicy,
   WalletRequestStatus,
 } from "@conduit/shared";
-import type { RuntimePolicyState } from "../repository.js";
+import type { RuntimePolicyConsumption, RuntimePolicyState } from "../repository.js";
 
 export const walletsTable = pgTable("wallets", {
   walletId: text("wallet_id").primaryKey(),
@@ -38,3 +38,14 @@ export const walletsTable = pgTable("wallets", {
 });
 
 export type WalletRow = typeof walletsTable.$inferSelect;
+
+export const walletPolicyConsumptionsTable = pgTable("wallet_policy_consumptions", {
+  requestId: text("request_id").primaryKey(),
+  walletId: text("wallet_id").notNull(),
+  asset: text("asset").$type<RuntimePolicyConsumption["asset"]>().notNull(),
+  operation: text("operation").notNull(),
+  amountMinor: text("amount_minor").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+});
+
+export type WalletPolicyConsumptionRow = typeof walletPolicyConsumptionsTable.$inferSelect;

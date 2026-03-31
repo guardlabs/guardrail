@@ -30,6 +30,7 @@ import {
   evaluateDeployWalletPolicy,
   evaluateTypedDataPolicy,
   evaluateUserOperationPolicy,
+  getRuntimePolicyConsumptionWindowStart,
 } from "./runtime-policy.js";
 import type { WalletProvisioningService } from "./wallet.js";
 
@@ -331,6 +332,57 @@ function signBackendUserOperationPayload(input: {
   });
 }
 
+function logInfo(
+  app: FastifyInstance,
+  event: string,
+  message: string,
+  fields: Record<string, unknown>,
+) {
+  app.log.info(
+    {
+      event,
+      ...fields,
+    },
+    message,
+  );
+}
+
+function logDebug(
+  app: FastifyInstance,
+  event: string,
+  message: string,
+  fields: Record<string, unknown>,
+) {
+  app.log.debug(
+    {
+      event,
+      ...fields,
+    },
+    message,
+  );
+}
+
+async function listRelevantUsdcConsumptions(input: {
+  repository: WalletRequestRepository;
+  request: StoredWalletRequest;
+  now: Date;
+}) {
+  const usdcPolicy = input.request.policy.usdcPolicy;
+
+  if (!usdcPolicy) {
+    return [];
+  }
+
+  return input.repository.listRuntimePolicyConsumptionsSince({
+    walletId: input.request.walletId,
+    asset: "usdc",
+    createdAtGte: getRuntimePolicyConsumptionWindowStart(
+      usdcPolicy.period,
+      input.now,
+    ).toISOString(),
+  });
+}
+
 export function registerRoutes(
   app: FastifyInstance,
   repository: WalletRequestRepository,
@@ -374,6 +426,13 @@ export function registerRoutes(
         chainId,
         target,
         payload: request.body,
+      });
+
+      logDebug(app, "chain_relay_forwarded", "Forwarded allowed chain relay request.", {
+        route: target === "rpc" ? "rpc-relay" : "bundler-relay",
+        chainId,
+        target,
+        methods,
       });
 
       return reply.send(payload);
@@ -437,6 +496,14 @@ export function registerRoutes(
       ),
     });
 
+    logInfo(app, "wallet_request_created", "Created wallet provisioning request.", {
+      walletId: nextRequest.walletId,
+      chainId: nextRequest.walletConfig.chainId,
+      status: nextRequest.status,
+      agentAddress: nextRequest.agentAddress,
+      backendAddress: nextRequest.backendAddress,
+    });
+
     return reply.status(201).send(response);
   });
 
@@ -474,6 +541,9 @@ export function registerRoutes(
       });
     }
 
+    const previousStatus = walletRequest.status;
+    const previousFundingStatus = walletRequest.funding.status;
+
     const refreshedWallet = await walletProvisioningService.refreshFunding({
       owner: walletRequest.ownerPublicArtifacts,
       regularValidatorInitArtifact: walletRequest.regularValidatorInitArtifact,
@@ -495,6 +565,25 @@ export function registerRoutes(
     if (!updatedRequest) {
       return reply.status(404).send({
         error: "request_not_found",
+      });
+    }
+
+    logInfo(app, "wallet_funding_refreshed", "Refreshed wallet funding and deployment state.", {
+      walletId: updatedRequest.walletId,
+      previousStatus,
+      status: updatedRequest.status,
+      previousFundingStatus,
+      fundingStatus: updatedRequest.funding.status,
+      deploymentStatus: updatedRequest.deployment.status,
+      walletAddress: updatedRequest.walletContext?.walletAddress ?? updatedRequest.counterfactualWalletAddress,
+    });
+
+    if (updatedRequest.status !== previousStatus) {
+      logInfo(app, "wallet_status_updated", "Wallet status changed after funding refresh.", {
+        walletId: updatedRequest.walletId,
+        previousStatus,
+        status: updatedRequest.status,
+        walletAddress: updatedRequest.walletContext?.walletAddress ?? updatedRequest.counterfactualWalletAddress,
       });
     }
 
@@ -523,20 +612,41 @@ export function registerRoutes(
     });
 
     if (!verification.ok) {
+      logDebug(app, "backend_signer_authorization_denied", "Denied backend typed-data authorization.", {
+        walletId: walletRequest.walletId,
+        route: "backend-sign-typed-data",
+        requestId: parsedRequest.auth.requestId,
+        authError: verification.error,
+      });
       return reply.status(verification.statusCode).send({
         error: verification.error,
         message: verification.message,
       });
     }
 
+    const now = new Date();
+    const recentUsdcConsumptions = await listRelevantUsdcConsumptions({
+      repository,
+      request: walletRequest,
+      now,
+    });
+
     const policyDecision = evaluateTypedDataPolicy({
       request: walletRequest,
+      recentUsdcConsumptions,
       typedData: parsedRequest.typedData,
       signaturePayload: parsedRequest.signaturePayload,
-      now: new Date(),
+      now,
     });
 
     if (!policyDecision.ok) {
+      logDebug(app, "runtime_policy_denied", "Denied typed-data request by runtime policy.", {
+        walletId: walletRequest.walletId,
+        route: "backend-sign-typed-data",
+        requestId: parsedRequest.auth.requestId,
+        method: parsedRequest.auth.method,
+        policyError: policyDecision.error,
+      });
       return reply.status(policyDecision.statusCode).send({
         error: policyDecision.error,
         message: policyDecision.message,
@@ -546,7 +656,7 @@ export function registerRoutes(
     const replay = await repository.recordUsedSigningRequestId({
       walletId: walletRequest.walletId,
       requestId: parsedRequest.auth.requestId,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now.toISOString(),
     });
 
     if (replay === "not_found") {
@@ -556,17 +666,25 @@ export function registerRoutes(
     }
 
     if (replay === "duplicate") {
+      logDebug(app, "backend_signer_request_replayed", "Rejected replayed backend typed-data request.", {
+        walletId: walletRequest.walletId,
+        route: "backend-sign-typed-data",
+        requestId: parsedRequest.auth.requestId,
+      });
       return reply.status(409).send({
         error: "request_replayed",
         message: "This backend signer requestId has already been used.",
       });
     }
 
-    if (policyDecision.runtimePolicyState) {
-      await repository.updateRuntimePolicyState({
+    if (policyDecision.consumption) {
+      await repository.createRuntimePolicyConsumption({
         walletId: walletRequest.walletId,
-        runtimePolicyState: policyDecision.runtimePolicyState,
-        updatedAt: new Date().toISOString(),
+        requestId: parsedRequest.auth.requestId,
+        asset: policyDecision.consumption.asset,
+        operation: policyDecision.consumption.operation,
+        amountMinor: policyDecision.consumption.amountMinor,
+        createdAt: now.toISOString(),
       });
     }
 
@@ -575,6 +693,14 @@ export function registerRoutes(
     const signature = await backendAccount.signTypedData(
       parsedRequest.signaturePayload.typedData as never,
     );
+
+    logInfo(app, "backend_signature_granted", "Granted backend typed-data signature.", {
+      walletId: walletRequest.walletId,
+      route: "backend-sign-typed-data",
+      requestId: parsedRequest.auth.requestId,
+      method: parsedRequest.auth.method,
+      primaryType: parsedRequest.typedData.primaryType,
+    });
 
     return reply.send(
       backendSignResponseSchema.parse({
@@ -606,21 +732,43 @@ export function registerRoutes(
     });
 
     if (!verification.ok) {
+      logDebug(app, "backend_signer_authorization_denied", "Denied backend user-operation authorization.", {
+        walletId: walletRequest.walletId,
+        route: "backend-sign-user-operation",
+        requestId: parsedRequest.auth.requestId,
+        authError: verification.error,
+      });
       return reply.status(verification.statusCode).send({
         error: verification.error,
         message: verification.message,
       });
     }
 
+    const now = new Date();
+    const recentUsdcConsumptions = await listRelevantUsdcConsumptions({
+      repository,
+      request: walletRequest,
+      now,
+    });
+
     const policyDecision = evaluateUserOperationPolicy({
       request: walletRequest,
+      recentUsdcConsumptions,
       operation: parsedRequest.operation,
       userOperation: parsedRequest.userOperation,
       signaturePayload: parsedRequest.signaturePayload,
-      now: new Date(),
+      now,
     });
 
     if (!policyDecision.ok) {
+      logDebug(app, "runtime_policy_denied", "Denied user-operation request by runtime policy.", {
+        walletId: walletRequest.walletId,
+        route: "backend-sign-user-operation",
+        requestId: parsedRequest.auth.requestId,
+        method: parsedRequest.auth.method,
+        policyError: policyDecision.error,
+        contractAddress: parsedRequest.operation.to,
+      });
       return reply.status(policyDecision.statusCode).send({
         error: policyDecision.error,
         message: policyDecision.message,
@@ -630,7 +778,7 @@ export function registerRoutes(
     const replay = await repository.recordUsedSigningRequestId({
       walletId: walletRequest.walletId,
       requestId: parsedRequest.auth.requestId,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now.toISOString(),
     });
 
     if (replay === "not_found") {
@@ -640,23 +788,39 @@ export function registerRoutes(
     }
 
     if (replay === "duplicate") {
+      logDebug(app, "backend_signer_request_replayed", "Rejected replayed backend user-operation request.", {
+        walletId: walletRequest.walletId,
+        route: "backend-sign-user-operation",
+        requestId: parsedRequest.auth.requestId,
+      });
       return reply.status(409).send({
         error: "request_replayed",
         message: "This backend signer requestId has already been used.",
       });
     }
 
-    if (policyDecision.runtimePolicyState) {
-      await repository.updateRuntimePolicyState({
+    if (policyDecision.consumption) {
+      await repository.createRuntimePolicyConsumption({
         walletId: walletRequest.walletId,
-        runtimePolicyState: policyDecision.runtimePolicyState,
-        updatedAt: new Date().toISOString(),
+        requestId: parsedRequest.auth.requestId,
+        asset: policyDecision.consumption.asset,
+        operation: policyDecision.consumption.operation,
+        amountMinor: policyDecision.consumption.amountMinor,
+        createdAt: now.toISOString(),
       });
     }
 
     const signature = await signBackendUserOperationPayload({
       backendPrivateKey: walletRequest.backendPrivateKey as Hex,
       signaturePayload: parsedRequest.signaturePayload,
+    });
+
+    logInfo(app, "backend_signature_granted", "Granted backend user-operation signature.", {
+      walletId: walletRequest.walletId,
+      route: "backend-sign-user-operation",
+      requestId: parsedRequest.auth.requestId,
+      method: parsedRequest.auth.method,
+      contractAddress: parsedRequest.operation.to,
     });
 
     return reply.send(
@@ -688,6 +852,12 @@ export function registerRoutes(
     });
 
     if (!verification.ok) {
+      logDebug(app, "backend_signer_authorization_denied", "Denied backend deploy authorization.", {
+        walletId: walletRequest.walletId,
+        route: "backend-deploy-wallet",
+        requestId: parsedRequest.auth.requestId,
+        authError: verification.error,
+      });
       return reply.status(verification.statusCode).send({
         error: verification.error,
         message: verification.message,
@@ -701,6 +871,13 @@ export function registerRoutes(
     });
 
     if (!policyDecision.ok) {
+      logDebug(app, "runtime_policy_denied", "Denied wallet deploy request by runtime policy.", {
+        walletId: walletRequest.walletId,
+        route: "backend-deploy-wallet",
+        requestId: parsedRequest.auth.requestId,
+        method: parsedRequest.auth.method,
+        policyError: policyDecision.error,
+      });
       return reply.status(policyDecision.statusCode).send({
         error: policyDecision.error,
         message: policyDecision.message,
@@ -720,6 +897,11 @@ export function registerRoutes(
     }
 
     if (replay === "duplicate") {
+      logDebug(app, "backend_signer_request_replayed", "Rejected replayed backend deploy request.", {
+        walletId: walletRequest.walletId,
+        route: "backend-deploy-wallet",
+        requestId: parsedRequest.auth.requestId,
+      });
       return reply.status(409).send({
         error: "request_replayed",
         message: "This backend signer requestId has already been used.",
@@ -729,6 +911,13 @@ export function registerRoutes(
     const signature = await signBackendUserOperationPayload({
       backendPrivateKey: walletRequest.backendPrivateKey as Hex,
       signaturePayload: parsedRequest.signaturePayload,
+    });
+
+    logInfo(app, "backend_signature_granted", "Granted backend deploy signature.", {
+      walletId: walletRequest.walletId,
+      route: "backend-deploy-wallet",
+      requestId: parsedRequest.auth.requestId,
+      method: parsedRequest.auth.method,
     });
 
     return reply.send(
@@ -848,6 +1037,22 @@ export function registerRoutes(
     if (!updatedRequest) {
       return reply.status(404).send({
         error: "request_not_found",
+      });
+    }
+
+    logInfo(app, "owner_artifacts_published", "Published owner artifacts for wallet provisioning.", {
+      walletId: updatedRequest.walletId,
+      status: updatedRequest.status,
+      previousStatus: existingRequest.status,
+      walletAddress: updatedRequest.walletContext?.walletAddress ?? updatedRequest.counterfactualWalletAddress,
+    });
+
+    if (updatedRequest.status !== existingRequest.status) {
+      logInfo(app, "wallet_status_updated", "Wallet status changed after owner binding.", {
+        walletId: updatedRequest.walletId,
+        previousStatus: existingRequest.status,
+        status: updatedRequest.status,
+        walletAddress: updatedRequest.walletContext?.walletAddress ?? updatedRequest.counterfactualWalletAddress,
       });
     }
 

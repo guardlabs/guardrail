@@ -1,4 +1,5 @@
 drop table if exists wallet_requests;
+drop table if exists wallet_policy_consumptions;
 drop table if exists wallets;
 
 create table wallets (
@@ -29,3 +30,15 @@ create table wallets (
 create index wallets_status_idx on wallets (status);
 create index wallets_created_at_idx on wallets (created_at);
 create index wallets_expires_at_idx on wallets (expires_at);
+
+create table wallet_policy_consumptions (
+  request_id text primary key,
+  wallet_id text not null references wallets (wallet_id) on delete cascade,
+  asset text not null,
+  operation text not null,
+  amount_minor text not null,
+  created_at timestamptz not null
+);
+
+create index wallet_policy_consumptions_wallet_asset_created_idx
+  on wallet_policy_consumptions (wallet_id, asset, created_at);

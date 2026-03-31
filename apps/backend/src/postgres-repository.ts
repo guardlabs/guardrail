@@ -1,8 +1,17 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, gte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { walletsTable, type WalletRow } from "./db/schema.js";
-import type { StoredWalletRequest, WalletRequestRepository } from "./repository.js";
+import {
+  walletPolicyConsumptionsTable,
+  walletsTable,
+  type WalletPolicyConsumptionRow,
+  type WalletRow,
+} from "./db/schema.js";
+import type {
+  RuntimePolicyConsumption,
+  StoredWalletRequest,
+  WalletRequestRepository,
+} from "./repository.js";
 
 function serialize(row: WalletRow): StoredWalletRequest {
   return {
@@ -28,6 +37,19 @@ function serialize(row: WalletRow): StoredWalletRequest {
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     expiresAt: row.expiresAt.toISOString(),
+  };
+}
+
+function serializeConsumption(
+  row: WalletPolicyConsumptionRow,
+): RuntimePolicyConsumption {
+  return {
+    requestId: row.requestId,
+    walletId: row.walletId,
+    asset: row.asset,
+    operation: row.operation,
+    amountMinor: row.amountMinor,
+    createdAt: row.createdAt.toISOString(),
   };
 }
 
@@ -183,6 +205,32 @@ export function createPostgresWalletRequestRepository(
 
       const row = rows[0];
       return row ? serialize(row) : null;
+    },
+
+    async listRuntimePolicyConsumptionsSince({ walletId, asset, createdAtGte }) {
+      const rows = await db
+        .select()
+        .from(walletPolicyConsumptionsTable)
+        .where(
+          and(
+            eq(walletPolicyConsumptionsTable.walletId, walletId),
+            eq(walletPolicyConsumptionsTable.asset, asset),
+            gte(walletPolicyConsumptionsTable.createdAt, new Date(createdAtGte)),
+          ),
+        );
+
+      return rows.map(serializeConsumption);
+    },
+
+    async createRuntimePolicyConsumption(input) {
+      await db.insert(walletPolicyConsumptionsTable).values({
+        requestId: input.requestId,
+        walletId: input.walletId,
+        asset: input.asset,
+        operation: input.operation,
+        amountMinor: input.amountMinor,
+        createdAt: new Date(input.createdAt),
+      });
     },
   };
 }

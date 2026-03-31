@@ -171,6 +171,22 @@ Consumption rules:
 
 There is no budget refund in V1.
 
+### Sliding Window Semantics
+
+The budget period uses exact rolling windows rather than fixed UTC calendar windows.
+
+That means:
+
+- `daily` means the trailing last `24 hours`
+- `weekly` means the trailing last `7 days`
+- `monthly` means the trailing last `30 days`
+
+Examples:
+
+- a `daily` authorization granted at `2026-03-31T15:12:00Z` stops counting at `2026-04-01T15:12:00Z`
+- a `weekly` authorization stops counting exactly `7 days` later
+- there is no reset at UTC midnight, Monday midnight, or the first of the month
+
 ## API Design
 
 ### Remove The Blind Signer Route
@@ -327,13 +343,14 @@ The frontend is not the policy enforcement point. It is a human confirmation sur
 
 The wallet request now stores an immutable policy object as part of the request lifecycle.
 
-The backend must also persist budget consumption state per wallet so it can decide whether another USDC authorization fits in the configured time window.
+The backend must also persist budget consumption events per wallet so it can decide whether another USDC authorization fits in the configured rolling window.
 
 V1 should store enough data to answer:
 
 - what policy was configured
-- how much of the current window has been consumed
-- when the current budget window starts
+- which budget-consuming authorizations have been granted
+- how much each authorization consumed
+- which of those authorizations still fall inside the active rolling interval
 
 The backend is the source of truth for that state.
 

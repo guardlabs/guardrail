@@ -209,6 +209,7 @@ describe("runtime policy", () => {
 
     const decision = evaluateUserOperationPolicy({
       request,
+      recentUsdcConsumptions: [],
       operation,
       userOperation,
       signaturePayload: {
@@ -253,6 +254,7 @@ describe("runtime policy", () => {
 
     const decision = evaluateUserOperationPolicy({
       request,
+      recentUsdcConsumptions: [],
       operation,
       userOperation,
       signaturePayload: {
@@ -300,6 +302,7 @@ describe("runtime policy", () => {
     };
     const firstDecision = evaluateTypedDataPolicy({
       request,
+      recentUsdcConsumptions: [],
       typedData: firstTypedData,
       signaturePayload: buildKernelWrappedTypedData({
         walletAddress: request.walletContext!.walletAddress as `0x${string}`,
@@ -310,10 +313,10 @@ describe("runtime policy", () => {
 
     expect(firstDecision).toMatchObject({
       ok: true,
-      runtimePolicyState: {
-        usdc: {
-          consumedAmountMinor: "1000000",
-        },
+      consumption: {
+        asset: "usdc",
+        operation: "permit",
+        amountMinor: "1000000",
       },
     });
 
@@ -346,11 +349,19 @@ describe("runtime policy", () => {
       },
     };
     const secondDecision = evaluateTypedDataPolicy({
-      request: buildStoredWalletRequest({
-        runtimePolicyState: firstDecision.ok
-          ? firstDecision.runtimePolicyState!
-          : createInitialRuntimePolicyState(),
-      }),
+      request: buildStoredWalletRequest(),
+      recentUsdcConsumptions: firstDecision.ok && firstDecision.consumption
+        ? [
+            {
+              walletId: "wal_123",
+              requestId: "req_1",
+              asset: "usdc",
+              operation: firstDecision.consumption.operation,
+              amountMinor: firstDecision.consumption.amountMinor,
+              createdAt: "2026-03-31T10:00:00.000Z",
+            },
+          ]
+        : [],
       typedData: secondTypedData,
       signaturePayload: buildKernelWrappedTypedData({
         walletAddress: request.walletContext!.walletAddress as `0x${string}`,
@@ -362,6 +373,72 @@ describe("runtime policy", () => {
     expect(secondDecision).toMatchObject({
       ok: false,
       error: "usdc_budget_exceeded",
+    });
+  });
+
+  it("drops USDC consumption exactly when it leaves the 24h sliding window", () => {
+    const request = buildStoredWalletRequest({
+      policy: {
+        ...buildStoredWalletRequest().policy,
+        usdcPolicy: {
+          period: "daily",
+          maxAmountMinor: "1500000",
+          allowedOperations: ["permit"],
+        },
+      },
+    });
+    const typedData = {
+      domain: {
+        name: "USDC",
+        version: "2",
+        chainId: 84532,
+        verifyingContract: "0x036cbd53842c5426634e7929541ec2318f3dcf7e",
+      },
+      primaryType: "Permit",
+      types: {
+        Permit: [
+          { name: "owner", type: "address" },
+          { name: "spender", type: "address" },
+          { name: "value", type: "uint256" },
+          { name: "nonce", type: "uint256" },
+          { name: "deadline", type: "uint256" },
+        ],
+      },
+      message: {
+        owner: request.walletContext!.walletAddress,
+        spender: "0x3333333333333333333333333333333333333333",
+        value: "1000000",
+        nonce: "0",
+        deadline: "1893456000",
+      },
+    };
+
+    const decision = evaluateTypedDataPolicy({
+      request,
+      recentUsdcConsumptions: [
+        {
+          walletId: "wal_123",
+          requestId: "req_old",
+          asset: "usdc",
+          operation: "permit",
+          amountMinor: "1000000",
+          createdAt: "2026-03-30T09:59:59.000Z",
+        },
+      ],
+      typedData,
+      signaturePayload: buildKernelWrappedTypedData({
+        walletAddress: request.walletContext!.walletAddress as `0x${string}`,
+        typedData,
+      }),
+      now: new Date("2026-03-31T10:00:00.000Z"),
+    });
+
+    expect(decision).toMatchObject({
+      ok: true,
+      consumption: {
+        operation: "permit",
+        amountMinor: "1000000",
+      },
     });
   });
 });

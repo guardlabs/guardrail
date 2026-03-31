@@ -238,7 +238,31 @@ async function getWalletPersistenceState(databaseUrl: string, walletId: string) 
       throw new Error(`Expected one persisted wallet row for ${walletId}.`);
     }
 
-    return query.rows[0];
+    const consumptionsQuery = await pool.query<{
+      request_id: string;
+      asset: string;
+      operation: string;
+      amount_minor: string;
+      created_at: string;
+    }>(
+      `
+        select
+          request_id,
+          asset,
+          operation,
+          amount_minor,
+          created_at::text
+        from wallet_policy_consumptions
+        where wallet_id = $1
+        order by created_at asc
+      `,
+      [walletId],
+    );
+
+    return {
+      ...query.rows[0],
+      runtime_policy_consumptions: consumptionsQuery.rows,
+    };
   } finally {
     await pool.end();
   }
@@ -683,9 +707,13 @@ describe("headless provisioning e2e", () => {
 
         const persistedAfterX402 = await getWalletPersistenceState(databaseUrl, walletId);
 
-        expect(persistedAfterX402.runtime_policy_state.usdc).toMatchObject({
-          consumedAmountMinor: x402Server.paymentAmount.toString(),
-        });
+        expect(persistedAfterX402.runtime_policy_consumptions).toEqual([
+          expect.objectContaining({
+            asset: "usdc",
+            operation: "transferWithAuthorization",
+            amount_minor: x402Server.paymentAmount.toString(),
+          }),
+        ]);
 
         const merchantUsdcBeforeDeniedX402 = merchantUsdcAfter;
         const payerUsdcBeforeDeniedX402 = payerUsdcAfter;
@@ -712,9 +740,13 @@ describe("headless provisioning e2e", () => {
         expect(merchantUsdcAfterDeniedX402).toBe(merchantUsdcBeforeDeniedX402);
         expect(payerUsdcAfterDeniedX402).toBe(payerUsdcBeforeDeniedX402);
         expect(x402Server.settlements).toHaveLength(1);
-        expect(persistedAfterDeniedX402.runtime_policy_state.usdc).toMatchObject({
-          consumedAmountMinor: x402Server.paymentAmount.toString(),
-        });
+        expect(persistedAfterDeniedX402.runtime_policy_consumptions).toEqual([
+          expect.objectContaining({
+            asset: "usdc",
+            operation: "transferWithAuthorization",
+            amount_minor: x402Server.paymentAmount.toString(),
+          }),
+        ]);
       } finally {
         await x402Server?.stop();
         await backendProcess.stop();

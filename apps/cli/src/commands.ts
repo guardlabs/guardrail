@@ -571,6 +571,35 @@ async function persistWalletProgress(walletId: string, current: WalletRequest) {
   });
 }
 
+async function loadReadyRuntimeLocalRequest(options: {
+  walletId: string;
+  backendUrl?: string;
+}) {
+  let localRequest = await readLocalWalletRequest(options.walletId);
+  let current = await executeStatus({
+    walletId: options.walletId,
+    backendUrl: options.backendUrl ?? localRequest.backendBaseUrl,
+  });
+
+  await persistWalletProgress(options.walletId, current);
+
+  if (current.status === "owner_bound") {
+    current = await executeRefreshFunding({
+      walletId: options.walletId,
+      backendUrl: options.backendUrl ?? localRequest.backendBaseUrl,
+    });
+    await persistWalletProgress(options.walletId, current);
+  }
+
+  if (current.status !== "ready") {
+    throw new Error(`Wallet ${options.walletId} is not ready for runtime operations.`);
+  }
+
+  localRequest = await readLocalWalletRequest(options.walletId);
+
+  return localRequest;
+}
+
 export async function executeAwait(options: {
   walletId: string;
   intervalMs: number;
@@ -651,7 +680,9 @@ export async function executeCall(options: {
   data: string;
   valueWei: string;
 }) {
-  const localRequest = await readLocalWalletRequest(options.walletId);
+  const localRequest = await loadReadyRuntimeLocalRequest({
+    walletId: options.walletId,
+  });
   const to = evmAddressSchema.parse(options.to);
   const data = hexStringSchema.parse(options.data) as `0x${string}`;
   const valueWei = options.valueWei.trim();
@@ -697,7 +728,9 @@ export async function executeSignTypedData(options: {
   typedDataJson?: string;
   typedDataFile?: string;
 }) {
-  let localRequest = await readLocalWalletRequest(options.walletId);
+  let localRequest = await loadReadyRuntimeLocalRequest({
+    walletId: options.walletId,
+  });
 
   if (!options.typedDataJson && !options.typedDataFile) {
     throw new Error("Provide either typedDataJson or typedDataFile.");
@@ -732,7 +765,9 @@ export async function executeX402Sign(options: {
   walletId: string;
   paymentRequiredHeader: string;
 }) {
-  let localRequest = await readLocalWalletRequest(options.walletId);
+  let localRequest = await loadReadyRuntimeLocalRequest({
+    walletId: options.walletId,
+  });
   const paymentRequired = x402PaymentRequiredSchema.parse(
     decodeBase64Json(options.paymentRequiredHeader),
   );

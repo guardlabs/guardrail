@@ -46,7 +46,7 @@ Add:
 
 Persist:
 - immutable policy object
-- USDC budget accounting state needed for the current time window
+- a per-wallet ledger of USDC budget consumption events with timestamps and consumed amounts
 
 - [ ] **Step 5: Run shared and backend typechecks**
 
@@ -209,14 +209,19 @@ Add helpers for:
 
 - [ ] **Step 4: Implement budget window logic**
 
-Track the current budget window and consumed amount for:
+Compute rolling consumption totals for:
 - `daily`
 - `weekly`
 - `monthly`
 
+using exact trailing intervals of:
+- `24 hours`
+- `7 days`
+- `30 days`
+
 - [ ] **Step 5: Wire policy enforcement into the new signing routes**
 
-Enforce policy before backend signing and update persisted consumption state only on successful approval.
+Enforce policy before backend signing and append a persisted consumption event only on successful approval.
 
 - [ ] **Step 6: Run backend tests to verify pass**
 

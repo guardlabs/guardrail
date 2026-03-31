@@ -13,6 +13,15 @@ export type RuntimePolicyState = {
   } | null;
 };
 
+export type RuntimePolicyConsumption = {
+  walletId: string;
+  asset: "usdc";
+  operation: string;
+  amountMinor: string;
+  requestId: string;
+  createdAt: string;
+};
+
 export type StoredWalletRequest = WalletRequest & {
   provisioningTokenHash: string;
   backendPrivateKey: string;
@@ -57,6 +66,12 @@ export type WalletRequestRepository = {
     runtimePolicyState: RuntimePolicyState;
     updatedAt: string;
   }): Promise<StoredWalletRequest | null>;
+  listRuntimePolicyConsumptionsSince(input: {
+    walletId: string;
+    asset: RuntimePolicyConsumption["asset"];
+    createdAtGte: string;
+  }): Promise<RuntimePolicyConsumption[]>;
+  createRuntimePolicyConsumption(input: RuntimePolicyConsumption): Promise<void>;
 };
 
 export function toPublicWalletRequest(request: StoredWalletRequest): WalletRequest {
