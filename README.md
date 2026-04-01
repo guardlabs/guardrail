@@ -112,7 +112,7 @@ Useful local URLs:
 
 For the full local flow, required environment variables, and testing commands, see [Local development](docs/local-development.md).
 
-Before starting the backend, fill the per-chain RPC and bundler variables in `.env.local`. The backend now fails fast if those supported-chain runtime URLs are missing.
+Before starting the backend, fill the per-chain RPC and bundler variables in `.env.local`. The backend only requires URLs for chains listed in `CONDUIT_SUPPORTED_CHAIN_IDS`, and it fails fast if any enabled chain is missing its runtime URLs.
 
 Coverage across the workspace test suites is available with:
 

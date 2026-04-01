@@ -41,9 +41,9 @@ docker compose up -d postgres
 pnpm db:migrate
 ```
 
-`pnpm db:migrate` now applies the checked-in Drizzle migrations. The backend fails fast on startup if a supported chain is missing its RPC or bundler URL.
+`pnpm db:migrate` now applies the checked-in Drizzle migrations. The backend only requires RPC and bundler URLs for chains listed in `CONDUIT_SUPPORTED_CHAIN_IDS`, and it fails fast on startup if any enabled chain is missing one.
 
-For local Sepolia-only development, keeping `CONDUIT_SUPPORTED_CHAIN_IDS=84532` is fine. Add `8453` and the matching Base Mainnet URLs when you want the backend to expose both chains.
+For local Sepolia-only development, keeping `CONDUIT_SUPPORTED_CHAIN_IDS=84532` is fine, and the backend does not need the `8453` URLs to boot. Add `8453` and the matching Base Mainnet URLs only when you want the backend to expose both chains.
 
 Start the workspace:
 
