@@ -162,7 +162,9 @@ export async function pollUntil<T>(
   const details =
     lastError instanceof Error ? ` Last error: ${lastError.message}` : "";
 
-  throw new Error(`Timed out while waiting for ${input.description}.${details}`);
+  throw new Error(
+    `Timed out while waiting for ${input.description}.${details}`,
+  );
 }
 
 export async function waitForHttpOk(

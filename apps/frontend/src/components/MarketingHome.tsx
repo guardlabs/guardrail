@@ -11,15 +11,18 @@ export function MarketingHome() {
     <div className="cw-home-hero">
       <div className="cw-brand-row">
         <p className="cw-eyebrow">Conduit Wallet</p>
-        <span className="cw-hero-chip">Secure wallet rails for autonomous agents</span>
+        <span className="cw-hero-chip">
+          Secure wallet rails for autonomous agents
+        </span>
       </div>
 
       <div className="cw-home-hero-grid">
         <div className="cw-home-copy">
           <h1>Secure wallet rails for autonomous agents</h1>
           <p className="cw-lede">
-            Conduit Wallet lets agents use onchain wallets without shipping a hot
-            key. The human stays the owner, and the runtime path stays policy-gated.
+            Conduit Wallet lets agents use onchain wallets without shipping a
+            hot key. The human stays the owner, and the runtime path stays
+            policy-gated.
           </p>
 
           <div className="cw-home-actions">
@@ -50,7 +53,8 @@ export function MarketingHome() {
             ))}
           </ul>
           <p className="cw-home-note">
-            Start with the GitHub docs for installation, policy examples, and the CLI flow.
+            Start with the GitHub docs for installation, policy examples, and
+            the CLI flow.
           </p>
         </div>
       </div>
@@ -82,11 +86,15 @@ export function MarketingHome() {
         <ul className="cw-home-flow">
           <li>The human remains the durable wallet owner through a passkey.</li>
           <li>The agent can request runtime actions autonomously.</li>
-          <li>The Conduit backend co-signs only what the policy explicitly allows.</li>
+          <li>
+            The Conduit backend co-signs only what the policy explicitly allows.
+          </li>
         </ul>
       </div>
     </section>
   );
 
-  return <ProvisioningLayout hero={hero} primary={primary} variant="marketing" />;
+  return (
+    <ProvisioningLayout hero={hero} primary={primary} variant="marketing" />
+  );
 }

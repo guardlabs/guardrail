@@ -4,13 +4,19 @@ import {
   type RegularValidatorInitArtifact,
   type WalletConfig,
 } from "@conduit/shared";
-import { createKernelAccount, toKernelPluginManager } from "@zerodev/sdk/accounts";
+import {
+  createKernelAccount,
+  toKernelPluginManager,
+} from "@zerodev/sdk/accounts";
 import { createKernelAccountClient } from "@zerodev/sdk";
 import { getEntryPoint, KERNEL_V3_1 } from "@zerodev/sdk/constants";
 import { createWeightedECDSAValidator } from "@zerodev/weighted-ecdsa-validator";
-import type { Address, Chain, Client, Hex, LocalAccount } from "viem";
+import type { Address, Chain, Client, Hex } from "viem";
 import { createPublicClient, encodeAbiParameters, http } from "viem";
-import { prepareUserOperation, toPackedUserOperation } from "viem/account-abstraction";
+import {
+  prepareUserOperation,
+  toPackedUserOperation,
+} from "viem/account-abstraction";
 import { estimateFeesPerGas } from "viem/actions";
 import { privateKeyToAccount, toAccount } from "viem/accounts";
 import { createBackendRemoteSigner } from "./backend-remote-signer.js";
@@ -34,13 +40,19 @@ function createProvisioningOnlySigner(address: Address) {
   return toAccount({
     address,
     async signMessage() {
-      throw new Error("Provisioning-only weighted signer cannot sign messages.");
+      throw new Error(
+        "Provisioning-only weighted signer cannot sign messages.",
+      );
     },
     async signTransaction() {
-      throw new Error("Provisioning-only weighted signer cannot sign transactions.");
+      throw new Error(
+        "Provisioning-only weighted signer cannot sign transactions.",
+      );
     },
     async signTypedData() {
-      throw new Error("Provisioning-only weighted signer cannot sign typed data.");
+      throw new Error(
+        "Provisioning-only weighted signer cannot sign typed data.",
+      );
     },
   });
 }
@@ -49,7 +61,9 @@ function decodeOwnerPublicKey(owner: OwnerPublicArtifacts) {
   const normalized = owner.publicKey.slice(2);
 
   if (normalized.length !== 64 * 3) {
-    throw new Error("Owner public key is not a supported encoded WebAuthn public key.");
+    throw new Error(
+      "Owner public key is not a supported encoded WebAuthn public key.",
+    );
   }
 
   return {
@@ -82,13 +96,17 @@ export function createStaticPasskeyValidator(input: {
   const account = toAccount({
     address: input.walletConfig.sudoValidator.address as Address,
     async signMessage() {
-      throw new Error("Static passkey validator cannot sign messages at runtime.");
+      throw new Error(
+        "Static passkey validator cannot sign messages at runtime.",
+      );
     },
     async signTransaction() {
       throw new Error("Static passkey validator cannot sign transactions.");
     },
     async signTypedData() {
-      throw new Error("Static passkey validator cannot sign typed data at runtime.");
+      throw new Error(
+        "Static passkey validator cannot sign typed data at runtime.",
+      );
     },
   });
 
@@ -129,10 +147,14 @@ export function createStaticPasskeyValidator(input: {
       return customNonceKey ?? 0n;
     },
     async getStubSignature() {
-      throw new Error("Static passkey validator does not produce runtime stub signatures.");
+      throw new Error(
+        "Static passkey validator does not produce runtime stub signatures.",
+      );
     },
     async signUserOperation() {
-      throw new Error("Static passkey validator does not sign user operations at runtime.");
+      throw new Error(
+        "Static passkey validator does not sign user operations at runtime.",
+      );
     },
     async isEnabled() {
       return false;
@@ -153,16 +175,14 @@ async function createRuntimeKernelPluginManager(
     agentPrivateKey: Hex;
   },
 ) {
-  const { backendRemoteSigner, weightedValidator } = await createRuntimeWeightedValidator(
-    client,
-    {
+  const { backendRemoteSigner, weightedValidator } =
+    await createRuntimeWeightedValidator(client, {
       walletId: input.walletId,
       walletAddress: input.walletAddress,
       walletConfig: input.walletConfig,
       backendBaseUrl: input.backendBaseUrl,
       agentPrivateKey: input.agentPrivateKey,
-    },
-  );
+    });
 
   if (!input.ownerPublicArtifacts || !input.regularValidatorInitArtifact) {
     return {
@@ -176,20 +196,26 @@ async function createRuntimeKernelPluginManager(
     };
   }
 
-  const expectedEnableData = await weightedValidator.getEnableData(input.walletAddress);
+  const expectedEnableData = await weightedValidator.getEnableData(
+    input.walletAddress,
+  );
 
   if (
     weightedValidator.address.toLowerCase() !==
     input.regularValidatorInitArtifact.validatorAddress.toLowerCase()
   ) {
-    throw new Error("Stored weighted validator address does not match the runtime validator.");
+    throw new Error(
+      "Stored weighted validator address does not match the runtime validator.",
+    );
   }
 
   if (
     expectedEnableData.toLowerCase() !==
     input.regularValidatorInitArtifact.enableData.toLowerCase()
   ) {
-    throw new Error("Stored weighted validator enable data does not match the runtime config.");
+    throw new Error(
+      "Stored weighted validator enable data does not match the runtime config.",
+    );
   }
 
   return {
@@ -200,8 +226,8 @@ async function createRuntimeKernelPluginManager(
         owner: input.ownerPublicArtifacts,
       }),
       regular: weightedValidator,
-      pluginEnableSignature:
-        input.regularValidatorInitArtifact.pluginEnableSignature as Hex,
+      pluginEnableSignature: input.regularValidatorInitArtifact
+        .pluginEnableSignature as Hex,
       entryPoint: getEntryPoint("0.7"),
       kernelVersion: KERNEL_V3_1,
       chainId: input.chain.id,
@@ -239,16 +265,24 @@ export async function createRuntimeWeightedValidator(
   const expectedAgentSigner = input.walletConfig.regularValidator.signers.find(
     (signer) => signer.role === "agent",
   );
-  const expectedBackendSigner = input.walletConfig.regularValidator.signers.find(
-    (signer) => signer.role === "backend",
-  );
+  const expectedBackendSigner =
+    input.walletConfig.regularValidator.signers.find(
+      (signer) => signer.role === "backend",
+    );
 
   if (!expectedAgentSigner || !expectedBackendSigner) {
-    throw new Error("Weighted validator config must include agent and backend signers.");
+    throw new Error(
+      "Weighted validator config must include agent and backend signers.",
+    );
   }
 
-  if (agentSigner.address.toLowerCase() !== expectedAgentSigner.address.toLowerCase()) {
-    throw new Error("Agent private key does not match the wallet weighted validator config.");
+  if (
+    agentSigner.address.toLowerCase() !==
+    expectedAgentSigner.address.toLowerCase()
+  ) {
+    throw new Error(
+      "Agent private key does not match the wallet weighted validator config.",
+    );
   }
 
   const backendRemoteSigner = createBackendRemoteSigner({
@@ -329,16 +363,22 @@ export async function createWeightedKernelRuntime(input: {
 
           if (clientAccount?.authorization) {
             const authorization =
-              args.authorization ?? (await clientAccount.eip7702Authorization?.());
+              args.authorization ??
+              (await clientAccount.eip7702Authorization?.());
             normalizedArgs = {
               ...args,
               authorization,
             };
           }
 
-          const userOperation = await prepareUserOperation(client, normalizedArgs);
+          const userOperation = await prepareUserOperation(
+            client,
+            normalizedArgs,
+          );
           backendRemoteSigner.attachPreparedUserOperation(
-            normalizePackedUserOperation(toPackedUserOperation(userOperation as never)),
+            normalizePackedUserOperation(
+              toPackedUserOperation(userOperation as never),
+            ),
           );
           return userOperation;
         },

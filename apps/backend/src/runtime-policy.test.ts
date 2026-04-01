@@ -44,7 +44,13 @@ function buildStoredWalletRequest(
       usdcPolicy: {
         period: "daily",
         maxAmountMinor: "1500000",
-        allowedOperations: ["transfer", "approve", "increaseAllowance", "permit", "transferWithAuthorization"],
+        allowedOperations: [
+          "transfer",
+          "approve",
+          "increaseAllowance",
+          "permit",
+          "transferWithAuthorization",
+        ],
       },
     },
     agentAddress: walletConfig.regularValidator.signers[0]!.address,
@@ -97,9 +103,9 @@ function buildKernelSingleCallData(input: {
   value: bigint;
   data: `0x${string}`;
 }) {
-  const executionCalldata = (`0x${input.to.slice(2)}${input.value
+  const executionCalldata = `0x${input.to.slice(2)}${input.value
     .toString(16)
-    .padStart(64, "0")}${input.data.slice(2)}` || "0x") as Hex;
+    .padStart(64, "0")}${input.data.slice(2)}` as Hex;
 
   return encodeFunctionData({
     abi: kernelExecuteAbi,
@@ -350,18 +356,19 @@ describe("runtime policy", () => {
     };
     const secondDecision = evaluateTypedDataPolicy({
       request: buildStoredWalletRequest(),
-      recentUsdcConsumptions: firstDecision.ok && firstDecision.consumption
-        ? [
-            {
-              walletId: "wal_123",
-              requestId: "req_1",
-              asset: "usdc",
-              operation: firstDecision.consumption.operation,
-              amountMinor: firstDecision.consumption.amountMinor,
-              createdAt: "2026-03-31T10:00:00.000Z",
-            },
-          ]
-        : [],
+      recentUsdcConsumptions:
+        firstDecision.ok && firstDecision.consumption
+          ? [
+              {
+                walletId: "wal_123",
+                requestId: "req_1",
+                asset: "usdc",
+                operation: firstDecision.consumption.operation,
+                amountMinor: firstDecision.consumption.amountMinor,
+                createdAt: "2026-03-31T10:00:00.000Z",
+              },
+            ]
+          : [],
       typedData: secondTypedData,
       signaturePayload: buildKernelWrappedTypedData({
         walletAddress: request.walletContext!.walletAddress as `0x${string}`,

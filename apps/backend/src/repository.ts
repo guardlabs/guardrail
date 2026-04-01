@@ -1,7 +1,6 @@
 import type {
   OwnerPublicArtifacts,
   RegularValidatorInitArtifact,
-  WalletConfig,
   WalletContext,
   WalletRequest,
 } from "@conduit/shared";
@@ -71,10 +70,14 @@ export type WalletRequestRepository = {
     asset: RuntimePolicyConsumption["asset"];
     createdAtGte: string;
   }): Promise<RuntimePolicyConsumption[]>;
-  createRuntimePolicyConsumption(input: RuntimePolicyConsumption): Promise<void>;
+  createRuntimePolicyConsumption(
+    input: RuntimePolicyConsumption,
+  ): Promise<void>;
 };
 
-export function toPublicWalletRequest(request: StoredWalletRequest): WalletRequest {
+export function toPublicWalletRequest(
+  request: StoredWalletRequest,
+): WalletRequest {
   const {
     provisioningTokenHash: _tokenHash,
     backendPrivateKey: _backendPrivateKey,

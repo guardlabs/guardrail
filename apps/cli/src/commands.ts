@@ -35,7 +35,10 @@ import {
   hydrateReadyWalletRequest,
   signReadyWalletTypedData,
 } from "./kernel.js";
-import { readLocalWalletRequest, saveLocalWalletRequest } from "./local-store.js";
+import {
+  readLocalWalletRequest,
+  saveLocalWalletRequest,
+} from "./local-store.js";
 
 const DEFAULT_AWAIT_INTERVAL_MS = 5000;
 const OFFICIAL_USDC_EIP712_DOMAIN_NAME = "USDC";
@@ -136,7 +139,9 @@ function splitMethodList(value: string) {
 
     if (character === ")") {
       if (depth === 0) {
-        throw new Error(`Invalid method list "${value}". Parentheses are unbalanced.`);
+        throw new Error(
+          `Invalid method list "${value}". Parentheses are unbalanced.`,
+        );
       }
 
       depth -= 1;
@@ -159,7 +164,9 @@ function splitMethodList(value: string) {
   }
 
   if (depth !== 0) {
-    throw new Error(`Invalid method list "${value}". Parentheses are unbalanced.`);
+    throw new Error(
+      `Invalid method list "${value}". Parentheses are unbalanced.`,
+    );
   }
 
   const normalized = current.trim();
@@ -216,34 +223,40 @@ function buildCreateWalletPolicy(input: {
         const rawMethods = splitMethodList(entry.slice(separatorIndex + 1));
 
         if (rawMethods.length === 0) {
-          throw new Error(`Invalid --allow-call value "${entry}". No methods were provided.`);
+          throw new Error(
+            `Invalid --allow-call value "${entry}". No methods were provided.`,
+          );
         }
 
         return {
           contractAddress,
-          allowedSelectors: [...new Set(rawMethods.map(normalizeMethodOrSelector))],
+          allowedSelectors: [
+            ...new Set(rawMethods.map(normalizeMethodOrSelector)),
+          ],
         };
       })
-      .reduce<Array<{ contractAddress: string; allowedSelectors: Array<`0x${string}`> }>>(
-        (entries, entry) => {
-          const existing = entries.find(
-            (candidate) =>
-              candidate.contractAddress.toLowerCase() ===
-              entry.contractAddress.toLowerCase(),
-          );
+      .reduce<
+        Array<{
+          contractAddress: string;
+          allowedSelectors: Array<`0x${string}`>;
+        }>
+      >((entries, entry) => {
+        const existing = entries.find(
+          (candidate) =>
+            candidate.contractAddress.toLowerCase() ===
+            entry.contractAddress.toLowerCase(),
+        );
 
-          if (!existing) {
-            entries.push(entry);
-            return entries;
-          }
-
-          existing.allowedSelectors = [
-            ...new Set([...existing.allowedSelectors, ...entry.allowedSelectors]),
-          ];
+        if (!existing) {
+          entries.push(entry);
           return entries;
-        },
-        [],
-      ) ?? undefined;
+        }
+
+        existing.allowedSelectors = [
+          ...new Set([...existing.allowedSelectors, ...entry.allowedSelectors]),
+        ];
+        return entries;
+      }, []) ?? undefined;
 
   if (
     contractAllowlist?.some(
@@ -266,8 +279,8 @@ function buildCreateWalletPolicy(input: {
         ).toString(),
         allowedOperations: [
           ...new Set(
-            input.usdcAllow!
-              .split(",")
+            input
+              .usdcAllow!.split(",")
               .map((value) => value.trim())
               .filter(Boolean),
           ),
@@ -282,7 +295,9 @@ function buildCreateWalletPolicy(input: {
   }
 
   return walletPolicySchema.parse({
-    contractAllowlist: contractAllowlist?.length ? contractAllowlist : undefined,
+    contractAllowlist: contractAllowlist?.length
+      ? contractAllowlist
+      : undefined,
     usdcPolicy,
   });
 }
@@ -291,7 +306,9 @@ function buildDefaultAuthorizationNonce() {
   return bytesToHex(randomBytes(32));
 }
 
-function parseTypedDataJson(raw: string): TypedDataDefinition<TypedData, string> {
+function parseTypedDataJson(
+  raw: string,
+): TypedDataDefinition<TypedData, string> {
   const parsed = JSON.parse(raw) as {
     domain?: Record<string, unknown>;
     types?: Record<string, Array<{ name: string; type: string }>>;
@@ -324,7 +341,9 @@ function encodeBase64Json(value: unknown) {
 }
 
 function decodeBase64Json(raw: string) {
-  return JSON.parse(Buffer.from(raw.trim(), "base64").toString("utf8")) as unknown;
+  return JSON.parse(
+    Buffer.from(raw.trim(), "base64").toString("utf8"),
+  ) as unknown;
 }
 
 async function parseResponseBody(response: Response) {
@@ -350,7 +369,9 @@ function parseEip155Network(network: string) {
   const match = /^eip155:(\d+)$/.exec(network.trim());
 
   if (!match) {
-    throw new Error(`Unsupported network "${network}". Expected eip155:<chainId>.`);
+    throw new Error(
+      `Unsupported network "${network}". Expected eip155:<chainId>.`,
+    );
   }
 
   return Number(match[1]);
@@ -385,7 +406,9 @@ function buildTransferWithAuthorizationTypedData(input: {
       value: parseUint256(input.value, "value").toString(),
       validAfter: parseUint256(input.validAfter, "validAfter").toString(),
       validBefore: parseUint256(input.validBefore, "validBefore").toString(),
-      nonce: bytes32HexSchema.parse(input.nonce ?? buildDefaultAuthorizationNonce()),
+      nonce: bytes32HexSchema.parse(
+        input.nonce ?? buildDefaultAuthorizationNonce(),
+      ),
     },
   } as const;
 }
@@ -563,7 +586,9 @@ async function persistWalletProgress(walletId: string, current: WalletRequest) {
     ...localRequest,
     walletConfig: current.walletConfig,
     backendAddress: current.backendAddress,
-    walletAddress: current.walletContext?.walletAddress ?? current.counterfactualWalletAddress,
+    walletAddress:
+      current.walletContext?.walletAddress ??
+      current.counterfactualWalletAddress,
     ownerPublicArtifacts: current.ownerPublicArtifacts,
     regularValidatorInitArtifact: current.regularValidatorInitArtifact,
     lastKnownStatus: current.status,
@@ -592,7 +617,9 @@ async function loadReadyRuntimeLocalRequest(options: {
   }
 
   if (current.status !== "ready") {
-    throw new Error(`Wallet ${options.walletId} is not ready for runtime operations.`);
+    throw new Error(
+      `Wallet ${options.walletId} is not ready for runtime operations.`,
+    );
   }
 
   localRequest = await readLocalWalletRequest(options.walletId);
@@ -746,7 +773,8 @@ export async function executeSignTypedData(options: {
   await persistWalletProgress(options.walletId, refreshed);
   localRequest = await readLocalWalletRequest(options.walletId);
 
-  const typedDataSource = options.typedDataJson ?? (await readFile(options.typedDataFile!, "utf8"));
+  const typedDataSource =
+    options.typedDataJson ?? (await readFile(options.typedDataFile!, "utf8"));
   const typedData = parseTypedDataJson(typedDataSource);
   const signedTypedData = await signReadyWalletTypedData({
     localRequest,
@@ -794,7 +822,9 @@ export async function executeX402Sign(options: {
   localRequest = await readLocalWalletRequest(options.walletId);
 
   if (!localRequest.walletAddress) {
-    throw new Error("Local wallet state is missing the deployed wallet address.");
+    throw new Error(
+      "Local wallet state is missing the deployed wallet address.",
+    );
   }
 
   const nowSeconds = Math.floor(Date.now() / 1000);
@@ -889,7 +919,9 @@ export async function executeX402Fetch(
     contentType: paidResponse.headers.get("content-type"),
     paymentRequired,
     paymentResponse: paymentResponseHeader
-      ? x402SettlementResponseSchema.parse(decodeBase64Json(paymentResponseHeader))
+      ? x402SettlementResponseSchema.parse(
+          decodeBase64Json(paymentResponseHeader),
+        )
       : undefined,
     body: await parseResponseBody(paidResponse),
   };

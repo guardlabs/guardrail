@@ -61,10 +61,12 @@ function toBackendTypedDataPayload(
   typedData: TypedDataDefinition<TypedData, string>,
 ): BackendSignerTypedDataPayload {
   return {
-    domain: (typedData.domain ?? {}) as unknown as BackendSignerTypedDataPayload["domain"],
+    domain: (typedData.domain ??
+      {}) as unknown as BackendSignerTypedDataPayload["domain"],
     types: typedData.types as unknown as BackendSignerTypedDataPayload["types"],
     primaryType: typedData.primaryType as string,
-    message: (typedData.message ?? {}) as unknown as BackendSignerTypedDataPayload["message"],
+    message: (typedData.message ??
+      {}) as unknown as BackendSignerTypedDataPayload["message"],
   };
 }
 
@@ -72,7 +74,10 @@ export async function hydrateReadyWalletRequest(input: {
   walletRequest: WalletRequest;
   localRequest: LocalWalletRequest;
 }) {
-  if (input.walletRequest.status !== "ready" || !input.walletRequest.walletContext) {
+  if (
+    input.walletRequest.status !== "ready" ||
+    !input.walletRequest.walletContext
+  ) {
     throw new Error("Wallet is not ready for CLI hydration.");
   }
 
@@ -81,7 +86,8 @@ export async function hydrateReadyWalletRequest(input: {
     walletAddress: input.walletRequest.walletContext.walletAddress,
     walletConfig: input.walletRequest.walletConfig,
     ownerPublicArtifacts: input.walletRequest.ownerPublicArtifacts,
-    regularValidatorInitArtifact: input.walletRequest.regularValidatorInitArtifact,
+    regularValidatorInitArtifact:
+      input.walletRequest.regularValidatorInitArtifact,
     backendAddress: input.walletRequest.backendAddress,
   });
 
@@ -89,7 +95,9 @@ export async function hydrateReadyWalletRequest(input: {
     runtime.kernelAccount.address.toLowerCase() !==
     input.walletRequest.walletContext.walletAddress.toLowerCase()
   ) {
-    throw new Error("Hydrated account address does not match the backend wallet context.");
+    throw new Error(
+      "Hydrated account address does not match the backend wallet context.",
+    );
   }
 
   return {
@@ -105,7 +113,10 @@ export async function callReadyWalletTransaction(input: {
     valueWei: string;
   };
 }) {
-  if (input.localRequest.lastKnownStatus !== "ready" || !input.localRequest.walletAddress) {
+  if (
+    input.localRequest.lastKnownStatus !== "ready" ||
+    !input.localRequest.walletAddress
+  ) {
     throw new Error("Local wallet is not ready for contract calls.");
   }
 
@@ -136,7 +147,10 @@ export async function callReadyWalletTransaction(input: {
 export async function ensureReadyWalletDeployed(input: {
   localRequest: LocalWalletRequest;
 }) {
-  if (input.localRequest.lastKnownStatus !== "ready" || !input.localRequest.walletAddress) {
+  if (
+    input.localRequest.lastKnownStatus !== "ready" ||
+    !input.localRequest.walletAddress
+  ) {
     throw new Error("Local wallet is not ready for deployment checks.");
   }
 
@@ -181,7 +195,10 @@ export async function signReadyWalletTypedData(input: {
   localRequest: LocalWalletRequest;
   typedData: TypedDataDefinition<TypedData, string>;
 }) {
-  if (input.localRequest.lastKnownStatus !== "ready" || !input.localRequest.walletAddress) {
+  if (
+    input.localRequest.lastKnownStatus !== "ready" ||
+    !input.localRequest.walletAddress
+  ) {
     throw new Error("Local wallet is not ready for typed-data signing.");
   }
 
@@ -191,7 +208,9 @@ export async function signReadyWalletTypedData(input: {
   );
 
   try {
-    const signature = await runtime.kernelAccount.signTypedData(input.typedData);
+    const signature = await runtime.kernelAccount.signTypedData(
+      input.typedData,
+    );
 
     return {
       walletAddress: runtime.kernelAccount.address,

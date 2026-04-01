@@ -32,9 +32,9 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   });
 
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as
-      | { message?: string }
-      | null;
+    const payload = (await response.json().catch(() => null)) as {
+      message?: string;
+    } | null;
 
     throw new Error(
       payload?.message
@@ -50,20 +50,22 @@ function normalizeRawMessage(message: SignableMessage) {
   if (typeof message === "object" && message !== null && "raw" in message) {
     const rawValue = message.raw;
 
-      if (typeof rawValue === "string") {
-        return {
-          kind: "raw" as const,
-          raw: isHex(rawValue) ? rawValue : toHex(rawValue),
-        };
-      }
-
+    if (typeof rawValue === "string") {
       return {
         kind: "raw" as const,
-        raw: toHex(rawValue),
+        raw: isHex(rawValue) ? rawValue : toHex(rawValue),
       };
+    }
+
+    return {
+      kind: "raw" as const,
+      raw: toHex(rawValue),
+    };
   }
 
-  throw new Error("Backend user-operation signing requires a raw 32-byte message payload.");
+  throw new Error(
+    "Backend user-operation signing requires a raw 32-byte message payload.",
+  );
 }
 
 function buildRequestId() {
@@ -99,7 +101,10 @@ export function createBackendRemoteSigner(input: {
     | null = null;
 
   async function authorizeRequest(
-    method: "sign_typed_data_v1" | "sign_user_operation_v1" | "deploy_wallet_v1",
+    method:
+      | "sign_typed_data_v1"
+      | "sign_user_operation_v1"
+      | "deploy_wallet_v1",
     body: Record<string, unknown>,
   ) {
     const bodyHash = hashBackendSignerRequestBody(method, body as never);
@@ -131,11 +136,7 @@ export function createBackendRemoteSigner(input: {
       } satisfies BackendUserOperationSignaturePayload;
       const context = currentSigningContext;
 
-      if (
-        !context ||
-        context.kind === "typed_data" ||
-        !context.userOperation
-      ) {
+      if (!context || context.kind === "typed_data" || !context.userOperation) {
         throw new Error(
           "Backend remote signer is missing a prepared user-operation context for signMessage.",
         );
@@ -180,7 +181,10 @@ export function createBackendRemoteSigner(input: {
     >(typedData: TypedDataDefinition<TTypedData, TPrimaryType>) {
       const typedDataPayload = {
         domain: (typedData.domain ?? {}) as Record<string, unknown>,
-        types: typedData.types as Record<string, Array<{ name: string; type: string }>>,
+        types: typedData.types as Record<
+          string,
+          Array<{ name: string; type: string }>
+        >,
         primaryType: typedData.primaryType as string,
         message: (typedData.message ?? {}) as Record<string, unknown>,
       } as BackendSignerTypedDataPayload;
@@ -294,11 +298,15 @@ export function createBackendRemoteSigner(input: {
     },
     attachPreparedUserOperation(userOperation: BackendPackedUserOperation) {
       if (!currentSigningContext) {
-        throw new Error("Cannot attach a prepared user operation without an active context.");
+        throw new Error(
+          "Cannot attach a prepared user operation without an active context.",
+        );
       }
 
       if (currentSigningContext.kind === "typed_data") {
-        throw new Error("Cannot attach a prepared user operation while signing typed data.");
+        throw new Error(
+          "Cannot attach a prepared user operation while signing typed data.",
+        );
       }
 
       currentSigningContext =

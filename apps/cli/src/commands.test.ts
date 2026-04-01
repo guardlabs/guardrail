@@ -14,7 +14,10 @@ import {
   ensureReadyWalletDeployed,
   signReadyWalletTypedData,
 } from "./kernel.js";
-import { readLocalWalletRequest, saveLocalWalletRequest } from "./local-store.js";
+import {
+  readLocalWalletRequest,
+  saveLocalWalletRequest,
+} from "./local-store.js";
 import {
   buildOfficialUsdcTransferWithAuthorizationTypedData,
   executeAwait,
@@ -163,7 +166,9 @@ describe("cli commands mode B", () => {
 
     const [createUrl, createInit] = fetchMock.mock.calls[0] ?? [];
     expect(createUrl).toBe("http://127.0.0.1:3000/v1/wallets");
-    expect(JSON.parse(String((createInit as RequestInit | undefined)?.body))).toMatchObject({
+    expect(
+      JSON.parse(String((createInit as RequestInit | undefined)?.body)),
+    ).toMatchObject({
       walletMode: PROJECT_WALLET_MODE,
       chainId: 84532,
       agentAddress: result.agentAddress,
@@ -267,49 +272,49 @@ describe("cli commands mode B", () => {
 
     vi.stubGlobal(
       "fetch",
-      vi.fn()
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            walletMode: PROJECT_WALLET_MODE,
-            walletId: "wal_123",
-            status: "ready",
-            walletConfig,
-            policy: createRuntimePolicy(),
-            agentAddress: walletConfig.regularValidator.signers[0]?.address,
-            backendAddress: walletConfig.regularValidator.signers[1]?.address,
-            counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
-            ownerPublicArtifacts: {
+      vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          walletMode: PROJECT_WALLET_MODE,
+          walletId: "wal_123",
+          status: "ready",
+          walletConfig,
+          policy: createRuntimePolicy(),
+          agentAddress: walletConfig.regularValidator.signers[0]?.address,
+          backendAddress: walletConfig.regularValidator.signers[1]?.address,
+          counterfactualWalletAddress:
+            "0x2222222222222222222222222222222222222222",
+          ownerPublicArtifacts: {
+            credentialId: "credential-id",
+            publicKey: "0x1234",
+          },
+          funding: {
+            status: "verified",
+            minimumRequiredWei: "500000000000000",
+            balanceWei: "700000000000000",
+            checkedAt: "2026-03-29T12:05:00.000Z",
+          },
+          deployment: {
+            status: "undeployed",
+          },
+          walletContext: {
+            walletAddress: "0x2222222222222222222222222222222222222222",
+            chainId: 84532,
+            kernelVersion: "3.1",
+            entryPointVersion: "0.7",
+            owner: {
               credentialId: "credential-id",
               publicKey: "0x1234",
             },
-            funding: {
-              status: "verified",
-              minimumRequiredWei: "500000000000000",
-              balanceWei: "700000000000000",
-              checkedAt: "2026-03-29T12:05:00.000Z",
-            },
-            deployment: {
-              status: "undeployed",
-            },
-            walletContext: {
-              walletAddress: "0x2222222222222222222222222222222222222222",
-              chainId: 84532,
-              kernelVersion: "3.1",
-              entryPointVersion: "0.7",
-              owner: {
-                credentialId: "credential-id",
-                publicKey: "0x1234",
-              },
-              agentAddress: walletConfig.regularValidator.signers[0]?.address,
-              backendAddress: walletConfig.regularValidator.signers[1]?.address,
-              weightedValidator: walletConfig.regularValidator,
-            },
-            createdAt: "2026-03-29T12:00:00.000Z",
-            updatedAt: "2026-03-29T12:05:00.000Z",
-            expiresAt: "2026-03-30T12:00:00.000Z",
-          }),
+            agentAddress: walletConfig.regularValidator.signers[0]?.address,
+            backendAddress: walletConfig.regularValidator.signers[1]?.address,
+            weightedValidator: walletConfig.regularValidator,
+          },
+          createdAt: "2026-03-29T12:00:00.000Z",
+          updatedAt: "2026-03-29T12:05:00.000Z",
+          expiresAt: "2026-03-30T12:00:00.000Z",
         }),
+      }),
     );
     vi.mocked(hydrateReadyWalletRequest).mockResolvedValue({
       walletAddress: "0x2222222222222222222222222222222222222222",
@@ -385,7 +390,8 @@ describe("cli commands mode B", () => {
             enableData: "0x1234",
             pluginEnableSignature: "0x5678",
           },
-          counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
+          counterfactualWalletAddress:
+            "0x2222222222222222222222222222222222222222",
           funding: {
             status: "verified",
             minimumRequiredWei: "500000000000000",
@@ -492,7 +498,8 @@ describe("cli commands mode B", () => {
             enableData: "0x1234",
             pluginEnableSignature: "0x5678",
           },
-          counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
+          counterfactualWalletAddress:
+            "0x2222222222222222222222222222222222222222",
           funding: {
             status: "verified",
             minimumRequiredWei: "500000000000000",
@@ -649,7 +656,8 @@ describe("cli commands mode B", () => {
             enableData: "0x1234",
             pluginEnableSignature: "0x5678",
           },
-          counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
+          counterfactualWalletAddress:
+            "0x2222222222222222222222222222222222222222",
           funding: {
             status: "verified",
             minimumRequiredWei: "500000000000000",
@@ -780,7 +788,8 @@ describe("cli commands mode B", () => {
             enableData: "0x1234",
             pluginEnableSignature: "0x5678",
           },
-          counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
+          counterfactualWalletAddress:
+            "0x2222222222222222222222222222222222222222",
           funding: {
             status: "verified",
             minimumRequiredWei: "500000000000000",
@@ -843,14 +852,22 @@ describe("cli commands mode B", () => {
       paymentRequiredHeader,
     });
     const decodedPayload = x402PaymentPayloadSchema.parse(
-      JSON.parse(Buffer.from(result.paymentSignatureHeader, "base64").toString("utf8")),
+      JSON.parse(
+        Buffer.from(result.paymentSignatureHeader, "base64").toString("utf8"),
+      ),
     );
 
     expect(result.walletId).toBe("wal_123");
-    expect(result.walletAddress).toBe("0x2222222222222222222222222222222222222222");
-    expect(result.payerAddress).toBe("0x2222222222222222222222222222222222222222");
+    expect(result.walletAddress).toBe(
+      "0x2222222222222222222222222222222222222222",
+    );
+    expect(result.payerAddress).toBe(
+      "0x2222222222222222222222222222222222222222",
+    );
     expect(decodedPayload.accepted.amount).toBe("250000");
-    expect(decodedPayload.accepted.payTo).toBe("0x3333333333333333333333333333333333333333");
+    expect(decodedPayload.accepted.payTo).toBe(
+      "0x3333333333333333333333333333333333333333",
+    );
     expect(decodedPayload.payload.authorization.from).toBe(
       "0x2222222222222222222222222222222222222222",
     );

@@ -1,6 +1,9 @@
 import cors from "@fastify/cors";
 import Fastify, { type FastifyServerOptions } from "fastify";
-import { createChainRelayService, type ChainRelayService } from "./chain-relay.js";
+import {
+  createChainRelayService,
+  type ChainRelayService,
+} from "./chain-relay.js";
 import { readConfig, type AppConfig } from "./config.js";
 import { createPostgresWalletRequestRepository } from "./postgres-repository.js";
 import type { WalletRequestRepository } from "./repository.js";
@@ -49,9 +52,12 @@ export function buildApp(options: BuildAppOptions = {}) {
     logger: buildLoggerOptions(process.env),
     disableRequestLogging: true,
   });
-  const repository = options.repository ?? createPostgresWalletRequestRepository(config.databaseUrl);
+  const repository =
+    options.repository ??
+    createPostgresWalletRequestRepository(config.databaseUrl);
   const walletProvisioningService =
-    options.walletProvisioningService ?? createWalletProvisioningService(config);
+    options.walletProvisioningService ??
+    createWalletProvisioningService(config);
   const chainRelayService =
     options.chainRelayService ?? createChainRelayService(config);
 

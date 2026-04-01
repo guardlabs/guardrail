@@ -1,4 +1,7 @@
-import type { RegularValidatorInitArtifact, WalletConfig } from "@conduit/shared";
+import type {
+  RegularValidatorInitArtifact,
+  WalletConfig,
+} from "@conduit/shared";
 import {
   PasskeyValidatorContractVersion,
   toPasskeyValidator,
@@ -46,8 +49,7 @@ export async function createProvisioningArtifacts(
     webAuthnKey: input.webAuthnKey,
     entryPoint: getEntryPoint("0.7"),
     kernelVersion: KERNEL_V3_1,
-    validatorContractVersion:
-      PasskeyValidatorContractVersion.V0_0_2_UNPATCHED,
+    validatorContractVersion: PasskeyValidatorContractVersion.V0_0_2_UNPATCHED,
     validatorAddress: input.walletConfig.sudoValidator.address as `0x${string}`,
   });
   const weightedValidator = await createProvisioningWeightedValidator(client, {

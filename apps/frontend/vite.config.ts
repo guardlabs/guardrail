@@ -12,6 +12,40 @@ export default defineConfig(({ mode }) => {
 
   return {
     envDir: repoRoot,
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes("node_modules")) {
+              return undefined;
+            }
+
+            if (
+              id.includes("@zerodev/") ||
+              id.includes("@simplewebauthn/") ||
+              id.includes("cborg") ||
+              id.includes("cbor2")
+            ) {
+              return "passkey-vendor";
+            }
+
+            if (id.includes("@noble/") || id.includes("@scure/")) {
+              return "crypto-vendor";
+            }
+
+            if (id.includes("abitype") || id.includes("/ox/")) {
+              return "evm-vendor";
+            }
+
+            if (id.includes("viem")) {
+              return "viem-vendor";
+            }
+
+            return undefined;
+          },
+        },
+      },
+    },
     plugins: [
       react(),
       nodePolyfills({

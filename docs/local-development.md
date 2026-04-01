@@ -91,10 +91,14 @@ Local wallet state is stored under:
 Run the full workspace checks:
 
 ```bash
+pnpm lint
+pnpm format:check
+pnpm knip
 pnpm test
 pnpm test:coverage
 pnpm test:e2e:provisioning
 pnpm typecheck
+pnpm check
 ```
 
 Run frontend checks only:
@@ -106,5 +110,7 @@ pnpm --filter @conduit/frontend build
 ```
 
 `pnpm test:coverage` runs coverage for the CLI, backend, frontend, shared packages, ZeroDev helpers, and the Vitest-based e2e workspace, then writes an aggregate summary to `coverage/combined-summary.json`.
+
+`pnpm lint` runs ESLint across the workspace, `pnpm format:check` verifies Prettier formatting with double quotes preserved, `pnpm knip` reports unused files, exports, and dependencies, and `pnpm check` runs the full static validation stack in one command.
 
 The headless provisioning e2e under `tests/e2e` runs the real CLI plus backend against Docker Postgres, an Anvil fork of Base Sepolia, a local Alto bundler, and a deterministic headless passkey owner.

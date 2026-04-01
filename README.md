@@ -79,9 +79,9 @@ Detailed documentation lives under [`docs/`](docs/README.md):
 
 Conduit Wallet currently supports one chain:
 
-| Chain | Chain ID | Status |
-| --- | --- | --- |
-| Base Sepolia | `84532` | Supported |
+| Chain        | Chain ID | Status    |
+| ------------ | -------- | --------- |
+| Base Sepolia | `84532`  | Supported |
 
 ## Local Development
 
@@ -113,6 +113,16 @@ Coverage across the workspace test suites is available with:
 
 ```bash
 pnpm test:coverage
+```
+
+Developer checks are available with:
+
+```bash
+pnpm lint
+pnpm format:check
+pnpm typecheck
+pnpm knip
+pnpm check
 ```
 
 ## Repository Layout

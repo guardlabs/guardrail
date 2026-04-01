@@ -16,7 +16,9 @@ export async function fetchJson<T>(
   });
 
   if (!response.ok) {
-    throw new Error(`Request failed with ${response.status} ${response.statusText}`);
+    throw new Error(
+      `Request failed with ${response.status} ${response.statusText}`,
+    );
   }
 
   return (await response.json()) as T;

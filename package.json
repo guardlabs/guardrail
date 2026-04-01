@@ -5,8 +5,14 @@
   "packageManager": "pnpm@10.33.0",
   "scripts": {
     "build": "turbo build",
+    "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm knip",
     "db:migrate": "pnpm --filter @conduit/backend db:migrate",
     "dev": "turbo dev",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "knip": "knip",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "test": "turbo test",
     "test:coverage": "node scripts/test-coverage.mjs",
     "test:coverage:e2e": "pnpm build && pnpm --filter @conduit/e2e test:coverage",
@@ -15,8 +21,16 @@
     "typecheck": "turbo typecheck"
   },
   "devDependencies": {
+    "@eslint/js": "^9.25.0",
     "@vitest/coverage-v8": "^3.2.4",
+    "eslint": "^9.25.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-unused-imports": "^4.1.4",
+    "globals": "^16.0.0",
+    "knip": "^5.50.0",
+    "prettier": "^3.5.3",
     "turbo": "^2.5.0",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.30.1"
   }
 }

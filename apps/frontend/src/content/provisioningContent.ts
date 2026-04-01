@@ -126,8 +126,7 @@ export function getProvisioningContentModel(input: {
         statusBody:
           "The wallet is active and can now be used within the approved policy.",
         statusLabel: "Ready",
-        reassurance:
-          "Your passkey remains the admin control.",
+        reassurance: "Your passkey remains the admin control.",
         actionTitle: "Setup complete",
         actionBody:
           "Nothing else is required on this page unless you want to review the technical details.",

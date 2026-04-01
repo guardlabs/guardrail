@@ -154,7 +154,14 @@ export function createPostgresWalletRequestRepository(
       return row ? serialize(row) : null;
     },
 
-    async updateFunding({ walletId, funding, deployment, status, walletContext, updatedAt }) {
+    async updateFunding({
+      walletId,
+      funding,
+      deployment,
+      status,
+      walletContext,
+      updatedAt,
+    }) {
       const rows = await db
         .update(walletsTable)
         .set({
@@ -193,7 +200,11 @@ export function createPostgresWalletRequestRepository(
       return "ok";
     },
 
-    async updateRuntimePolicyState({ walletId, runtimePolicyState, updatedAt }) {
+    async updateRuntimePolicyState({
+      walletId,
+      runtimePolicyState,
+      updatedAt,
+    }) {
       const rows = await db
         .update(walletsTable)
         .set({
@@ -207,7 +218,11 @@ export function createPostgresWalletRequestRepository(
       return row ? serialize(row) : null;
     },
 
-    async listRuntimePolicyConsumptionsSince({ walletId, asset, createdAtGte }) {
+    async listRuntimePolicyConsumptionsSince({
+      walletId,
+      asset,
+      createdAtGte,
+    }) {
       const rows = await db
         .select()
         .from(walletPolicyConsumptionsTable)
@@ -215,7 +230,10 @@ export function createPostgresWalletRequestRepository(
           and(
             eq(walletPolicyConsumptionsTable.walletId, walletId),
             eq(walletPolicyConsumptionsTable.asset, asset),
-            gte(walletPolicyConsumptionsTable.createdAt, new Date(createdAtGte)),
+            gte(
+              walletPolicyConsumptionsTable.createdAt,
+              new Date(createdAtGte),
+            ),
           ),
         );
 

@@ -48,7 +48,9 @@ export async function publishHeadlessOwnerArtifacts(
   const fetchImpl = dependencies.fetchImpl ?? fetch;
   const webAuthnKey = dependencies.webAuthnKey ?? createHeadlessWebAuthnKey();
   const provisioningRequest = await loadProvisioningRequest(input, fetchImpl);
-  const supportedChain = getSupportedChainById(provisioningRequest.walletConfig.chainId);
+  const supportedChain = getSupportedChainById(
+    provisioningRequest.walletConfig.chainId,
+  );
 
   if (!supportedChain) {
     throw new Error(
@@ -62,7 +64,8 @@ export async function publishHeadlessOwnerArtifacts(
       `${input.backendUrl}/v1/chains/${provisioningRequest.walletConfig.chainId}/rpc`,
     ),
   });
-  const artifactBuilder = dependencies.artifactBuilder ?? createProvisioningArtifacts;
+  const artifactBuilder =
+    dependencies.artifactBuilder ?? createProvisioningArtifacts;
   const artifacts = await artifactBuilder(client, {
     walletConfig: provisioningRequest.walletConfig,
     webAuthnKey,
@@ -86,6 +89,8 @@ export async function publishHeadlessOwnerArtifacts(
 
   return {
     provisioningRequest,
-    publishedWallet: getWalletRequestResponseSchema.parse(await response.json()),
+    publishedWallet: getWalletRequestResponseSchema.parse(
+      await response.json(),
+    ),
   };
 }

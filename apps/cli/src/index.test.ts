@@ -5,9 +5,15 @@ describe("cli help", () => {
   it("lists the expected commands and backend override flag", () => {
     const help = buildProgram().helpInformation();
 
-    expect(help).toContain("provision and manage secure wallet rails for autonomous agents");
-    expect(help).toContain("create [options]                       create a wallet provisioning request");
-    expect(help).toContain("status [options] <wallet-id>           inspect a wallet");
+    expect(help).toContain(
+      "provision and manage secure wallet rails for autonomous agents",
+    );
+    expect(help).toContain(
+      "create [options]                       create a wallet provisioning request",
+    );
+    expect(help).toContain(
+      "status [options] <wallet-id>           inspect a wallet",
+    );
     expect(help).toContain(
       "create [options]                       create a wallet provisioning request\n  status [options] <wallet-id>           inspect a wallet",
     );
@@ -40,9 +46,7 @@ describe("cli help", () => {
     expect(createHelp).toContain("--backend-url");
     expect(createHelp).toContain("supported chains");
     expect(createHelp).toContain("84532 (Base Sepolia)");
-    expect(createHelp).toContain(
-      "create a wallet provisioning request",
-    );
+    expect(createHelp).toContain("create a wallet provisioning request");
     expect(createHelp).toContain(
       "create a wallet provisioning request\n\nsupported chains:\n  84532 (Base Sepolia)\n\nOptions:",
     );
@@ -64,8 +68,12 @@ describe("cli help", () => {
     );
 
     expect(signTypedDataCommand?.helpInformation()).toContain("<wallet-id>");
-    expect(signTypedDataCommand?.helpInformation()).toContain("--typed-data-file");
-    expect(signTypedDataCommand?.helpInformation()).toContain("--typed-data-json");
+    expect(signTypedDataCommand?.helpInformation()).toContain(
+      "--typed-data-file",
+    );
+    expect(signTypedDataCommand?.helpInformation()).toContain(
+      "--typed-data-json",
+    );
   });
 
   it("documents x402 signing usage for the ready conduit wallet signer", () => {
@@ -74,7 +82,9 @@ describe("cli help", () => {
     );
 
     expect(x402SignCommand?.helpInformation()).toContain("<wallet-id>");
-    expect(x402SignCommand?.helpInformation()).toContain("--payment-required-header");
+    expect(x402SignCommand?.helpInformation()).toContain(
+      "--payment-required-header",
+    );
   });
 
   it("documents x402 fetch usage for protected resources", () => {

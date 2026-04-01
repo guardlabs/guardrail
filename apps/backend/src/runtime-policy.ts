@@ -14,7 +14,10 @@ import {
   type Hex,
 } from "viem";
 import { entryPoint07Address } from "viem/account-abstraction";
-import type { RuntimePolicyConsumption, RuntimePolicyState } from "./repository.js";
+import type {
+  RuntimePolicyConsumption,
+  RuntimePolicyState,
+} from "./repository.js";
 import type { StoredWalletRequest } from "./repository.js";
 
 const WEIGHTED_VALIDATOR_DOMAIN_NAME = "WeightedECDSAValidator";
@@ -42,7 +45,11 @@ type PolicyDecision =
     }
   | { ok: false; statusCode: number; error: string; message: string };
 
-function deny(statusCode: number, error: string, message: string): PolicyDecision {
+function deny(
+  statusCode: number,
+  error: string,
+  message: string,
+): PolicyDecision {
   return {
     ok: false,
     statusCode,
@@ -63,7 +70,10 @@ function parseNumericString(value: unknown, label: string) {
   throw new Error(`${label} must be an unsigned integer.`);
 }
 
-function createConsumptionLowerBound(period: "daily" | "weekly" | "monthly", now: Date) {
+function createConsumptionLowerBound(
+  period: "daily" | "weekly" | "monthly",
+  now: Date,
+) {
   const durationMs =
     period === "monthly"
       ? 30 * 24 * 60 * 60 * 1000
@@ -84,21 +94,32 @@ function consumeUsdcBudget(input: {
   const usdcPolicy = input.request.policy.usdcPolicy;
 
   if (!usdcPolicy) {
-    return deny(403, "usdc_policy_missing", "No USDC policy is configured for this wallet.");
+    return deny(
+      403,
+      "usdc_policy_missing",
+      "No USDC policy is configured for this wallet.",
+    );
   }
 
   const lowerBound = createConsumptionLowerBound(usdcPolicy.period, input.now);
-  const consumedAmount = input.recentConsumptions.reduce((total, consumption) => {
-    if (new Date(consumption.createdAt).getTime() < lowerBound.getTime()) {
-      return total;
-    }
+  const consumedAmount = input.recentConsumptions.reduce(
+    (total, consumption) => {
+      if (new Date(consumption.createdAt).getTime() < lowerBound.getTime()) {
+        return total;
+      }
 
-    return total + BigInt(consumption.amountMinor);
-  }, 0n);
+      return total + BigInt(consumption.amountMinor);
+    },
+    0n,
+  );
   const nextConsumedAmount = consumedAmount + input.amountMinor;
 
   if (nextConsumedAmount > BigInt(usdcPolicy.maxAmountMinor)) {
-    return deny(403, "usdc_budget_exceeded", "The configured USDC budget has been exceeded.");
+    return deny(
+      403,
+      "usdc_budget_exceeded",
+      "The configured USDC budget has been exceeded.",
+    );
   }
 
   return {
@@ -141,16 +162,14 @@ function computePackedUserOperationHash(
   return keccak256(
     encodeAbiParameters(
       [{ type: "bytes32" }, { type: "address" }, { type: "uint256" }],
-      [
-        keccak256(packedUserOp),
-        entryPoint07Address,
-        BigInt(chainId),
-      ],
+      [keccak256(packedUserOp), entryPoint07Address, BigInt(chainId)],
     ),
   );
 }
 
-function computeCallDataAndNonceHash(userOperation: BackendPackedUserOperation) {
+function computeCallDataAndNonceHash(
+  userOperation: BackendPackedUserOperation,
+) {
   return keccak256(
     encodeAbiParameters(
       [{ type: "address" }, { type: "bytes" }, { type: "uint256" }],
@@ -168,8 +187,15 @@ function verifyUserOperationSignaturePayload(input: {
   userOperation: BackendPackedUserOperation;
   signaturePayload: BackendUserOperationSignaturePayload;
 }): PolicyDecision {
-  if (!input.request.walletContext || !input.request.regularValidatorInitArtifact) {
-    return deny(409, "wallet_not_ready", "Wallet is not ready for backend signing.");
+  if (
+    !input.request.walletContext ||
+    !input.request.regularValidatorInitArtifact
+  ) {
+    return deny(
+      409,
+      "wallet_not_ready",
+      "Wallet is not ready for backend signing.",
+    );
   }
 
   if (input.signaturePayload.kind === "user_operation_hash") {
@@ -178,7 +204,10 @@ function verifyUserOperationSignaturePayload(input: {
       input.request.walletContext.chainId,
     );
 
-    if (input.signaturePayload.message.raw.toLowerCase() !== expectedHash.toLowerCase()) {
+    if (
+      input.signaturePayload.message.raw.toLowerCase() !==
+      expectedHash.toLowerCase()
+    ) {
       return deny(
         400,
         "user_operation_hash_mismatch",
@@ -237,7 +266,7 @@ function decodeKernelSingleCall(callData: Hex) {
   return {
     to: `0x${payload.slice(0, 40)}` as `0x${string}`,
     value: BigInt(`0x${payload.slice(40, 104) || "0"}`).toString(),
-    data: (`0x${payload.slice(104)}` || "0x") as `0x${string}`,
+    data: `0x${payload.slice(104)}` as `0x${string}`,
   };
 }
 
@@ -246,7 +275,9 @@ function enforceGenericContractAllowlist(input: {
   operation: BackendSingleCallOperation;
   officialUsdcAddress: `0x${string}`;
 }): PolicyDecision {
-  if (input.operation.to.toLowerCase() === input.officialUsdcAddress.toLowerCase()) {
+  if (
+    input.operation.to.toLowerCase() === input.officialUsdcAddress.toLowerCase()
+  ) {
     return deny(
       403,
       "usdc_contract_forbidden_in_contract_allowlist",
@@ -255,20 +286,33 @@ function enforceGenericContractAllowlist(input: {
   }
 
   if (input.operation.value !== "0") {
-    return deny(403, "native_value_not_allowed", "Native value transfers are not allowed.");
+    return deny(
+      403,
+      "native_value_not_allowed",
+      "Native value transfers are not allowed.",
+    );
   }
 
   const allowlistEntry = input.request.policy.contractAllowlist?.find(
-    (entry) => entry.contractAddress.toLowerCase() === input.operation.to.toLowerCase(),
+    (entry) =>
+      entry.contractAddress.toLowerCase() === input.operation.to.toLowerCase(),
   );
 
   if (!allowlistEntry) {
-    return deny(403, "contract_not_allowed", "This contract is not in the runtime allowlist.");
+    return deny(
+      403,
+      "contract_not_allowed",
+      "This contract is not in the runtime allowlist.",
+    );
   }
 
   const selector = input.operation.data.slice(0, 10).toLowerCase();
 
-  if (!allowlistEntry.allowedSelectors.some((allowed) => allowed.toLowerCase() === selector)) {
+  if (
+    !allowlistEntry.allowedSelectors.some(
+      (allowed) => allowed.toLowerCase() === selector,
+    )
+  ) {
     return deny(
       403,
       "method_not_allowed",
@@ -288,7 +332,11 @@ function enforceUsdcTransactionPolicy(input: {
   const usdcPolicy = input.request.policy.usdcPolicy;
 
   if (!usdcPolicy) {
-    return deny(403, "usdc_policy_missing", "No USDC policy is configured for this wallet.");
+    return deny(
+      403,
+      "usdc_policy_missing",
+      "No USDC policy is configured for this wallet.",
+    );
   }
 
   let decoded:
@@ -318,10 +366,18 @@ function enforceUsdcTransactionPolicy(input: {
         amountMinor: parsed.args[1] as bigint,
       };
     } else {
-      return deny(403, "usdc_operation_not_allowed", "This USDC method is not supported.");
+      return deny(
+        403,
+        "usdc_operation_not_allowed",
+        "This USDC method is not supported.",
+      );
     }
   } catch {
-    return deny(403, "usdc_operation_not_allowed", "This USDC method is not supported.");
+    return deny(
+      403,
+      "usdc_operation_not_allowed",
+      "This USDC method is not supported.",
+    );
   }
 
   if (!usdcPolicy.allowedOperations.includes(decoded.functionName)) {
@@ -348,19 +404,30 @@ function enforceUsdcTypedDataPolicy(input: {
   now: Date;
 }): PolicyDecision {
   if (!input.request.walletContext) {
-    return deny(409, "wallet_not_ready", "Wallet is not ready for backend signing.");
+    return deny(
+      409,
+      "wallet_not_ready",
+      "Wallet is not ready for backend signing.",
+    );
   }
 
-  const supportedChain = getSupportedChainById(input.request.walletContext.chainId);
+  const supportedChain = getSupportedChainById(
+    input.request.walletContext.chainId,
+  );
 
   if (!supportedChain) {
-    return deny(400, "unsupported_chain", "This wallet chain is not supported.");
+    return deny(
+      400,
+      "unsupported_chain",
+      "This wallet chain is not supported.",
+    );
   }
 
   if (
     input.typedData.domain.name !== OFFICIAL_USDC_EIP712_DOMAIN_NAME ||
     input.typedData.domain.version !== OFFICIAL_USDC_EIP712_DOMAIN_VERSION ||
-    Number(input.typedData.domain.chainId) !== input.request.walletContext.chainId ||
+    Number(input.typedData.domain.chainId) !==
+      input.request.walletContext.chainId ||
     String(input.typedData.domain.verifyingContract).toLowerCase() !==
       supportedChain.officialUsdcAddress.toLowerCase()
   ) {
@@ -374,15 +441,26 @@ function enforceUsdcTypedDataPolicy(input: {
   const usdcPolicy = input.request.policy.usdcPolicy;
 
   if (!usdcPolicy) {
-    return deny(403, "usdc_policy_missing", "No USDC policy is configured for this wallet.");
+    return deny(
+      403,
+      "usdc_policy_missing",
+      "No USDC policy is configured for this wallet.",
+    );
   }
 
   if (input.typedData.primaryType === "Permit") {
     if (!usdcPolicy.allowedOperations.includes("permit")) {
-      return deny(403, "usdc_operation_not_allowed", "USDC permit is not allowed.");
+      return deny(
+        403,
+        "usdc_operation_not_allowed",
+        "USDC permit is not allowed.",
+      );
     }
 
-    const amountMinor = parseNumericString(input.typedData.message.value, "Permit value");
+    const amountMinor = parseNumericString(
+      input.typedData.message.value,
+      "Permit value",
+    );
     return consumeUsdcBudget({
       request: input.request,
       recentConsumptions: input.recentConsumptions,
@@ -449,14 +527,19 @@ export function evaluateTypedDataPolicy(input: {
   now: Date;
 }): PolicyDecision {
   if (!input.request.walletContext) {
-    return deny(409, "wallet_not_ready", "Wallet is not ready for backend signing.");
+    return deny(
+      409,
+      "wallet_not_ready",
+      "Wallet is not ready for backend signing.",
+    );
   }
 
   const wrappedTypedData = input.signaturePayload.typedData;
 
   if (
     wrappedTypedData.primaryType !== "Kernel" ||
-    Number(wrappedTypedData.domain.chainId) !== input.request.walletContext.chainId ||
+    Number(wrappedTypedData.domain.chainId) !==
+      input.request.walletContext.chainId ||
     String(wrappedTypedData.domain.verifyingContract).toLowerCase() !==
       input.request.walletContext.walletAddress.toLowerCase()
   ) {
@@ -469,7 +552,10 @@ export function evaluateTypedDataPolicy(input: {
 
   const expectedHash = hashTypedData(input.typedData as never);
 
-  if (String(wrappedTypedData.message.hash).toLowerCase() !== expectedHash.toLowerCase()) {
+  if (
+    String(wrappedTypedData.message.hash).toLowerCase() !==
+    expectedHash.toLowerCase()
+  ) {
     return deny(
       400,
       "typed_data_signature_payload_mismatch",
@@ -494,16 +580,29 @@ export function evaluateUserOperationPolicy(input: {
   now: Date;
 }): PolicyDecision {
   if (!input.request.walletContext) {
-    return deny(409, "wallet_not_ready", "Wallet is not ready for backend signing.");
+    return deny(
+      409,
+      "wallet_not_ready",
+      "Wallet is not ready for backend signing.",
+    );
   }
 
-  const supportedChain = getSupportedChainById(input.request.walletContext.chainId);
+  const supportedChain = getSupportedChainById(
+    input.request.walletContext.chainId,
+  );
 
   if (!supportedChain) {
-    return deny(400, "unsupported_chain", "This wallet chain is not supported.");
+    return deny(
+      400,
+      "unsupported_chain",
+      "This wallet chain is not supported.",
+    );
   }
 
-  if (input.userOperation.sender.toLowerCase() !== input.request.walletContext.walletAddress.toLowerCase()) {
+  if (
+    input.userOperation.sender.toLowerCase() !==
+    input.request.walletContext.walletAddress.toLowerCase()
+  ) {
     return deny(
       400,
       "wallet_address_mismatch",
@@ -533,7 +632,9 @@ export function evaluateUserOperationPolicy(input: {
     return deny(
       400,
       "user_operation_call_mismatch",
-      error instanceof Error ? error.message : "Could not decode the kernel single-call payload.",
+      error instanceof Error
+        ? error.message
+        : "Could not decode the kernel single-call payload.",
     );
   }
 
@@ -549,7 +650,10 @@ export function evaluateUserOperationPolicy(input: {
     );
   }
 
-  if (input.operation.to.toLowerCase() === supportedChain.officialUsdcAddress.toLowerCase()) {
+  if (
+    input.operation.to.toLowerCase() ===
+    supportedChain.officialUsdcAddress.toLowerCase()
+  ) {
     return enforceUsdcTransactionPolicy({
       request: input.request,
       recentConsumptions: input.recentUsdcConsumptions,
@@ -571,14 +675,25 @@ export function evaluateDeployWalletPolicy(input: {
   signaturePayload: BackendUserOperationSignaturePayload;
 }): PolicyDecision {
   if (!input.request.walletContext) {
-    return deny(409, "wallet_not_ready", "Wallet is not ready for backend signing.");
+    return deny(
+      409,
+      "wallet_not_ready",
+      "Wallet is not ready for backend signing.",
+    );
   }
 
   if (input.request.deployment.status === "deployed") {
-    return deny(409, "deploy_already_completed", "The wallet is already deployed.");
+    return deny(
+      409,
+      "deploy_already_completed",
+      "The wallet is already deployed.",
+    );
   }
 
-  if (input.userOperation.sender.toLowerCase() !== input.request.walletContext.walletAddress.toLowerCase()) {
+  if (
+    input.userOperation.sender.toLowerCase() !==
+    input.request.walletContext.walletAddress.toLowerCase()
+  ) {
     return deny(
       400,
       "wallet_address_mismatch",
@@ -587,7 +702,11 @@ export function evaluateDeployWalletPolicy(input: {
   }
 
   if (input.userOperation.initCode === "0x") {
-    return deny(403, "deploy_not_allowed", "Wallet deployment requires initCode.");
+    return deny(
+      403,
+      "deploy_not_allowed",
+      "Wallet deployment requires initCode.",
+    );
   }
 
   const signaturePayloadCheck = verifyUserOperationSignaturePayload(input);
@@ -604,7 +723,9 @@ export function evaluateDeployWalletPolicy(input: {
     return deny(
       400,
       "deploy_not_allowed",
-      error instanceof Error ? error.message : "Could not decode the kernel deployment payload.",
+      error instanceof Error
+        ? error.message
+        : "Could not decode the kernel deployment payload.",
     );
   }
 

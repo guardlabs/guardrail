@@ -9,9 +9,7 @@ const app = buildApp({
   config,
 });
 
-app
-  .listen({ port: config.port, host: "0.0.0.0" })
-  .catch((error) => {
-    app.log.error(error);
-    process.exitCode = 1;
-  });
+app.listen({ port: config.port, host: "0.0.0.0" }).catch((error) => {
+  app.log.error(error);
+  process.exitCode = 1;
+});

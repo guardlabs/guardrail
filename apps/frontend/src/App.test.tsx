@@ -1,5 +1,11 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   PROJECT_WALLET_MODE,
@@ -32,7 +38,13 @@ function createRuntimePolicy(): WalletPolicy {
     usdcPolicy: {
       period: "daily",
       maxAmountMinor: "1500000",
-      allowedOperations: ["transfer", "approve", "increaseAllowance", "permit", "transferWithAuthorization"],
+      allowedOperations: [
+        "transfer",
+        "approve",
+        "increaseAllowance",
+        "permit",
+        "transferWithAuthorization",
+      ],
     },
   };
 }
@@ -127,7 +139,8 @@ describe("frontend app mode B", () => {
           credentialId: "credential-id",
           publicKey: "0x1234",
         },
-        counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
+        counterfactualWalletAddress:
+          "0x2222222222222222222222222222222222222222",
         regularValidatorInitArtifact,
       });
     const publishOwnerArtifacts = vi
@@ -149,9 +162,7 @@ describe("frontend app mode B", () => {
       />,
     );
 
-    expect(
-      await screen.findByText(/set up this wallet/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/set up this wallet/i)).toBeInTheDocument();
     expect(loadProvisioningRequest).toHaveBeenCalledWith({
       walletId: "wal_test",
       token: "token_123",
@@ -202,7 +213,8 @@ describe("frontend app mode B", () => {
     expect(screen.getByText(/backend signer/i)).toBeInTheDocument();
     expect(screen.getByText(/0x2222/i)).toBeInTheDocument();
     expect(
-      screen.getAllByText(walletConfig.regularValidator.threshold.toString()).length,
+      screen.getAllByText(walletConfig.regularValidator.threshold.toString())
+        .length,
     ).toBeGreaterThan(0);
     expect(screen.getByText(/transferwithauthorization/i)).toBeInTheDocument();
   });
@@ -220,31 +232,31 @@ describe("frontend app mode B", () => {
     render(<App search="" />);
 
     expect(
-      screen.getByRole("heading", { name: /secure wallet rails for autonomous agents/i }),
+      screen.getByRole("heading", {
+        name: /secure wallet rails for autonomous agents/i,
+      }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /agents can only do what their policy allows/i }),
+      screen.getByRole("heading", {
+        name: /agents can only do what their policy allows/i,
+      }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/conduit enforces that policy on the backend/i),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /docs/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /github/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /docs/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /github/i })).toBeInTheDocument();
   });
 
   it("polls funding after owner binding until the wallet is ready", async () => {
-    const setIntervalSpy = vi
-      .spyOn(window, "setInterval")
-      .mockImplementation(((callback: TimerHandler) => {
-        queueMicrotask(() => {
-          void (callback as () => void)();
-        });
-        return 1;
-      }) as typeof window.setInterval);
+    const setIntervalSpy = vi.spyOn(window, "setInterval").mockImplementation(((
+      callback: TimerHandler,
+    ) => {
+      queueMicrotask(() => {
+        void (callback as () => void)();
+      });
+      return 1;
+    }) as typeof window.setInterval);
     const clearIntervalSpy = vi
       .spyOn(window, "clearInterval")
       .mockImplementation(() => {});
@@ -265,7 +277,8 @@ describe("frontend app mode B", () => {
           credentialId: "credential-id",
           publicKey: "0x1234",
         },
-        counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
+        counterfactualWalletAddress:
+          "0x2222222222222222222222222222222222222222",
         regularValidatorInitArtifact,
       });
     const publishOwnerArtifacts = vi
@@ -324,7 +337,8 @@ describe("frontend app mode B", () => {
       .mockResolvedValue(
         buildProvisioningResponse({
           status: "owner_bound",
-          counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
+          counterfactualWalletAddress:
+            "0x2222222222222222222222222222222222222222",
           funding: {
             status: "insufficient",
             minimumRequiredWei: "500000000000000",
@@ -363,7 +377,9 @@ describe("frontend app mode B", () => {
     expect(
       await screen.findByRole("heading", { name: /fund the wallet/i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /technical details/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /technical details/i }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /passkey already created/i }),
     ).toBeDisabled();
@@ -386,7 +402,8 @@ describe("frontend app mode B", () => {
           credentialId: "credential-id",
           publicKey: "0x1234",
         },
-        counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
+        counterfactualWalletAddress:
+          "0x2222222222222222222222222222222222222222",
         regularValidatorInitArtifact,
       });
     const publishOwnerArtifacts = vi
@@ -411,7 +428,9 @@ describe("frontend app mode B", () => {
       await screen.findByRole("button", { name: /create passkey/i }),
     );
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(/unable to save passkey owner/i);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /unable to save passkey owner/i,
+    );
     expect(
       screen.getByRole("heading", { name: /create the passkey/i }),
     ).toBeInTheDocument();

@@ -1,4 +1,10 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -11,37 +17,55 @@ const coverageProjects = [
   {
     label: "@conduit/shared",
     cwd: resolve(workspaceRoot, "packages/shared"),
-    summaryPath: resolve(workspaceRoot, "packages/shared/coverage/coverage-summary.json"),
+    summaryPath: resolve(
+      workspaceRoot,
+      "packages/shared/coverage/coverage-summary.json",
+    ),
     command: ["pnpm", "--filter", "@conduit/shared", "test:coverage"],
   },
   {
     label: "@conduit/zerodev",
     cwd: resolve(workspaceRoot, "packages/zerodev"),
-    summaryPath: resolve(workspaceRoot, "packages/zerodev/coverage/coverage-summary.json"),
+    summaryPath: resolve(
+      workspaceRoot,
+      "packages/zerodev/coverage/coverage-summary.json",
+    ),
     command: ["pnpm", "--filter", "@conduit/zerodev", "test:coverage"],
   },
   {
     label: "@conduit/backend",
     cwd: resolve(workspaceRoot, "apps/backend"),
-    summaryPath: resolve(workspaceRoot, "apps/backend/coverage/coverage-summary.json"),
+    summaryPath: resolve(
+      workspaceRoot,
+      "apps/backend/coverage/coverage-summary.json",
+    ),
     command: ["pnpm", "--filter", "@conduit/backend", "test:coverage"],
   },
   {
     label: "@conduit/cli",
     cwd: resolve(workspaceRoot, "apps/cli"),
-    summaryPath: resolve(workspaceRoot, "apps/cli/coverage/coverage-summary.json"),
+    summaryPath: resolve(
+      workspaceRoot,
+      "apps/cli/coverage/coverage-summary.json",
+    ),
     command: ["pnpm", "--filter", "@conduit/cli", "test:coverage"],
   },
   {
     label: "@conduit/frontend",
     cwd: resolve(workspaceRoot, "apps/frontend"),
-    summaryPath: resolve(workspaceRoot, "apps/frontend/coverage/coverage-summary.json"),
+    summaryPath: resolve(
+      workspaceRoot,
+      "apps/frontend/coverage/coverage-summary.json",
+    ),
     command: ["pnpm", "--filter", "@conduit/frontend", "test:coverage"],
   },
   {
     label: "@conduit/e2e",
     cwd: resolve(workspaceRoot, "tests/e2e"),
-    summaryPath: resolve(workspaceRoot, "tests/e2e/coverage/coverage-summary.json"),
+    summaryPath: resolve(
+      workspaceRoot,
+      "tests/e2e/coverage/coverage-summary.json",
+    ),
     setupCommand: ["pnpm", "build"],
     command: ["pnpm", "--filter", "@conduit/e2e", "test:coverage"],
   },
@@ -139,7 +163,10 @@ for (const project of coverageProjects) {
 
 for (const metric of metricKeys) {
   aggregateTotals[metric].pct = Number(
-    formatPercent(aggregateTotals[metric].covered, aggregateTotals[metric].total),
+    formatPercent(
+      aggregateTotals[metric].covered,
+      aggregateTotals[metric].total,
+    ),
   );
 }
 

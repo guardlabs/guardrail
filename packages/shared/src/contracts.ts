@@ -65,7 +65,10 @@ export const weightedValidatorConfigSchema = z
       });
     }
 
-    const totalWeight = input.signers.reduce((sum, signer) => sum + signer.weight, 0);
+    const totalWeight = input.signers.reduce(
+      (sum, signer) => sum + signer.weight,
+      0,
+    );
 
     if (totalWeight < input.threshold) {
       ctx.addIssue({
@@ -138,7 +141,9 @@ export const usdcPolicyOperationSchema = z.enum([
 
 export const usdcPolicySchema = z.object({
   period: usdcPolicyPeriodSchema,
-  maxAmountMinor: z.string().regex(/^\d+$/, "Expected an unsigned integer string"),
+  maxAmountMinor: z
+    .string()
+    .regex(/^\d+$/, "Expected an unsigned integer string"),
   allowedOperations: z.array(usdcPolicyOperationSchema).min(1),
 });
 
@@ -177,33 +182,35 @@ export const walletRequestSchema = z.object({
   expiresAt: z.string().datetime({ offset: true }),
 });
 
-export const createWalletRequestInputSchema = z.object({
-  walletMode: walletModeSchema,
-  chainId: z.number().int().positive(),
-  agentAddress: evmAddressSchema,
-  policy: walletPolicySchema,
-}).superRefine((input, ctx) => {
-  const supportedChain = getSupportedChainById(input.chainId);
+export const createWalletRequestInputSchema = z
+  .object({
+    walletMode: walletModeSchema,
+    chainId: z.number().int().positive(),
+    agentAddress: evmAddressSchema,
+    policy: walletPolicySchema,
+  })
+  .superRefine((input, ctx) => {
+    const supportedChain = getSupportedChainById(input.chainId);
 
-  if (!supportedChain || !input.policy.contractAllowlist) {
-    return;
-  }
+    if (!supportedChain || !input.policy.contractAllowlist) {
+      return;
+    }
 
-  const containsOfficialUsdc = input.policy.contractAllowlist.some(
-    (entry) =>
-      entry.contractAddress.toLowerCase() ===
-      supportedChain.officialUsdcAddress.toLowerCase(),
-  );
+    const containsOfficialUsdc = input.policy.contractAllowlist.some(
+      (entry) =>
+        entry.contractAddress.toLowerCase() ===
+        supportedChain.officialUsdcAddress.toLowerCase(),
+    );
 
-  if (containsOfficialUsdc) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message:
-        "Official USDC must not appear in the generic contract allowlist. Use usdcPolicy instead.",
-      path: ["policy", "contractAllowlist"],
-    });
-  }
-});
+    if (containsOfficialUsdc) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "Official USDC must not appear in the generic contract allowlist. Use usdcPolicy instead.",
+        path: ["policy", "contractAllowlist"],
+      });
+    }
+  });
 
 export const createWalletRequestResponseSchema = z.object({
   walletMode: walletModeSchema,
@@ -296,14 +303,16 @@ export const localWalletRequestSchema = z
     if (!agentSigner || agentSigner.address !== input.agentAddress) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Local wallet agentAddress must match the weighted validator config.",
+        message:
+          "Local wallet agentAddress must match the weighted validator config.",
       });
     }
 
     if (!backendSigner || backendSigner.address !== input.backendAddress) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Local wallet backendAddress must match the weighted validator config.",
+        message:
+          "Local wallet backendAddress must match the weighted validator config.",
       });
     }
   });
@@ -314,11 +323,26 @@ export const backendSignerMethodSchema = z.enum([
   "deploy_wallet_v1",
 ]);
 
-const jsonPrimitiveSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
-type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+const jsonPrimitiveSchema = z.union([
+  z.string(),
+  z.number(),
+  z.boolean(),
+  z.null(),
+]);
+type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
 
 const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
-  z.union([jsonPrimitiveSchema, z.array(jsonValueSchema), z.record(jsonValueSchema)]),
+  z.union([
+    jsonPrimitiveSchema,
+    z.array(jsonValueSchema),
+    z.record(jsonValueSchema),
+  ]),
 );
 
 export const backendSignerMessagePayloadSchema = z.object({
@@ -355,9 +379,10 @@ export const backendSignerAuthPayloadSchema = z.object({
   expiresAt: z.string().datetime({ offset: true }),
 });
 
-export const backendSignerAuthEnvelopeSchema = backendSignerAuthPayloadSchema.extend({
-  agentSignature: hexStringSchema,
-});
+export const backendSignerAuthEnvelopeSchema =
+  backendSignerAuthPayloadSchema.extend({
+    agentSignature: hexStringSchema,
+  });
 
 export const backendPackedUserOperationSchema = z.object({
   sender: evmAddressSchema,
@@ -459,7 +484,9 @@ export const x402ExactEip3009ExtraSchema = z.object({
 
 export const x402PaymentRequirementsSchema = z.object({
   scheme: z.literal("exact"),
-  network: z.string().regex(/^eip155:\d+$/, "Expected an EIP-155 CAIP-2 network."),
+  network: z
+    .string()
+    .regex(/^eip155:\d+$/, "Expected an EIP-155 CAIP-2 network."),
   amount: z.string().regex(/^\d+$/, "Expected an unsigned integer amount."),
   asset: evmAddressSchema,
   payTo: evmAddressSchema,
@@ -471,8 +498,12 @@ export const x402TransferWithAuthorizationSchema = z.object({
   from: evmAddressSchema,
   to: evmAddressSchema,
   value: z.string().regex(/^\d+$/, "Expected an unsigned integer value."),
-  validAfter: z.string().regex(/^\d+$/, "Expected an unsigned integer validAfter."),
-  validBefore: z.string().regex(/^\d+$/, "Expected an unsigned integer validBefore."),
+  validAfter: z
+    .string()
+    .regex(/^\d+$/, "Expected an unsigned integer validAfter."),
+  validBefore: z
+    .string()
+    .regex(/^\d+$/, "Expected an unsigned integer validBefore."),
   nonce: bytes32HexSchema,
 });
 
@@ -500,8 +531,13 @@ export const x402SettlementResponseSchema = z.object({
   errorReason: z.string().min(1).optional(),
   payer: evmAddressSchema.optional(),
   transaction: hexStringSchema,
-  network: z.string().regex(/^eip155:\d+$/, "Expected an EIP-155 CAIP-2 network."),
-  amount: z.string().regex(/^\d+$/, "Expected an unsigned integer amount.").optional(),
+  network: z
+    .string()
+    .regex(/^eip155:\d+$/, "Expected an EIP-155 CAIP-2 network."),
+  amount: z
+    .string()
+    .regex(/^\d+$/, "Expected an unsigned integer amount.")
+    .optional(),
   extensions: z.record(z.unknown()).optional(),
 });
 
@@ -510,7 +546,10 @@ const transitions = {
   owner_bound: ["ready", "failed"],
   ready: [],
   failed: [],
-} as const satisfies Record<WalletRequestStatus, readonly WalletRequestStatus[]>;
+} as const satisfies Record<
+  WalletRequestStatus,
+  readonly WalletRequestStatus[]
+>;
 
 export function canTransitionStatus(
   from: WalletRequestStatus,
@@ -553,7 +592,9 @@ export function buildDefaultWalletConfig(input: {
   });
 }
 
-export function normalizeWalletConfig(input: z.input<typeof walletConfigSchema>) {
+export function normalizeWalletConfig(
+  input: z.input<typeof walletConfigSchema>,
+) {
   return walletConfigSchema.parse(input);
 }
 
@@ -585,7 +626,10 @@ function stableStringifyValue(value: JsonValue): string {
   );
 
   return `{${entries
-    .map(([key, nestedValue]) => `${JSON.stringify(key)}:${stableStringifyValue(nestedValue)}`)
+    .map(
+      ([key, nestedValue]) =>
+        `${JSON.stringify(key)}:${stableStringifyValue(nestedValue)}`,
+    )
     .join(",")}}`;
 }
 
@@ -628,7 +672,9 @@ export function getBackendSignerAuthorizationTypedData(
 
 export type WeightedSignerRole = z.infer<typeof weightedSignerRoleSchema>;
 export type WeightedSigner = z.infer<typeof weightedSignerSchema>;
-export type WeightedValidatorConfig = z.infer<typeof weightedValidatorConfigSchema>;
+export type WeightedValidatorConfig = z.infer<
+  typeof weightedValidatorConfigSchema
+>;
 export type WalletMode = z.infer<typeof walletModeSchema>;
 export type WalletConfig = z.infer<typeof walletConfigSchema>;
 export type OwnerPublicArtifacts = z.infer<typeof ownerPublicArtifactsSchema>;
@@ -640,7 +686,9 @@ export type DeploymentState = z.infer<typeof deploymentStateSchema>;
 export type WalletContext = z.infer<typeof walletContextSchema>;
 export type WalletPolicy = z.infer<typeof walletPolicySchema>;
 export type WalletRequest = z.infer<typeof walletRequestSchema>;
-export type CreateWalletRequestInput = z.infer<typeof createWalletRequestInputSchema>;
+export type CreateWalletRequestInput = z.infer<
+  typeof createWalletRequestInputSchema
+>;
 export type CreateWalletRequestResponse = z.infer<
   typeof createWalletRequestResponseSchema
 >;
@@ -658,8 +706,12 @@ export type BackendSignerTypedDataPayload = z.infer<
 export type BackendTypedDataSignaturePayload = z.infer<
   typeof backendTypedDataSignaturePayloadSchema
 >;
-export type BackendPackedUserOperation = z.infer<typeof backendPackedUserOperationSchema>;
-export type BackendSingleCallOperation = z.infer<typeof backendSingleCallOperationSchema>;
+export type BackendPackedUserOperation = z.infer<
+  typeof backendPackedUserOperationSchema
+>;
+export type BackendSingleCallOperation = z.infer<
+  typeof backendSingleCallOperationSchema
+>;
 export type BackendUserOperationSignaturePayload = z.infer<
   typeof backendUserOperationSignaturePayloadSchema
 >;

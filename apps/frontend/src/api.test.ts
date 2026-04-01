@@ -17,7 +17,13 @@ function createRuntimePolicy(): WalletPolicy {
     usdcPolicy: {
       period: "daily",
       maxAmountMinor: "1500000",
-      allowedOperations: ["transfer", "approve", "increaseAllowance", "permit", "transferWithAuthorization"],
+      allowedOperations: [
+        "transfer",
+        "approve",
+        "increaseAllowance",
+        "permit",
+        "transferWithAuthorization",
+      ],
     },
   };
 }
@@ -48,7 +54,8 @@ describe("frontend api mode B", () => {
           enableData: "0x1234",
           pluginEnableSignature: "0x5678",
         },
-        counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
+        counterfactualWalletAddress:
+          "0x2222222222222222222222222222222222222222",
         funding: {
           status: "insufficient",
           minimumRequiredWei: "500000000000000",
@@ -120,7 +127,8 @@ describe("frontend api mode B", () => {
         policy: createRuntimePolicy(),
         agentAddress: walletConfig.regularValidator.signers[0]?.address,
         backendAddress: walletConfig.regularValidator.signers[1]?.address,
-        counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
+        counterfactualWalletAddress:
+          "0x2222222222222222222222222222222222222222",
         funding: {
           status: "insufficient",
           minimumRequiredWei: "500000000000000",

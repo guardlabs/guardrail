@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import type { ResolveProvisioningResponse, WalletRequest } from "@conduit/shared";
-import { getSupportedChainById, PROJECT_DEFAULT_BACKEND_URL } from "@conduit/shared";
+import type {
+  ResolveProvisioningResponse,
+  WalletRequest,
+} from "@conduit/shared";
+import {
+  getSupportedChainById,
+  PROJECT_DEFAULT_BACKEND_URL,
+} from "@conduit/shared";
 import type { FrontendApi } from "./api.js";
 import { browserApi } from "./api.js";
 import { MarketingHome } from "./components/MarketingHome.js";
@@ -12,7 +18,8 @@ import type { PasskeyClient } from "./passkey.js";
 import { parseProvisioningQuery } from "./provisioning.js";
 import "./styles.css";
 
-const resolvedBackendUrl = __DEFAULT_BACKEND_URL__ ?? PROJECT_DEFAULT_BACKEND_URL;
+const resolvedBackendUrl =
+  __DEFAULT_BACKEND_URL__ ?? PROJECT_DEFAULT_BACKEND_URL;
 
 type AppProps = {
   search?: string;
@@ -30,7 +37,9 @@ function hasWalletContext(
 ): request is WalletRequest & {
   walletContext: NonNullable<WalletRequest["walletContext"]>;
 } {
-  return Boolean(request && "walletContext" in request && request.walletContext);
+  return Boolean(
+    request && "walletContext" in request && request.walletContext,
+  );
 }
 
 function getChainLabel(chainId: number) {
@@ -49,13 +58,7 @@ function formatCompactValue(value: string | null | undefined) {
   return `${value.slice(0, 8)}...${value.slice(-6)}`;
 }
 
-function MessageState({
-  title,
-  body,
-}: {
-  title: string;
-  body: string;
-}) {
+function MessageState({ title, body }: { title: string; body: string }) {
   return (
     <section className="cw-message-state">
       <p className="cw-kicker">Provisioning</p>
@@ -82,12 +85,10 @@ function TechnicalDetail({
   );
 }
 
-export function App({
-  search,
-  api = browserApi,
-  passkeyClient,
-}: AppProps) {
-  const [request, setRequest] = useState<ResolveProvisioningResponse | WalletRequest | null>(null);
+export function App({ search, api = browserApi, passkeyClient }: AppProps) {
+  const [request, setRequest] = useState<
+    ResolveProvisioningResponse | WalletRequest | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRefreshingFunding, setIsRefreshingFunding] = useState(false);
@@ -122,7 +123,11 @@ export function App({
       })
       .catch((nextError) => {
         if (!cancelled) {
-          setError(nextError instanceof Error ? nextError.message : "Unable to load wallet.");
+          setError(
+            nextError instanceof Error
+              ? nextError.message
+              : "Unable to load wallet.",
+          );
         }
       });
 
@@ -190,9 +195,9 @@ export function App({
         passkeyClient ?? (await loadBrowserPasskeyClient());
       const provisioningArtifacts =
         await resolvedPasskeyClient.createProvisioningArtifacts({
-        displayName: "Conduit Wallet",
-        walletConfig: request.walletConfig,
-      });
+          displayName: "Conduit Wallet",
+          walletConfig: request.walletConfig,
+        });
 
       const updatedRequest = await api.publishOwnerArtifacts({
         ...query,
@@ -224,7 +229,9 @@ export function App({
         policy: request.policy,
       })
     : null;
-  const chainLabel = request ? getChainLabel(request.walletConfig.chainId) : "Supported network";
+  const chainLabel = request
+    ? getChainLabel(request.walletConfig.chainId)
+    : "Supported network";
   const isPrimaryActionDisabled =
     isSubmitting || status === "owner_bound" || status === "ready";
   const walletAddress =
@@ -266,70 +273,80 @@ export function App({
     </>
   );
 
-  const technicalDetails = request && contentModel ? (
-    <TechnicalDetailsDisclosure summary="Technical details">
-      <div className="cw-technical-grid">
-        <TechnicalDetail label="Wallet ID" value={request.walletId} code />
-        <TechnicalDetail
-          label="Chain"
-          value={`${chainLabel} (${request.walletConfig.chainId})`}
-        />
-        <TechnicalDetail
-          label="Threshold"
-          value={request.walletConfig.regularValidator.threshold.toString()}
-        />
-        <TechnicalDetail label="Agent signer" value={request.agentAddress} code />
-        <TechnicalDetail label="Backend signer" value={request.backendAddress} code />
-        <TechnicalDetail label="Funding" value={contentModel.fundingLabel} />
-        <TechnicalDetail
-          label="Minimum funding (wei)"
-          value={request.funding.minimumRequiredWei}
-          code
-        />
-      </div>
+  const technicalDetails =
+    request && contentModel ? (
+      <TechnicalDetailsDisclosure summary="Technical details">
+        <div className="cw-technical-grid">
+          <TechnicalDetail label="Wallet ID" value={request.walletId} code />
+          <TechnicalDetail
+            label="Chain"
+            value={`${chainLabel} (${request.walletConfig.chainId})`}
+          />
+          <TechnicalDetail
+            label="Threshold"
+            value={request.walletConfig.regularValidator.threshold.toString()}
+          />
+          <TechnicalDetail
+            label="Agent signer"
+            value={request.agentAddress}
+            code
+          />
+          <TechnicalDetail
+            label="Backend signer"
+            value={request.backendAddress}
+            code
+          />
+          <TechnicalDetail label="Funding" value={contentModel.fundingLabel} />
+          <TechnicalDetail
+            label="Minimum funding (wei)"
+            value={request.funding.minimumRequiredWei}
+            code
+          />
+        </div>
 
-      <div className="cw-policy-block">
-        <p className="cw-kicker">Runtime policy</p>
-        <h3>Agent + backend co-signing</h3>
-        <p>
-          Denied by default. Only the rules below can execute without your direct
-          intervention. Your passkey does not use this policy.
-        </p>
-        {contentModel.technicalPolicySummary.contractSummary ? (
-          <TechnicalDetail
-            label="Contracts"
-            value={contentModel.technicalPolicySummary.contractSummary}
-          />
-        ) : null}
-        {contentModel.technicalPolicySummary.usdcSummary ? (
-          <TechnicalDetail
-            label="USDC"
-            value={contentModel.technicalPolicySummary.usdcSummary}
-          />
-        ) : null}
-        {contentModel.technicalPolicySummary.usdcBudgetSummary ? (
-          <TechnicalDetail
-            label="Budget"
-            value={contentModel.technicalPolicySummary.usdcBudgetSummary}
-          />
-        ) : null}
-      </div>
-    </TechnicalDetailsDisclosure>
-  ) : (
-    <MessageState
-      title="Technical details appear once the request loads"
-      body="Signer addresses, thresholds, and funding requirements stay tucked away until the wallet is available."
-    />
-  );
+        <div className="cw-policy-block">
+          <p className="cw-kicker">Runtime policy</p>
+          <h3>Agent + backend co-signing</h3>
+          <p>
+            Denied by default. Only the rules below can execute without your
+            direct intervention. Your passkey does not use this policy.
+          </p>
+          {contentModel.technicalPolicySummary.contractSummary ? (
+            <TechnicalDetail
+              label="Contracts"
+              value={contentModel.technicalPolicySummary.contractSummary}
+            />
+          ) : null}
+          {contentModel.technicalPolicySummary.usdcSummary ? (
+            <TechnicalDetail
+              label="USDC"
+              value={contentModel.technicalPolicySummary.usdcSummary}
+            />
+          ) : null}
+          {contentModel.technicalPolicySummary.usdcBudgetSummary ? (
+            <TechnicalDetail
+              label="Budget"
+              value={contentModel.technicalPolicySummary.usdcBudgetSummary}
+            />
+          ) : null}
+        </div>
+      </TechnicalDetailsDisclosure>
+    ) : (
+      <MessageState
+        title="Technical details appear once the request loads"
+        body="Signer addresses, thresholds, and funding requirements stay tucked away until the wallet is available."
+      />
+    );
 
-  const secondary = request && contentModel ? (
-    <>
-      <PermissionSummary items={contentModel.permissionItems} />
-      {technicalDetails}
-    </>
-  ) : (
-    technicalDetails
-  );
+  const secondary =
+    request && contentModel ? (
+      <>
+        <PermissionSummary items={contentModel.permissionItems} />
+        {technicalDetails}
+      </>
+    ) : (
+      technicalDetails
+    );
 
   const primary = !query ? (
     <MessageState
@@ -363,10 +380,14 @@ export function App({
           }}
           type="button"
         >
-          {isSubmitting ? "Creating passkey..." : contentModel.primaryActionLabel}
+          {isSubmitting
+            ? "Creating passkey..."
+            : contentModel.primaryActionLabel}
         </button>
 
-        <p className="cw-support-copy cw-support-note">{contentModel.reassurance}</p>
+        <p className="cw-support-copy cw-support-note">
+          {contentModel.reassurance}
+        </p>
 
         {error ? (
           <p className="cw-error-copy" role="alert">
@@ -401,7 +422,9 @@ export function App({
             </div>
             <p className="cw-support-copy">
               {contentModel.fundingGuidance}{" "}
-              {isRefreshingFunding ? "Checking again now..." : "Refreshes every 5 seconds."}
+              {isRefreshingFunding
+                ? "Checking again now..."
+                : "Refreshes every 5 seconds."}
             </p>
           </div>
         ) : null}
@@ -414,5 +437,7 @@ export function App({
     />
   );
 
-  return <ProvisioningLayout hero={hero} primary={primary} secondary={secondary} />;
+  return (
+    <ProvisioningLayout hero={hero} primary={primary} secondary={secondary} />
+  );
 }

@@ -23,7 +23,10 @@ import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { verifyTypedData, type Address, type Hex } from "viem";
 import type { AppConfig } from "./config.js";
 import type { ChainRelayService, RelayTarget } from "./chain-relay.js";
-import type { StoredWalletRequest, WalletRequestRepository } from "./repository.js";
+import type {
+  StoredWalletRequest,
+  WalletRequestRepository,
+} from "./repository.js";
 import { toPublicWalletRequest } from "./repository.js";
 import {
   createInitialRuntimePolicyState,
@@ -249,7 +252,8 @@ async function verifyBackendSignerAuthorization(input: {
       ok: false as const,
       statusCode: 400,
       error: "wallet_address_mismatch",
-      message: "Backend signer authorization walletAddress does not match the ready wallet.",
+      message:
+        "Backend signer authorization walletAddress does not match the ready wallet.",
     };
   }
 
@@ -261,7 +265,8 @@ async function verifyBackendSignerAuthorization(input: {
       ok: false as const,
       statusCode: 400,
       error: "backend_signer_mismatch",
-      message: "Backend signer authorization backendSignerAddress does not match the wallet.",
+      message:
+        "Backend signer authorization backendSignerAddress does not match the wallet.",
     };
   }
 
@@ -284,7 +289,8 @@ async function verifyBackendSignerAuthorization(input: {
       ok: false as const,
       statusCode: 400,
       error: "body_hash_mismatch",
-      message: "Backend signer authorization bodyHash does not match the requested payload.",
+      message:
+        "Backend signer authorization bodyHash does not match the requested payload.",
     };
   }
 
@@ -322,7 +328,9 @@ function signBackendUserOperationPayload(input: {
   const backendAccount = privateKeyToAccount(input.backendPrivateKey);
 
   if (input.signaturePayload.kind === "weighted_validator_approve") {
-    return backendAccount.signTypedData(input.signaturePayload.typedData as never);
+    return backendAccount.signTypedData(
+      input.signaturePayload.typedData as never,
+    );
   }
 
   return backendAccount.signMessage({
@@ -399,7 +407,10 @@ export function registerRoutes(
     const chainId = Number(params.chainId);
     const methods = extractRelayMethods(request.body);
 
-    if (!Number.isInteger(chainId) || !config.supportedChainIds.includes(chainId)) {
+    if (
+      !Number.isInteger(chainId) ||
+      !config.supportedChainIds.includes(chainId)
+    ) {
       return reply.status(404).send({
         error: "unsupported_chain",
       });
@@ -412,7 +423,9 @@ export function registerRoutes(
       });
     }
 
-    const disallowedMethod = methods.find((method) => !isAllowedRelayMethod(target, method));
+    const disallowedMethod = methods.find(
+      (method) => !isAllowedRelayMethod(target, method),
+    );
 
     if (disallowedMethod) {
       return reply.status(403).send({
@@ -428,18 +441,26 @@ export function registerRoutes(
         payload: request.body,
       });
 
-      logDebug(app, "chain_relay_forwarded", "Forwarded allowed chain relay request.", {
-        route: target === "rpc" ? "rpc-relay" : "bundler-relay",
-        chainId,
-        target,
-        methods,
-      });
+      logDebug(
+        app,
+        "chain_relay_forwarded",
+        "Forwarded allowed chain relay request.",
+        {
+          route: target === "rpc" ? "rpc-relay" : "bundler-relay",
+          chainId,
+          target,
+          methods,
+        },
+      );
 
       return reply.send(payload);
     } catch (error) {
       return reply.status(502).send({
         error: `${target}_relay_failed`,
-        message: error instanceof Error ? error.message : `Failed to relay ${target} request`,
+        message:
+          error instanceof Error
+            ? error.message
+            : `Failed to relay ${target} request`,
       });
     }
   }
@@ -496,13 +517,18 @@ export function registerRoutes(
       ),
     });
 
-    logInfo(app, "wallet_request_created", "Created wallet provisioning request.", {
-      walletId: nextRequest.walletId,
-      chainId: nextRequest.walletConfig.chainId,
-      status: nextRequest.status,
-      agentAddress: nextRequest.agentAddress,
-      backendAddress: nextRequest.backendAddress,
-    });
+    logInfo(
+      app,
+      "wallet_request_created",
+      "Created wallet provisioning request.",
+      {
+        walletId: nextRequest.walletId,
+        chainId: nextRequest.walletConfig.chainId,
+        status: nextRequest.status,
+        agentAddress: nextRequest.agentAddress,
+        backendAddress: nextRequest.backendAddress,
+      },
+    );
 
     return reply.status(201).send(response);
   });
@@ -517,7 +543,11 @@ export function registerRoutes(
       });
     }
 
-    return reply.send(getWalletRequestResponseSchema.parse(toPublicWalletRequest(walletRequest)));
+    return reply.send(
+      getWalletRequestResponseSchema.parse(
+        toPublicWalletRequest(walletRequest),
+      ),
+    );
   });
 
   app.post("/v1/wallets/:walletId/refresh-funding", async (request, reply) => {
@@ -531,7 +561,8 @@ export function registerRoutes(
     }
 
     if (
-      (walletRequest.status !== "owner_bound" && walletRequest.status !== "ready") ||
+      (walletRequest.status !== "owner_bound" &&
+        walletRequest.status !== "ready") ||
       !walletRequest.ownerPublicArtifacts ||
       !walletRequest.regularValidatorInitArtifact ||
       !walletRequest.counterfactualWalletAddress
@@ -568,364 +599,459 @@ export function registerRoutes(
       });
     }
 
-    logInfo(app, "wallet_funding_refreshed", "Refreshed wallet funding and deployment state.", {
-      walletId: updatedRequest.walletId,
-      previousStatus,
-      status: updatedRequest.status,
-      previousFundingStatus,
-      fundingStatus: updatedRequest.funding.status,
-      deploymentStatus: updatedRequest.deployment.status,
-      walletAddress: updatedRequest.walletContext?.walletAddress ?? updatedRequest.counterfactualWalletAddress,
-    });
-
-    if (updatedRequest.status !== previousStatus) {
-      logInfo(app, "wallet_status_updated", "Wallet status changed after funding refresh.", {
+    logInfo(
+      app,
+      "wallet_funding_refreshed",
+      "Refreshed wallet funding and deployment state.",
+      {
         walletId: updatedRequest.walletId,
         previousStatus,
         status: updatedRequest.status,
-        walletAddress: updatedRequest.walletContext?.walletAddress ?? updatedRequest.counterfactualWalletAddress,
-      });
-    }
-
-    return reply.send(getWalletRequestResponseSchema.parse(toPublicWalletRequest(updatedRequest)));
-  });
-
-  app.post("/v1/wallets/:walletId/backend-sign-typed-data", async (request, reply) => {
-    const params = request.params as { walletId: string };
-    const walletRequest = await repository.findById(params.walletId);
-
-    if (!walletRequest) {
-      return reply.status(404).send({
-        error: "request_not_found",
-      });
-    }
-
-    const parsedRequest = backendSignTypedDataRequestSchema.parse(request.body);
-
-    const verification = await verifyBackendSignerAuthorization({
-      request: walletRequest,
-      auth: parsedRequest.auth,
-      body: {
-        typedData: parsedRequest.typedData,
-        signaturePayload: parsedRequest.signaturePayload,
+        previousFundingStatus,
+        fundingStatus: updatedRequest.funding.status,
+        deploymentStatus: updatedRequest.deployment.status,
+        walletAddress:
+          updatedRequest.walletContext?.walletAddress ??
+          updatedRequest.counterfactualWalletAddress,
       },
-    });
-
-    if (!verification.ok) {
-      logDebug(app, "backend_signer_authorization_denied", "Denied backend typed-data authorization.", {
-        walletId: walletRequest.walletId,
-        route: "backend-sign-typed-data",
-        requestId: parsedRequest.auth.requestId,
-        authError: verification.error,
-      });
-      return reply.status(verification.statusCode).send({
-        error: verification.error,
-        message: verification.message,
-      });
-    }
-
-    const now = new Date();
-    const recentUsdcConsumptions = await listRelevantUsdcConsumptions({
-      repository,
-      request: walletRequest,
-      now,
-    });
-
-    const policyDecision = evaluateTypedDataPolicy({
-      request: walletRequest,
-      recentUsdcConsumptions,
-      typedData: parsedRequest.typedData,
-      signaturePayload: parsedRequest.signaturePayload,
-      now,
-    });
-
-    if (!policyDecision.ok) {
-      logDebug(app, "runtime_policy_denied", "Denied typed-data request by runtime policy.", {
-        walletId: walletRequest.walletId,
-        route: "backend-sign-typed-data",
-        requestId: parsedRequest.auth.requestId,
-        method: parsedRequest.auth.method,
-        policyError: policyDecision.error,
-      });
-      return reply.status(policyDecision.statusCode).send({
-        error: policyDecision.error,
-        message: policyDecision.message,
-      });
-    }
-
-    const replay = await repository.recordUsedSigningRequestId({
-      walletId: walletRequest.walletId,
-      requestId: parsedRequest.auth.requestId,
-      updatedAt: now.toISOString(),
-    });
-
-    if (replay === "not_found") {
-      return reply.status(404).send({
-        error: "request_not_found",
-      });
-    }
-
-    if (replay === "duplicate") {
-      logDebug(app, "backend_signer_request_replayed", "Rejected replayed backend typed-data request.", {
-        walletId: walletRequest.walletId,
-        route: "backend-sign-typed-data",
-        requestId: parsedRequest.auth.requestId,
-      });
-      return reply.status(409).send({
-        error: "request_replayed",
-        message: "This backend signer requestId has already been used.",
-      });
-    }
-
-    if (policyDecision.consumption) {
-      await repository.createRuntimePolicyConsumption({
-        walletId: walletRequest.walletId,
-        requestId: parsedRequest.auth.requestId,
-        asset: policyDecision.consumption.asset,
-        operation: policyDecision.consumption.operation,
-        amountMinor: policyDecision.consumption.amountMinor,
-        createdAt: now.toISOString(),
-      });
-    }
-
-    const backendAccount = privateKeyToAccount(walletRequest.backendPrivateKey as Hex);
-
-    const signature = await backendAccount.signTypedData(
-      parsedRequest.signaturePayload.typedData as never,
     );
 
-    logInfo(app, "backend_signature_granted", "Granted backend typed-data signature.", {
-      walletId: walletRequest.walletId,
-      route: "backend-sign-typed-data",
-      requestId: parsedRequest.auth.requestId,
-      method: parsedRequest.auth.method,
-      primaryType: parsedRequest.typedData.primaryType,
-    });
+    if (updatedRequest.status !== previousStatus) {
+      logInfo(
+        app,
+        "wallet_status_updated",
+        "Wallet status changed after funding refresh.",
+        {
+          walletId: updatedRequest.walletId,
+          previousStatus,
+          status: updatedRequest.status,
+          walletAddress:
+            updatedRequest.walletContext?.walletAddress ??
+            updatedRequest.counterfactualWalletAddress,
+        },
+      );
+    }
 
     return reply.send(
-      backendSignResponseSchema.parse({
-        signature,
-      }),
+      getWalletRequestResponseSchema.parse(
+        toPublicWalletRequest(updatedRequest),
+      ),
     );
   });
 
-  app.post("/v1/wallets/:walletId/backend-sign-user-operation", async (request, reply) => {
-    const params = request.params as { walletId: string };
-    const walletRequest = await repository.findById(params.walletId);
+  app.post(
+    "/v1/wallets/:walletId/backend-sign-typed-data",
+    async (request, reply) => {
+      const params = request.params as { walletId: string };
+      const walletRequest = await repository.findById(params.walletId);
 
-    if (!walletRequest) {
-      return reply.status(404).send({
-        error: "request_not_found",
+      if (!walletRequest) {
+        return reply.status(404).send({
+          error: "request_not_found",
+        });
+      }
+
+      const parsedRequest = backendSignTypedDataRequestSchema.parse(
+        request.body,
+      );
+
+      const verification = await verifyBackendSignerAuthorization({
+        request: walletRequest,
+        auth: parsedRequest.auth,
+        body: {
+          typedData: parsedRequest.typedData,
+          signaturePayload: parsedRequest.signaturePayload,
+        },
       });
-    }
 
-    const parsedRequest = backendSignUserOperationRequestSchema.parse(request.body);
+      if (!verification.ok) {
+        logDebug(
+          app,
+          "backend_signer_authorization_denied",
+          "Denied backend typed-data authorization.",
+          {
+            walletId: walletRequest.walletId,
+            route: "backend-sign-typed-data",
+            requestId: parsedRequest.auth.requestId,
+            authError: verification.error,
+          },
+        );
+        return reply.status(verification.statusCode).send({
+          error: verification.error,
+          message: verification.message,
+        });
+      }
 
-    const verification = await verifyBackendSignerAuthorization({
-      request: walletRequest,
-      auth: parsedRequest.auth,
-      body: {
+      const now = new Date();
+      const recentUsdcConsumptions = await listRelevantUsdcConsumptions({
+        repository,
+        request: walletRequest,
+        now,
+      });
+
+      const policyDecision = evaluateTypedDataPolicy({
+        request: walletRequest,
+        recentUsdcConsumptions,
+        typedData: parsedRequest.typedData,
+        signaturePayload: parsedRequest.signaturePayload,
+        now,
+      });
+
+      if (!policyDecision.ok) {
+        logDebug(
+          app,
+          "runtime_policy_denied",
+          "Denied typed-data request by runtime policy.",
+          {
+            walletId: walletRequest.walletId,
+            route: "backend-sign-typed-data",
+            requestId: parsedRequest.auth.requestId,
+            method: parsedRequest.auth.method,
+            policyError: policyDecision.error,
+          },
+        );
+        return reply.status(policyDecision.statusCode).send({
+          error: policyDecision.error,
+          message: policyDecision.message,
+        });
+      }
+
+      const replay = await repository.recordUsedSigningRequestId({
+        walletId: walletRequest.walletId,
+        requestId: parsedRequest.auth.requestId,
+        updatedAt: now.toISOString(),
+      });
+
+      if (replay === "not_found") {
+        return reply.status(404).send({
+          error: "request_not_found",
+        });
+      }
+
+      if (replay === "duplicate") {
+        logDebug(
+          app,
+          "backend_signer_request_replayed",
+          "Rejected replayed backend typed-data request.",
+          {
+            walletId: walletRequest.walletId,
+            route: "backend-sign-typed-data",
+            requestId: parsedRequest.auth.requestId,
+          },
+        );
+        return reply.status(409).send({
+          error: "request_replayed",
+          message: "This backend signer requestId has already been used.",
+        });
+      }
+
+      if (policyDecision.consumption) {
+        await repository.createRuntimePolicyConsumption({
+          walletId: walletRequest.walletId,
+          requestId: parsedRequest.auth.requestId,
+          asset: policyDecision.consumption.asset,
+          operation: policyDecision.consumption.operation,
+          amountMinor: policyDecision.consumption.amountMinor,
+          createdAt: now.toISOString(),
+        });
+      }
+
+      const backendAccount = privateKeyToAccount(
+        walletRequest.backendPrivateKey as Hex,
+      );
+
+      const signature = await backendAccount.signTypedData(
+        parsedRequest.signaturePayload.typedData as never,
+      );
+
+      logInfo(
+        app,
+        "backend_signature_granted",
+        "Granted backend typed-data signature.",
+        {
+          walletId: walletRequest.walletId,
+          route: "backend-sign-typed-data",
+          requestId: parsedRequest.auth.requestId,
+          method: parsedRequest.auth.method,
+          primaryType: parsedRequest.typedData.primaryType,
+        },
+      );
+
+      return reply.send(
+        backendSignResponseSchema.parse({
+          signature,
+        }),
+      );
+    },
+  );
+
+  app.post(
+    "/v1/wallets/:walletId/backend-sign-user-operation",
+    async (request, reply) => {
+      const params = request.params as { walletId: string };
+      const walletRequest = await repository.findById(params.walletId);
+
+      if (!walletRequest) {
+        return reply.status(404).send({
+          error: "request_not_found",
+        });
+      }
+
+      const parsedRequest = backendSignUserOperationRequestSchema.parse(
+        request.body,
+      );
+
+      const verification = await verifyBackendSignerAuthorization({
+        request: walletRequest,
+        auth: parsedRequest.auth,
+        body: {
+          operation: parsedRequest.operation,
+          userOperation: parsedRequest.userOperation,
+          signaturePayload: parsedRequest.signaturePayload,
+        },
+      });
+
+      if (!verification.ok) {
+        logDebug(
+          app,
+          "backend_signer_authorization_denied",
+          "Denied backend user-operation authorization.",
+          {
+            walletId: walletRequest.walletId,
+            route: "backend-sign-user-operation",
+            requestId: parsedRequest.auth.requestId,
+            authError: verification.error,
+          },
+        );
+        return reply.status(verification.statusCode).send({
+          error: verification.error,
+          message: verification.message,
+        });
+      }
+
+      const now = new Date();
+      const recentUsdcConsumptions = await listRelevantUsdcConsumptions({
+        repository,
+        request: walletRequest,
+        now,
+      });
+
+      const policyDecision = evaluateUserOperationPolicy({
+        request: walletRequest,
+        recentUsdcConsumptions,
         operation: parsedRequest.operation,
         userOperation: parsedRequest.userOperation,
         signaturePayload: parsedRequest.signaturePayload,
-      },
-    });
-
-    if (!verification.ok) {
-      logDebug(app, "backend_signer_authorization_denied", "Denied backend user-operation authorization.", {
-        walletId: walletRequest.walletId,
-        route: "backend-sign-user-operation",
-        requestId: parsedRequest.auth.requestId,
-        authError: verification.error,
+        now,
       });
-      return reply.status(verification.statusCode).send({
-        error: verification.error,
-        message: verification.message,
-      });
-    }
 
-    const now = new Date();
-    const recentUsdcConsumptions = await listRelevantUsdcConsumptions({
-      repository,
-      request: walletRequest,
-      now,
-    });
+      if (!policyDecision.ok) {
+        logDebug(
+          app,
+          "runtime_policy_denied",
+          "Denied user-operation request by runtime policy.",
+          {
+            walletId: walletRequest.walletId,
+            route: "backend-sign-user-operation",
+            requestId: parsedRequest.auth.requestId,
+            method: parsedRequest.auth.method,
+            policyError: policyDecision.error,
+            contractAddress: parsedRequest.operation.to,
+          },
+        );
+        return reply.status(policyDecision.statusCode).send({
+          error: policyDecision.error,
+          message: policyDecision.message,
+        });
+      }
 
-    const policyDecision = evaluateUserOperationPolicy({
-      request: walletRequest,
-      recentUsdcConsumptions,
-      operation: parsedRequest.operation,
-      userOperation: parsedRequest.userOperation,
-      signaturePayload: parsedRequest.signaturePayload,
-      now,
-    });
-
-    if (!policyDecision.ok) {
-      logDebug(app, "runtime_policy_denied", "Denied user-operation request by runtime policy.", {
-        walletId: walletRequest.walletId,
-        route: "backend-sign-user-operation",
-        requestId: parsedRequest.auth.requestId,
-        method: parsedRequest.auth.method,
-        policyError: policyDecision.error,
-        contractAddress: parsedRequest.operation.to,
-      });
-      return reply.status(policyDecision.statusCode).send({
-        error: policyDecision.error,
-        message: policyDecision.message,
-      });
-    }
-
-    const replay = await repository.recordUsedSigningRequestId({
-      walletId: walletRequest.walletId,
-      requestId: parsedRequest.auth.requestId,
-      updatedAt: now.toISOString(),
-    });
-
-    if (replay === "not_found") {
-      return reply.status(404).send({
-        error: "request_not_found",
-      });
-    }
-
-    if (replay === "duplicate") {
-      logDebug(app, "backend_signer_request_replayed", "Rejected replayed backend user-operation request.", {
-        walletId: walletRequest.walletId,
-        route: "backend-sign-user-operation",
-        requestId: parsedRequest.auth.requestId,
-      });
-      return reply.status(409).send({
-        error: "request_replayed",
-        message: "This backend signer requestId has already been used.",
-      });
-    }
-
-    if (policyDecision.consumption) {
-      await repository.createRuntimePolicyConsumption({
+      const replay = await repository.recordUsedSigningRequestId({
         walletId: walletRequest.walletId,
         requestId: parsedRequest.auth.requestId,
-        asset: policyDecision.consumption.asset,
-        operation: policyDecision.consumption.operation,
-        amountMinor: policyDecision.consumption.amountMinor,
-        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
       });
-    }
 
-    const signature = await signBackendUserOperationPayload({
-      backendPrivateKey: walletRequest.backendPrivateKey as Hex,
-      signaturePayload: parsedRequest.signaturePayload,
-    });
+      if (replay === "not_found") {
+        return reply.status(404).send({
+          error: "request_not_found",
+        });
+      }
 
-    logInfo(app, "backend_signature_granted", "Granted backend user-operation signature.", {
-      walletId: walletRequest.walletId,
-      route: "backend-sign-user-operation",
-      requestId: parsedRequest.auth.requestId,
-      method: parsedRequest.auth.method,
-      contractAddress: parsedRequest.operation.to,
-    });
+      if (replay === "duplicate") {
+        logDebug(
+          app,
+          "backend_signer_request_replayed",
+          "Rejected replayed backend user-operation request.",
+          {
+            walletId: walletRequest.walletId,
+            route: "backend-sign-user-operation",
+            requestId: parsedRequest.auth.requestId,
+          },
+        );
+        return reply.status(409).send({
+          error: "request_replayed",
+          message: "This backend signer requestId has already been used.",
+        });
+      }
 
-    return reply.send(
-      backendSignResponseSchema.parse({
-        signature,
-      }),
-    );
-  });
+      if (policyDecision.consumption) {
+        await repository.createRuntimePolicyConsumption({
+          walletId: walletRequest.walletId,
+          requestId: parsedRequest.auth.requestId,
+          asset: policyDecision.consumption.asset,
+          operation: policyDecision.consumption.operation,
+          amountMinor: policyDecision.consumption.amountMinor,
+          createdAt: now.toISOString(),
+        });
+      }
 
-  app.post("/v1/wallets/:walletId/backend-deploy-wallet", async (request, reply) => {
-    const params = request.params as { walletId: string };
-    const walletRequest = await repository.findById(params.walletId);
-
-    if (!walletRequest) {
-      return reply.status(404).send({
-        error: "request_not_found",
+      const signature = await signBackendUserOperationPayload({
+        backendPrivateKey: walletRequest.backendPrivateKey as Hex,
+        signaturePayload: parsedRequest.signaturePayload,
       });
-    }
 
-    const parsedRequest = backendDeployWalletRequestSchema.parse(request.body);
+      logInfo(
+        app,
+        "backend_signature_granted",
+        "Granted backend user-operation signature.",
+        {
+          walletId: walletRequest.walletId,
+          route: "backend-sign-user-operation",
+          requestId: parsedRequest.auth.requestId,
+          method: parsedRequest.auth.method,
+          contractAddress: parsedRequest.operation.to,
+        },
+      );
 
-    const verification = await verifyBackendSignerAuthorization({
-      request: walletRequest,
-      auth: parsedRequest.auth,
-      body: {
+      return reply.send(
+        backendSignResponseSchema.parse({
+          signature,
+        }),
+      );
+    },
+  );
+
+  app.post(
+    "/v1/wallets/:walletId/backend-deploy-wallet",
+    async (request, reply) => {
+      const params = request.params as { walletId: string };
+      const walletRequest = await repository.findById(params.walletId);
+
+      if (!walletRequest) {
+        return reply.status(404).send({
+          error: "request_not_found",
+        });
+      }
+
+      const parsedRequest = backendDeployWalletRequestSchema.parse(
+        request.body,
+      );
+
+      const verification = await verifyBackendSignerAuthorization({
+        request: walletRequest,
+        auth: parsedRequest.auth,
+        body: {
+          userOperation: parsedRequest.userOperation,
+          signaturePayload: parsedRequest.signaturePayload,
+        },
+      });
+
+      if (!verification.ok) {
+        logDebug(
+          app,
+          "backend_signer_authorization_denied",
+          "Denied backend deploy authorization.",
+          {
+            walletId: walletRequest.walletId,
+            route: "backend-deploy-wallet",
+            requestId: parsedRequest.auth.requestId,
+            authError: verification.error,
+          },
+        );
+        return reply.status(verification.statusCode).send({
+          error: verification.error,
+          message: verification.message,
+        });
+      }
+
+      const policyDecision = evaluateDeployWalletPolicy({
+        request: walletRequest,
         userOperation: parsedRequest.userOperation,
         signaturePayload: parsedRequest.signaturePayload,
-      },
-    });
+      });
 
-    if (!verification.ok) {
-      logDebug(app, "backend_signer_authorization_denied", "Denied backend deploy authorization.", {
+      if (!policyDecision.ok) {
+        logDebug(
+          app,
+          "runtime_policy_denied",
+          "Denied wallet deploy request by runtime policy.",
+          {
+            walletId: walletRequest.walletId,
+            route: "backend-deploy-wallet",
+            requestId: parsedRequest.auth.requestId,
+            method: parsedRequest.auth.method,
+            policyError: policyDecision.error,
+          },
+        );
+        return reply.status(policyDecision.statusCode).send({
+          error: policyDecision.error,
+          message: policyDecision.message,
+        });
+      }
+
+      const replay = await repository.recordUsedSigningRequestId({
         walletId: walletRequest.walletId,
-        route: "backend-deploy-wallet",
         requestId: parsedRequest.auth.requestId,
-        authError: verification.error,
+        updatedAt: new Date().toISOString(),
       });
-      return reply.status(verification.statusCode).send({
-        error: verification.error,
-        message: verification.message,
+
+      if (replay === "not_found") {
+        return reply.status(404).send({
+          error: "request_not_found",
+        });
+      }
+
+      if (replay === "duplicate") {
+        logDebug(
+          app,
+          "backend_signer_request_replayed",
+          "Rejected replayed backend deploy request.",
+          {
+            walletId: walletRequest.walletId,
+            route: "backend-deploy-wallet",
+            requestId: parsedRequest.auth.requestId,
+          },
+        );
+        return reply.status(409).send({
+          error: "request_replayed",
+          message: "This backend signer requestId has already been used.",
+        });
+      }
+
+      const signature = await signBackendUserOperationPayload({
+        backendPrivateKey: walletRequest.backendPrivateKey as Hex,
+        signaturePayload: parsedRequest.signaturePayload,
       });
-    }
 
-    const policyDecision = evaluateDeployWalletPolicy({
-      request: walletRequest,
-      userOperation: parsedRequest.userOperation,
-      signaturePayload: parsedRequest.signaturePayload,
-    });
+      logInfo(
+        app,
+        "backend_signature_granted",
+        "Granted backend deploy signature.",
+        {
+          walletId: walletRequest.walletId,
+          route: "backend-deploy-wallet",
+          requestId: parsedRequest.auth.requestId,
+          method: parsedRequest.auth.method,
+        },
+      );
 
-    if (!policyDecision.ok) {
-      logDebug(app, "runtime_policy_denied", "Denied wallet deploy request by runtime policy.", {
-        walletId: walletRequest.walletId,
-        route: "backend-deploy-wallet",
-        requestId: parsedRequest.auth.requestId,
-        method: parsedRequest.auth.method,
-        policyError: policyDecision.error,
-      });
-      return reply.status(policyDecision.statusCode).send({
-        error: policyDecision.error,
-        message: policyDecision.message,
-      });
-    }
-
-    const replay = await repository.recordUsedSigningRequestId({
-      walletId: walletRequest.walletId,
-      requestId: parsedRequest.auth.requestId,
-      updatedAt: new Date().toISOString(),
-    });
-
-    if (replay === "not_found") {
-      return reply.status(404).send({
-        error: "request_not_found",
-      });
-    }
-
-    if (replay === "duplicate") {
-      logDebug(app, "backend_signer_request_replayed", "Rejected replayed backend deploy request.", {
-        walletId: walletRequest.walletId,
-        route: "backend-deploy-wallet",
-        requestId: parsedRequest.auth.requestId,
-      });
-      return reply.status(409).send({
-        error: "request_replayed",
-        message: "This backend signer requestId has already been used.",
-      });
-    }
-
-    const signature = await signBackendUserOperationPayload({
-      backendPrivateKey: walletRequest.backendPrivateKey as Hex,
-      signaturePayload: parsedRequest.signaturePayload,
-    });
-
-    logInfo(app, "backend_signature_granted", "Granted backend deploy signature.", {
-      walletId: walletRequest.walletId,
-      route: "backend-deploy-wallet",
-      requestId: parsedRequest.auth.requestId,
-      method: parsedRequest.auth.method,
-    });
-
-    return reply.send(
-      backendSignResponseSchema.parse({
-        signature,
-      }),
-    );
-  });
+      return reply.send(
+        backendSignResponseSchema.parse({
+          signature,
+        }),
+      );
+    },
+  );
 
   app.get("/v1/provisioning/:walletId", async (request, reply) => {
     const params = request.params as { walletId: string };
@@ -965,8 +1091,10 @@ export function registerRoutes(
         agentAddress: walletRequest.agentAddress,
         backendAddress: walletRequest.backendAddress,
         ownerPublicArtifacts: walletRequest.ownerPublicArtifacts,
-        regularValidatorInitArtifact: walletRequest.regularValidatorInitArtifact,
-        counterfactualWalletAddress: walletRequest.counterfactualWalletAddress ?? null,
+        regularValidatorInitArtifact:
+          walletRequest.regularValidatorInitArtifact,
+        counterfactualWalletAddress:
+          walletRequest.counterfactualWalletAddress ?? null,
         funding: walletRequest.funding,
         deployment: walletRequest.deployment,
         expiresAt: walletRequest.expiresAt,
@@ -974,96 +1102,111 @@ export function registerRoutes(
     );
   });
 
-  app.post("/v1/provisioning/:walletId/owner-artifacts", async (request, reply) => {
-    const params = request.params as { walletId: string };
-    const query = request.query as { t?: string };
+  app.post(
+    "/v1/provisioning/:walletId/owner-artifacts",
+    async (request, reply) => {
+      const params = request.params as { walletId: string };
+      const query = request.query as { t?: string };
 
-    if (!query.t) {
-      return reply.status(400).send({
-        error: "missing_token",
+      if (!query.t) {
+        return reply.status(400).send({
+          error: "missing_token",
+        });
+      }
+
+      const body = publishOwnerArtifactsInputSchema.parse(request.body);
+      const existingRequest = await repository.findByIdAndTokenHash(
+        params.walletId,
+        hashProvisioningToken(query.t),
+      );
+
+      if (!existingRequest) {
+        return reply.status(404).send({
+          error: "request_not_found",
+        });
+      }
+
+      if (isExpired(existingRequest.expiresAt)) {
+        return reply.status(410).send({
+          error: "provisioning_token_expired",
+          message: "The provisioning token has expired.",
+        });
+      }
+
+      if (
+        existingRequest.status !== "owner_bound" &&
+        !canTransitionStatus(existingRequest.status, "owner_bound")
+      ) {
+        return reply.status(409).send({
+          error: "invalid_status_transition",
+        });
+      }
+
+      const preparedWallet =
+        await walletProvisioningService.finalizeProvisioning({
+          owner: body.owner,
+          regularValidatorInitArtifact: body.regularValidatorInitArtifact,
+          walletConfig: existingRequest.walletConfig,
+          agentAddress: existingRequest.agentAddress,
+          backendAddress: existingRequest.backendAddress,
+          counterfactualWalletAddress: body.counterfactualWalletAddress,
+        });
+
+      const updatedRequest = await repository.updateProvisioning({
+        walletId: params.walletId,
+        provisioningTokenHash: hashProvisioningToken(query.t),
+        ownerPublicArtifacts: preparedWallet.ownerPublicArtifacts,
+        regularValidatorInitArtifact:
+          preparedWallet.regularValidatorInitArtifact,
+        counterfactualWalletAddress: preparedWallet.counterfactualWalletAddress,
+        funding: preparedWallet.funding,
+        deployment: preparedWallet.deployment,
+        status: preparedWallet.status,
+        walletContext: preparedWallet.walletContext,
+        updatedAt: new Date().toISOString(),
       });
-    }
 
-    const body = publishOwnerArtifactsInputSchema.parse(request.body);
-    const existingRequest = await repository.findByIdAndTokenHash(
-      params.walletId,
-      hashProvisioningToken(query.t),
-    );
+      if (!updatedRequest) {
+        return reply.status(404).send({
+          error: "request_not_found",
+        });
+      }
 
-    if (!existingRequest) {
-      return reply.status(404).send({
-        error: "request_not_found",
-      });
-    }
+      logInfo(
+        app,
+        "owner_artifacts_published",
+        "Published owner artifacts for wallet provisioning.",
+        {
+          walletId: updatedRequest.walletId,
+          status: updatedRequest.status,
+          previousStatus: existingRequest.status,
+          walletAddress:
+            updatedRequest.walletContext?.walletAddress ??
+            updatedRequest.counterfactualWalletAddress,
+        },
+      );
 
-    if (isExpired(existingRequest.expiresAt)) {
-      return reply.status(410).send({
-        error: "provisioning_token_expired",
-        message: "The provisioning token has expired.",
-      });
-    }
+      if (updatedRequest.status !== existingRequest.status) {
+        logInfo(
+          app,
+          "wallet_status_updated",
+          "Wallet status changed after owner binding.",
+          {
+            walletId: updatedRequest.walletId,
+            previousStatus: existingRequest.status,
+            status: updatedRequest.status,
+            walletAddress:
+              updatedRequest.walletContext?.walletAddress ??
+              updatedRequest.counterfactualWalletAddress,
+          },
+        );
+      }
 
-    if (
-      existingRequest.status !== "owner_bound" &&
-      !canTransitionStatus(existingRequest.status, "owner_bound")
-    ) {
-      return reply.status(409).send({
-        error: "invalid_status_transition",
-      });
-    }
-
-    const preparedWallet = await walletProvisioningService.finalizeProvisioning({
-      owner: body.owner,
-      regularValidatorInitArtifact: body.regularValidatorInitArtifact,
-      walletConfig: existingRequest.walletConfig,
-      agentAddress: existingRequest.agentAddress,
-      backendAddress: existingRequest.backendAddress,
-      counterfactualWalletAddress: body.counterfactualWalletAddress,
-    });
-
-    const updatedRequest = await repository.updateProvisioning({
-      walletId: params.walletId,
-      provisioningTokenHash: hashProvisioningToken(query.t),
-      ownerPublicArtifacts: preparedWallet.ownerPublicArtifacts,
-      regularValidatorInitArtifact: preparedWallet.regularValidatorInitArtifact,
-      counterfactualWalletAddress: preparedWallet.counterfactualWalletAddress,
-      funding: preparedWallet.funding,
-      deployment: preparedWallet.deployment,
-      status: preparedWallet.status,
-      walletContext: preparedWallet.walletContext,
-      updatedAt: new Date().toISOString(),
-    });
-
-    if (!updatedRequest) {
-      return reply.status(404).send({
-        error: "request_not_found",
-      });
-    }
-
-    logInfo(app, "owner_artifacts_published", "Published owner artifacts for wallet provisioning.", {
-      walletId: updatedRequest.walletId,
-      status: updatedRequest.status,
-      previousStatus: existingRequest.status,
-      walletAddress: updatedRequest.walletContext?.walletAddress ?? updatedRequest.counterfactualWalletAddress,
-    });
-
-    if (updatedRequest.status !== existingRequest.status) {
-      logInfo(app, "wallet_status_updated", "Wallet status changed after owner binding.", {
-        walletId: updatedRequest.walletId,
-        previousStatus: existingRequest.status,
-        status: updatedRequest.status,
-        walletAddress: updatedRequest.walletContext?.walletAddress ?? updatedRequest.counterfactualWalletAddress,
-      });
-    }
-
-    return reply.send(getWalletRequestResponseSchema.parse(toPublicWalletRequest(updatedRequest)));
-  });
+      return reply.send(
+        getWalletRequestResponseSchema.parse(
+          toPublicWalletRequest(updatedRequest),
+        ),
+      );
+    },
+  );
 }
-
-export const INTERNALS = {
-  assertSupportedChain,
-  buildInitialRequest,
-  createProvisioningUrl,
-  createWalletId,
-  hashProvisioningToken,
-};

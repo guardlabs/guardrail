@@ -90,7 +90,10 @@ async function resolveFunding(input: {
   }
 
   return buildFundingState({
-    balanceWei: await fetchBalanceWei(rpcUrl, input.counterfactualWalletAddress),
+    balanceWei: await fetchBalanceWei(
+      rpcUrl,
+      input.counterfactualWalletAddress,
+    ),
     checkedAt: new Date().toISOString(),
     minimumRequiredWei: input.config.minFundingWei,
   });
@@ -148,7 +151,7 @@ async function resolveDeployment(input: {
   const codeHex = await fetchCodeHex(rpcUrl, input.counterfactualWalletAddress);
 
   return {
-    status: codeHex !== "0x" ? "deployed" as const : "undeployed" as const,
+    status: codeHex !== "0x" ? ("deployed" as const) : ("undeployed" as const),
     checkedAt: new Date().toISOString(),
   };
 }
@@ -196,8 +199,7 @@ export function createWalletProvisioningService(
         funding,
         deployment,
         walletContext,
-        status:
-          funding.status === "verified" ? "ready" : "owner_bound",
+        status: funding.status === "verified" ? "ready" : "owner_bound",
       };
     },
     async refreshFunding(input) {
@@ -220,8 +222,7 @@ export function createWalletProvisioningService(
         funding,
         deployment,
         walletContext,
-        status:
-          funding.status === "verified" ? "ready" : "owner_bound",
+        status: funding.status === "verified" ? "ready" : "owner_bound",
       };
     },
   };

@@ -168,7 +168,9 @@ describe("kernel runtime mode B", () => {
         bundlerUrl: "http://127.0.0.1:3000/v1/chains/84532/bundler",
       }),
     );
-    expect(result.walletAddress).toBe("0x2222222222222222222222222222222222222222");
+    expect(result.walletAddress).toBe(
+      "0x2222222222222222222222222222222222222222",
+    );
   });
 
   it("fails fast when the local backend URL is missing", async () => {

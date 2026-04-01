@@ -4,10 +4,7 @@ import {
   type WalletConfig,
 } from "@conduit/shared";
 import { createProvisioningArtifacts } from "@conduit/zerodev";
-import {
-  toWebAuthnKey,
-  WebAuthnMode,
-} from "@zerodev/permissions/signers";
+import { toWebAuthnKey, WebAuthnMode } from "@zerodev/permissions/signers";
 import { createPublicClient, http } from "viem";
 
 function getPublicRpcUrl(chainId: number) {
@@ -55,7 +52,9 @@ export const browserPasskeyClient: PasskeyClient = {
     const rpcUrl = getPublicRpcUrl(walletConfig.chainId);
 
     if (!rpcUrl) {
-      throw new Error(`Missing public RPC URL for chain ${walletConfig.chainId}.`);
+      throw new Error(
+        `Missing public RPC URL for chain ${walletConfig.chainId}.`,
+      );
     }
 
     const publicClient = createPublicClient({

@@ -17,12 +17,17 @@ loadEnvFiles();
 
 function addBackendOption(command: Command) {
   command.addOption(
-    new Option("--backend-url <url>", "override the default orchestrator backend URL"),
+    new Option(
+      "--backend-url <url>",
+      "override the default orchestrator backend URL",
+    ),
   );
 }
 
 function formatSupportedChains() {
-  return supportedChains.map((chain) => `${chain.id} (${chain.name})`).join(", ");
+  return supportedChains
+    .map((chain) => `${chain.id} (${chain.name})`)
+    .join(", ");
 }
 
 export function buildProgram() {
@@ -52,8 +57,14 @@ export function buildProgram() {
       (value, previous: string[] = []) => [...previous, value],
       [],
     )
-    .option("--usdc-period <period>", "official USDC budget period: daily, weekly, or monthly")
-    .option("--usdc-max <amount>", "official USDC budget ceiling in human-readable USDC")
+    .option(
+      "--usdc-period <period>",
+      "official USDC budget period: daily, weekly, or monthly",
+    )
+    .option(
+      "--usdc-max <amount>",
+      "official USDC budget ceiling in human-readable USDC",
+    )
     .option(
       "--usdc-allow <operations>",
       "comma-separated official USDC operations to allow",
@@ -117,8 +128,14 @@ Example:
     .command("sign-typed-data")
     .description("sign arbitrary EIP-712 typed data from a ready wallet")
     .argument("<wallet-id>", "wallet id")
-    .option("--typed-data-file <path>", "path to a JSON file containing the typed data")
-    .option("--typed-data-json <json>", "inline JSON string containing the typed data")
+    .option(
+      "--typed-data-file <path>",
+      "path to a JSON file containing the typed data",
+    )
+    .option(
+      "--typed-data-json <json>",
+      "inline JSON string containing the typed data",
+    )
     .addHelpText(
       "after",
       `
@@ -149,7 +166,9 @@ Example:
 
   const x402FetchCommand = program
     .command("x402-fetch")
-    .description("fetch a URL and automatically complete the x402 challenge when required")
+    .description(
+      "fetch a URL and automatically complete the x402 challenge when required",
+    )
     .argument("<wallet-id>", "wallet id")
     .argument("<url>", "protected or unprotected resource URL")
     .addHelpText(

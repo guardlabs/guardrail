@@ -19,7 +19,9 @@ export function ProvisioningLayout({
         <section className={`cw-hero cw-hero-${variant}`}>{hero}</section>
         <section className={`cw-workspace cw-workspace-${variant}`}>
           <div className={`cw-primary cw-primary-${variant}`}>{primary}</div>
-          {secondary ? <aside className="cw-secondary">{secondary}</aside> : null}
+          {secondary ? (
+            <aside className="cw-secondary">{secondary}</aside>
+          ) : null}
         </section>
       </div>
     </main>

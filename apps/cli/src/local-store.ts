@@ -47,7 +47,7 @@ export async function readLocalWalletRequest(walletId: string) {
 
   try {
     return localWalletRequestSchema.parse(JSON.parse(raw));
-  } catch (error) {
+  } catch {
     throw new Error(
       `Local wallet file ${filePath} is not a supported mode-B wallet. Delete it and recreate the wallet request.`,
     );

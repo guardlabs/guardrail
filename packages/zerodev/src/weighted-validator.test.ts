@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { buildDefaultWalletConfig } from "@conduit/shared";
-import { createKernelAccount, toKernelPluginManager } from "@zerodev/sdk/accounts";
+import {
+  createKernelAccount,
+  toKernelPluginManager,
+} from "@zerodev/sdk/accounts";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { createPublicClient, http } from "viem";
 import { hashTypedData } from "viem";
@@ -24,7 +27,8 @@ vi.mock("@zerodev/sdk/accounts", async () => {
 });
 
 vi.mock("@zerodev/sdk", async () => {
-  const actual = await vi.importActual<typeof import("@zerodev/sdk")>("@zerodev/sdk");
+  const actual =
+    await vi.importActual<typeof import("@zerodev/sdk")>("@zerodev/sdk");
 
   return {
     ...actual,
@@ -105,7 +109,9 @@ describe("mode B zerodev helpers", () => {
         method: "POST",
       }),
     );
-    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+    const requestBody = JSON.parse(
+      String(fetchMock.mock.calls[0]?.[1]?.body),
+    ) as {
       auth: {
         walletAddress: string;
         backendSignerAddress: string;
@@ -176,32 +182,37 @@ describe("mode B zerodev helpers", () => {
     });
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockImplementation(async () =>
-        new Response(
-          JSON.stringify({
-            jsonrpc: "2.0",
-            id: 1,
-            result: "0x14a34",
-          }),
-          {
-            status: 200,
-            headers: {
-              "content-type": "application/json",
+      vi.fn().mockImplementation(
+        async () =>
+          new Response(
+            JSON.stringify({
+              jsonrpc: "2.0",
+              id: 1,
+              result: "0x14a34",
+            }),
+            {
+              status: 200,
+              headers: {
+                "content-type": "application/json",
+              },
             },
-          },
-        ),
+          ),
       ),
     );
-    const runtimeWeightedValidator = await createRuntimeWeightedValidator(client, {
-      walletId: "wal_123",
-      walletAddress: "0x2222222222222222222222222222222222222222",
-      walletConfig,
-      backendBaseUrl: "http://127.0.0.1:3000",
-      agentPrivateKey,
-    });
-    const enableData = await runtimeWeightedValidator.weightedValidator.getEnableData(
-      "0x2222222222222222222222222222222222222222",
+    const runtimeWeightedValidator = await createRuntimeWeightedValidator(
+      client,
+      {
+        walletId: "wal_123",
+        walletAddress: "0x2222222222222222222222222222222222222222",
+        walletConfig,
+        backendBaseUrl: "http://127.0.0.1:3000",
+        agentPrivateKey,
+      },
     );
+    const enableData =
+      await runtimeWeightedValidator.weightedValidator.getEnableData(
+        "0x2222222222222222222222222222222222222222",
+      );
 
     vi.mocked(toKernelPluginManager).mockResolvedValue({
       getIdentifier: vi.fn(),
@@ -217,11 +228,7 @@ describe("mode B zerodev helpers", () => {
       walletConfig,
       ownerPublicArtifacts: {
         credentialId: "credential-id",
-        publicKey:
-          "0x" +
-          "11".repeat(32) +
-          "22".repeat(32) +
-          "33".repeat(32),
+        publicKey: "0x" + "11".repeat(32) + "22".repeat(32) + "33".repeat(32),
       },
       regularValidatorInitArtifact: {
         validatorAddress: runtimeWeightedValidator.weightedValidator.address,

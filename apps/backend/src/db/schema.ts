@@ -10,7 +10,10 @@ import type {
   WalletPolicy,
   WalletRequestStatus,
 } from "@conduit/shared";
-import type { RuntimePolicyConsumption, RuntimePolicyState } from "../repository.js";
+import type {
+  RuntimePolicyConsumption,
+  RuntimePolicyState,
+} from "../repository.js";
 
 export const walletsTable = pgTable("wallets", {
   walletId: text("wallet_id").primaryKey(),
@@ -22,14 +25,22 @@ export const walletsTable = pgTable("wallets", {
   backendAddress: text("backend_address").notNull(),
   backendPrivateKey: text("backend_private_key").notNull(),
   provisioningTokenHash: text("provisioning_token_hash").notNull(),
-  ownerPublicArtifacts: jsonb("owner_public_artifacts").$type<OwnerPublicArtifacts>(),
-  regularValidatorInitArtifact: jsonb("regular_validator_init_artifact").$type<RegularValidatorInitArtifact>(),
+  ownerPublicArtifacts: jsonb(
+    "owner_public_artifacts",
+  ).$type<OwnerPublicArtifacts>(),
+  regularValidatorInitArtifact: jsonb(
+    "regular_validator_init_artifact",
+  ).$type<RegularValidatorInitArtifact>(),
   counterfactualWalletAddress: text("counterfactual_wallet_address"),
   funding: jsonb("funding").$type<FundingState>().notNull(),
   deployment: jsonb("deployment").$type<DeploymentState>().notNull(),
-  runtimePolicyState: jsonb("runtime_policy_state").$type<RuntimePolicyState>().notNull(),
+  runtimePolicyState: jsonb("runtime_policy_state")
+    .$type<RuntimePolicyState>()
+    .notNull(),
   walletContext: jsonb("wallet_context").$type<WalletContext>(),
-  usedSigningRequestIds: jsonb("used_signing_request_ids").$type<string[]>().notNull(),
+  usedSigningRequestIds: jsonb("used_signing_request_ids")
+    .$type<string[]>()
+    .notNull(),
   errorCode: text("error_code"),
   errorMessage: text("error_message"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
@@ -39,13 +50,17 @@ export const walletsTable = pgTable("wallets", {
 
 export type WalletRow = typeof walletsTable.$inferSelect;
 
-export const walletPolicyConsumptionsTable = pgTable("wallet_policy_consumptions", {
-  requestId: text("request_id").primaryKey(),
-  walletId: text("wallet_id").notNull(),
-  asset: text("asset").$type<RuntimePolicyConsumption["asset"]>().notNull(),
-  operation: text("operation").notNull(),
-  amountMinor: text("amount_minor").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
-});
+export const walletPolicyConsumptionsTable = pgTable(
+  "wallet_policy_consumptions",
+  {
+    requestId: text("request_id").primaryKey(),
+    walletId: text("wallet_id").notNull(),
+    asset: text("asset").$type<RuntimePolicyConsumption["asset"]>().notNull(),
+    operation: text("operation").notNull(),
+    amountMinor: text("amount_minor").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  },
+);
 
-export type WalletPolicyConsumptionRow = typeof walletPolicyConsumptionsTable.$inferSelect;
+export type WalletPolicyConsumptionRow =
+  typeof walletPolicyConsumptionsTable.$inferSelect;

@@ -1,4 +1,8 @@
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import {
+  createServer,
+  type IncomingMessage,
+  type ServerResponse,
+} from "node:http";
 import {
   getSupportedChainById,
   x402PaymentPayloadSchema,
@@ -17,7 +21,6 @@ import { privateKeyToAccount } from "viem/accounts";
 import { baseSepolia } from "viem/chains";
 
 const PAYMENT_REQUIRED_HEADER = "PAYMENT-REQUIRED";
-const PAYMENT_SIGNATURE_HEADER = "PAYMENT-SIGNATURE";
 const PAYMENT_RESPONSE_HEADER = "PAYMENT-RESPONSE";
 
 const usdcAbi = [
@@ -117,7 +120,9 @@ async function callAnvilRpc(rpcUrl: string, method: string, params: unknown[]) {
   };
 
   if (payload.error) {
-    throw new Error(`RPC ${method} failed: ${payload.error.message ?? "unknown error"}.`);
+    throw new Error(
+      `RPC ${method} failed: ${payload.error.message ?? "unknown error"}.`,
+    );
   }
 
   return payload.result;
@@ -205,7 +210,9 @@ export async function mintOfficialUsdcOnAnvil(input: {
       hash: configureHash,
     });
   } finally {
-    await callAnvilRpc(input.rpcUrl, "anvil_stopImpersonatingAccount", [masterMinter]);
+    await callAnvilRpc(input.rpcUrl, "anvil_stopImpersonatingAccount", [
+      masterMinter,
+    ]);
   }
 
   const mintHash = await facilitatorClient.writeContract({
@@ -232,7 +239,9 @@ export async function getOfficialUsdcBalance(input: {
   const supportedChain = getSupportedChainById(84532);
 
   if (!supportedChain) {
-    throw new Error("Base Sepolia must be configured for x402 e2e balance checks.");
+    throw new Error(
+      "Base Sepolia must be configured for x402 e2e balance checks.",
+    );
   }
 
   const publicClient = createPublicClient({
@@ -253,7 +262,9 @@ async function settleTransferWithAuthorization(input: {
   merchantClient: ReturnType<typeof createWalletClient>;
   merchantAddress: Address;
   asset: Address;
-  authorization: ReturnType<typeof x402PaymentPayloadSchema.parse>["payload"]["authorization"];
+  authorization: ReturnType<
+    typeof x402PaymentPayloadSchema.parse
+  >["payload"]["authorization"];
   signature: Hex;
 }) {
   if (input.signature.length === 132) {
@@ -379,7 +390,10 @@ export async function startX402ExactEip3009Server(input: {
     );
   }
 
-  async function handleProtectedRequest(request: IncomingMessage, response: ServerResponse) {
+  async function handleProtectedRequest(
+    request: IncomingMessage,
+    response: ServerResponse,
+  ) {
     if (request.method !== "GET" || request.url !== protectedPath) {
       await sendJson(response, 404, { error: "Not found" }, {});
       return;
@@ -403,7 +417,9 @@ export async function startX402ExactEip3009Server(input: {
         throw new Error("unsupported_x402_version");
       }
 
-      if (JSON.stringify(paymentPayload.accepted) !== JSON.stringify(accepted)) {
+      if (
+        JSON.stringify(paymentPayload.accepted) !== JSON.stringify(accepted)
+      ) {
         throw new Error("payment_requirement_mismatch");
       }
 

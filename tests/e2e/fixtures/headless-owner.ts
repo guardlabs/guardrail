@@ -3,7 +3,10 @@ import { keccak256, encodeAbiParameters, isHex, toBytes, toHex } from "viem";
 
 const HEADLESS_OWNER_PRIVATE_KEY =
   "0000000000000000000000000000000000000000000000000000000000000001";
-const HEADLESS_OWNER_CREDENTIAL_BYTES = Buffer.from("conduit-headless-owner", "utf8");
+const HEADLESS_OWNER_CREDENTIAL_BYTES = Buffer.from(
+  "conduit-headless-owner",
+  "utf8",
+);
 const P256_CURVE_ORDER = BigInt(
   "0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551",
 );
@@ -22,7 +25,9 @@ function normalizeMessageToBytes(message: unknown) {
     "raw" in message &&
     typeof message.raw === "string"
   ) {
-    return isHex(message.raw) ? toBytes(message.raw) : Buffer.from(message.raw, "utf8");
+    return isHex(message.raw)
+      ? toBytes(message.raw)
+      : Buffer.from(message.raw, "utf8");
   }
 
   if (
@@ -46,10 +51,7 @@ function createClientDataJson(challenge: string) {
   });
 }
 
-function buildPrivateKeyJwk(input: {
-  pubX: Uint8Array;
-  pubY: Uint8Array;
-}) {
+function buildPrivateKeyJwk(input: { pubX: Uint8Array; pubY: Uint8Array }) {
   return {
     kty: "EC",
     crv: "P-256",

@@ -26,14 +26,3 @@ export function parseProvisioningQuery(
       backendUrl: params.get("backendUrl") ?? defaultBackendUrl,
     });
 }
-
-export function formatFundingLabel(status: "unverified" | "insufficient" | "verified") {
-  switch (status) {
-    case "verified":
-      return "Funding verified";
-    case "insufficient":
-      return "Funding still required";
-    default:
-      return "Funding not checked yet";
-  }
-}

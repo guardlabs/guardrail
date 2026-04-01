@@ -15,7 +15,10 @@ import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { buildApp } from "./app.js";
 import type { AppConfig } from "./config.js";
 import type { ChainRelayService } from "./chain-relay.js";
-import type { StoredWalletRequest, WalletRequestRepository } from "./repository.js";
+import type {
+  StoredWalletRequest,
+  WalletRequestRepository,
+} from "./repository.js";
 import type { WalletProvisioningService } from "./wallet.js";
 
 const testConfig: AppConfig = {
@@ -89,7 +92,14 @@ function createTestRepository(): WalletRequestRepository {
       requests.set(walletId, updatedRequest);
       return updatedRequest;
     },
-    async updateFunding({ walletId, funding, deployment, status, walletContext, updatedAt }) {
+    async updateFunding({
+      walletId,
+      funding,
+      deployment,
+      status,
+      walletContext,
+      updatedAt,
+    }) {
       const request = requests.get(walletId);
       if (!request) {
         return null;
@@ -124,7 +134,11 @@ function createTestRepository(): WalletRequestRepository {
 
       return "ok";
     },
-    async updateRuntimePolicyState({ walletId, runtimePolicyState, updatedAt }) {
+    async updateRuntimePolicyState({
+      walletId,
+      runtimePolicyState,
+      updatedAt,
+    }) {
       const request = requests.get(walletId);
       if (!request) {
         return null;
@@ -138,11 +152,16 @@ function createTestRepository(): WalletRequestRepository {
       requests.set(walletId, updatedRequest);
       return updatedRequest;
     },
-    async listRuntimePolicyConsumptionsSince({ walletId, asset, createdAtGte }) {
+    async listRuntimePolicyConsumptionsSince({
+      walletId,
+      asset,
+      createdAtGte,
+    }) {
       return (consumptions.get(walletId) ?? []).filter(
         (entry) =>
           entry.asset === asset &&
-          new Date(entry.createdAt).getTime() >= new Date(createdAtGte).getTime(),
+          new Date(entry.createdAt).getTime() >=
+            new Date(createdAtGte).getTime(),
       );
     },
     async createRuntimePolicyConsumption(input) {
@@ -283,7 +302,13 @@ function createRuntimePolicy() {
     usdcPolicy: {
       period: "daily" as const,
       maxAmountMinor: "1000000000",
-      allowedOperations: ["transfer", "approve", "increaseAllowance", "permit", "transferWithAuthorization"],
+      allowedOperations: [
+        "transfer",
+        "approve",
+        "increaseAllowance",
+        "permit",
+        "transferWithAuthorization",
+      ],
     },
   };
 }
@@ -382,10 +407,13 @@ describe("backend app mode B", () => {
       },
       policy: createRuntimePolicy(),
     });
-    expect(createdWallet.backendAddress.toLowerCase() < agentAccount.address.toLowerCase()).toBe(
-      true,
+    expect(
+      createdWallet.backendAddress.toLowerCase() <
+        agentAccount.address.toLowerCase(),
+    ).toBe(true);
+    expect(createdWallet.provisioningUrl).toContain(
+      `walletId=${createdWallet.walletId}`,
     );
-    expect(createdWallet.provisioningUrl).toContain(`walletId=${createdWallet.walletId}`);
     expectLogEvent(infoSpy, "wallet_request_created", {
       walletId: createdWallet.walletId,
       chainId: 84532,
@@ -443,7 +471,8 @@ describe("backend app mode B", () => {
           credentialId: "credential-id",
           publicKey: "0x1234",
         },
-        counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
+        counterfactualWalletAddress:
+          "0x2222222222222222222222222222222222222222",
         regularValidatorInitArtifact: createRegularValidatorInitArtifact(),
       },
     });
@@ -693,7 +722,8 @@ describe("backend app mode B", () => {
           credentialId: "credential-id",
           publicKey: "0x1234",
         },
-        counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
+        counterfactualWalletAddress:
+          "0x2222222222222222222222222222222222222222",
         regularValidatorInitArtifact: createRegularValidatorInitArtifact(),
       },
     });
@@ -749,7 +779,8 @@ describe("backend app mode B", () => {
           credentialId: "credential-id",
           publicKey: "0x1234",
         },
-        counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
+        counterfactualWalletAddress:
+          "0x2222222222222222222222222222222222222222",
         regularValidatorInitArtifact: createRegularValidatorInitArtifact(),
       },
     });
@@ -936,7 +967,8 @@ describe("backend app mode B", () => {
           credentialId: "credential-id",
           publicKey: "0x1234",
         },
-        counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
+        counterfactualWalletAddress:
+          "0x2222222222222222222222222222222222222222",
         regularValidatorInitArtifact: createRegularValidatorInitArtifact(),
       },
     });

@@ -28,8 +28,12 @@ describe("getProvisioningContentModel", () => {
     });
 
     expect(model.statusTitle).toBe("Create the passkey");
-    expect(model.permissionItems).toContain("Use official USDC within the configured budget.");
-    expect(model.permissionItems).toContain("Anything outside policy is blocked by default.");
+    expect(model.permissionItems).toContain(
+      "Use official USDC within the configured budget.",
+    );
+    expect(model.permissionItems).toContain(
+      "Anything outside policy is blocked by default.",
+    );
     expect(model.reassurance).toBe(
       "The agent only receives limited runtime access after setup.",
     );
