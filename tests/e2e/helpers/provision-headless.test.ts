@@ -8,6 +8,17 @@ import {
 import { createHeadlessWebAuthnKey } from "../fixtures/headless-owner.js";
 import { publishHeadlessOwnerArtifacts } from "./provision-headless.js";
 
+function createRuntimePolicy() {
+  return {
+    contractAllowlist: [
+      {
+        contractAddress: "0x4444444444444444444444444444444444444444",
+        allowedSelectors: ["0xa9059cbb"],
+      },
+    ],
+  };
+}
+
 function buildProvisioningResponse(): ResolveProvisioningResponse {
   const walletConfig = buildDefaultWalletConfig({
     chainId: 84532,
@@ -20,6 +31,7 @@ function buildProvisioningResponse(): ResolveProvisioningResponse {
     walletId: "wal_test",
     status: "created",
     walletConfig,
+    policy: createRuntimePolicy(),
     agentAddress: walletConfig.regularValidator.signers[0]?.address ?? "",
     backendAddress: walletConfig.regularValidator.signers[1]?.address ?? "",
     counterfactualWalletAddress: null,

@@ -10,6 +10,7 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsx src/index.ts",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage.enabled=true --coverage.provider=v8 --coverage.reporter=json-summary --coverage.reporter=html --coverage.include=\"src/**/*.ts\" --coverage.exclude=\"src/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

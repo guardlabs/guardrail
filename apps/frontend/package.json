@@ -7,6 +7,7 @@
     "build": "vite build",
     "dev": "vite",
     "test": "vitest run --environment jsdom --passWithNoTests",
+    "test:coverage": "vitest run --environment jsdom --passWithNoTests --coverage.enabled=true --coverage.provider=v8 --coverage.reporter=json-summary --coverage.reporter=html --coverage.include=\"src/**/*.{ts,tsx}\" --coverage.exclude=\"src/**/*.test.{ts,tsx}\"",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

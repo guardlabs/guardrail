@@ -9,6 +9,7 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "dev": "tsx watch src/server.ts",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage.enabled=true --coverage.provider=v8 --coverage.reporter=json-summary --coverage.reporter=html --coverage.include=\"src/**/*.ts\" --coverage.exclude=\"src/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

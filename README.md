@@ -109,6 +109,12 @@ Useful local URLs:
 
 For the full local flow, required environment variables, and testing commands, see [Local development](docs/local-development.md).
 
+Coverage across the workspace test suites is available with:
+
+```bash
+pnpm test:coverage
+```
+
 ## Repository Layout
 
 - `apps/backend`: Fastify backend, wallet lifecycle, runtime policy enforcement, backend signing

@@ -92,6 +92,7 @@ Run the full workspace checks:
 
 ```bash
 pnpm test
+pnpm test:coverage
 pnpm test:e2e:provisioning
 pnpm typecheck
 ```
@@ -103,5 +104,7 @@ pnpm --filter @conduit/frontend test
 pnpm --filter @conduit/frontend typecheck
 pnpm --filter @conduit/frontend build
 ```
+
+`pnpm test:coverage` runs coverage for the CLI, backend, frontend, shared packages, ZeroDev helpers, and the Vitest-based e2e workspace, then writes an aggregate summary to `coverage/combined-summary.json`.
 
 The headless provisioning e2e under `tests/e2e` runs the real CLI plus backend against Docker Postgres, an Anvil fork of Base Sepolia, a local Alto bundler, and a deterministic headless passkey owner.
