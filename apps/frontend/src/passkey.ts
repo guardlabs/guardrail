@@ -15,6 +15,8 @@ function getPublicRpcUrl(chainId: number) {
   }
 
   switch (supportedChain.frontendRuntimeKey) {
+    case "BASE":
+      return __BASE_RPC_URL__ ?? __BASE_BUNDLER_URL__;
     case "BASE_SEPOLIA":
       return __BASE_SEPOLIA_RPC_URL__ ?? __BASE_SEPOLIA_BUNDLER_URL__;
     default:

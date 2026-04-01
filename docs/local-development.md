@@ -29,6 +29,7 @@ At minimum, review these variables in `.env.local`:
 - `CONDUIT_PUBLIC_BACKEND_URL`
 - `CONDUIT_PUBLIC_FRONTEND_URL` for the hosted frontend origin
 - `CONDUIT_BACKEND_URL`
+- `CONDUIT_BUNDLER_URL_8453` and `CONDUIT_PUBLIC_RPC_URL_8453` when enabling Base Mainnet locally
 - `CONDUIT_BUNDLER_URL_84532` required for backend startup
 - `CONDUIT_PUBLIC_RPC_URL_84532` required for backend startup
 - `CONDUIT_PASSKEY_SERVER_URL`
@@ -41,6 +42,8 @@ pnpm db:migrate
 ```
 
 `pnpm db:migrate` now applies the checked-in Drizzle migrations. The backend fails fast on startup if a supported chain is missing its RPC or bundler URL.
+
+For local Sepolia-only development, keeping `CONDUIT_SUPPORTED_CHAIN_IDS=84532` is fine. Add `8453` and the matching Base Mainnet URLs when you want the backend to expose both chains.
 
 Start the workspace:
 
@@ -117,4 +120,4 @@ pnpm --filter @conduit/frontend build
 
 `pnpm lint` runs ESLint across the workspace, `pnpm format:check` verifies Prettier formatting with double quotes preserved, `pnpm knip` reports unused files, exports, and dependencies, and `pnpm check` runs the full static validation stack in one command.
 
-The headless provisioning e2e under `tests/e2e` runs the real CLI plus backend against Docker Postgres, an Anvil fork of Base Sepolia, a local Alto bundler, and a deterministic headless passkey owner.
+The headless provisioning e2e under `tests/e2e` still runs against an Anvil fork of Base Sepolia plus a local Alto bundler. Production chain support now includes Base Mainnet as well, but the local e2e harness remains Sepolia-based.

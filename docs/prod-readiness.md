@@ -13,7 +13,6 @@ Remaining work before Conduit Wallet is production-ready:
 
 ## Chain Support
 
-- add Base Mainnet support across shared chain metadata, backend config, frontend runtime config, CLI flows, and tests
 - set the production Base Mainnet RPC and bundler URLs
 
 ## Production Infrastructure

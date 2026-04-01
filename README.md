@@ -7,7 +7,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/license-MIT-10b981" alt="License: MIT" />
   <img src="https://img.shields.io/badge/status-pre--release-6b7280" alt="Status: pre-release" />
-  <img src="https://img.shields.io/badge/chain-Base%20Sepolia-0052FF" alt="Chain: Base Sepolia" />
+  <img src="https://img.shields.io/badge/chains-Base%20%2B%20Base%20Sepolia-0052FF" alt="Chains: Base and Base Sepolia" />
 </p>
 
 ## Overview
@@ -22,7 +22,9 @@ The hosted frontend serves both as the public homepage and the provisioning surf
 
 > These commands still use placeholder package and hosted URLs until the public deployment is finalized.
 
-Create a wallet request with an official USDC budget limited to `$10` per trailing 24 hours:
+Create a wallet request with an official USDC budget limited to `$10` per trailing 24 hours.
+
+The example below uses Base Sepolia for safe testing. The same flow also supports Base Mainnet with `--chain-id 8453` once production endpoints are configured:
 
 ```bash
 npx @your-scope/conduit-wallet create \
@@ -77,10 +79,11 @@ Detailed documentation lives under [`docs/`](docs/README.md):
 
 ## Supported Chains
 
-Conduit Wallet currently supports one chain:
+Conduit Wallet currently supports two chains:
 
 | Chain        | Chain ID | Status    |
 | ------------ | -------- | --------- |
+| Base         | `8453`   | Supported |
 | Base Sepolia | `84532`  | Supported |
 
 ## Local Development
@@ -141,7 +144,7 @@ This repository is still pre-deployment:
 
 - the hosted URLs in examples are placeholders
 - the npm package name is still a placeholder
-- Base Sepolia is the only supported chain
+- Base and Base Sepolia are supported
 - runtime policy is intentionally narrow and deny-by-default on the agent runtime path
 
 ## Deployment Model

@@ -63,6 +63,7 @@ conduit-wallet create --chain-id 84532
 
 Current support:
 
+- `8453`: Base
 - `84532`: Base Sepolia
 
 The selected chain controls the wallet configuration and the official USDC contract used by the dedicated USDC policy.

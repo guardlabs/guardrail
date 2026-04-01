@@ -29,6 +29,7 @@ describe("cli help", () => {
     expect(help).toContain("x402-fetch");
     expect(help).toContain("--backend-url");
     expect(help).toContain("supported chains");
+    expect(help).toContain("8453 (Base)");
     expect(help).toContain("84532 (Base Sepolia)");
   });
 
@@ -45,10 +46,11 @@ describe("cli help", () => {
     expect(createHelp).toContain("--usdc-allow");
     expect(createHelp).toContain("--backend-url");
     expect(createHelp).toContain("supported chains");
+    expect(createHelp).toContain("8453 (Base)");
     expect(createHelp).toContain("84532 (Base Sepolia)");
     expect(createHelp).toContain("create a wallet provisioning request");
     expect(createHelp).toContain(
-      "create a wallet provisioning request\n\nsupported chains:\n  84532 (Base Sepolia)\n\nOptions:",
+      "create a wallet provisioning request\n\nsupported chains:\n  8453 (Base), 84532 (Base Sepolia)\n\nOptions:",
     );
   });
 

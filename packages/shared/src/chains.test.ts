@@ -9,14 +9,26 @@ import {
 
 describe("supported chains", () => {
   it("keeps internal chain constants private", () => {
+    expect("BASE_CHAIN_ID" in chainsModule).toBe(false);
+    expect("BASE_OFFICIAL_USDC_ADDRESS" in chainsModule).toBe(false);
     expect("BASE_SEPOLIA_CHAIN_ID" in chainsModule).toBe(false);
     expect("BASE_SEPOLIA_OFFICIAL_USDC_ADDRESS" in chainsModule).toBe(false);
   });
 
   it("exports the centralized V1 supported chain list", () => {
-    expect(SUPPORTED_CHAIN_IDS).toEqual([84532]);
-    expect(supportedChains).toHaveLength(1);
+    expect(SUPPORTED_CHAIN_IDS).toEqual([8453, 84532]);
+    expect(supportedChains).toHaveLength(2);
     expect(supportedChains[0]).toMatchObject({
+      id: 8453,
+      key: "base",
+      name: "Base",
+      officialUsdcAddress: "0x833589fCD6EDB6E08f4c7C32D4f71b54bdA02913",
+      viemChain: {
+        id: 8453,
+        name: "Base",
+      },
+    });
+    expect(supportedChains[1]).toMatchObject({
       id: 84532,
       key: "base-sepolia",
       name: "Base Sepolia",
@@ -29,6 +41,8 @@ describe("supported chains", () => {
   });
 
   it("resolves supported chains by id", () => {
+    expect(isSupportedChainId(8453)).toBe(true);
+    expect(getSupportedChainById(8453)?.name).toBe("Base");
     expect(isSupportedChainId(84532)).toBe(true);
     expect(getSupportedChainById(84532)?.name).toBe("Base Sepolia");
     expect(getSupportedChainById(1)).toBeUndefined();

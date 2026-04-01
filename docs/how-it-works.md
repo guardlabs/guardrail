@@ -47,8 +47,9 @@ The official hosted frontend is intentionally paired with the official backend. 
 
 If you deploy your own backend, deploy your own frontend with the matching backend URL and origin settings.
 
-## Supported Chain
+## Supported Chains
 
-Conduit currently targets Base Sepolia only:
+Conduit currently targets Base and Base Sepolia:
 
-- chain id `84532`
+- Base: chain id `8453`
+- Base Sepolia: chain id `84532`

@@ -1,5 +1,5 @@
 import type { Chain } from "viem";
-import { baseSepolia } from "viem/chains";
+import { base, baseSepolia } from "viem/chains";
 
 export type SupportedChain = {
   id: number;
@@ -12,6 +12,15 @@ export type SupportedChain = {
 };
 
 export const supportedChains: SupportedChain[] = [
+  {
+    id: 8453,
+    key: "base",
+    name: "Base",
+    frontendRuntimeKey: "BASE",
+    officialUsdcAddress: "0x833589fCD6EDB6E08f4c7C32D4f71b54bdA02913",
+    officialUsdcDecimals: 6,
+    viemChain: base,
+  },
   {
     id: 84532,
     key: "base-sepolia",

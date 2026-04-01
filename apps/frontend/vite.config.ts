@@ -70,8 +70,15 @@ export default defineConfig(({ mode }) => {
       __BASE_SEPOLIA_BUNDLER_URL__: JSON.stringify(
         env.CONDUIT_BUNDLER_URL_84532 ?? null,
       ),
+      __BASE_RPC_URL__: JSON.stringify(env.CONDUIT_PUBLIC_RPC_URL_8453 ?? null),
+      __BASE_BUNDLER_URL__: JSON.stringify(
+        env.CONDUIT_BUNDLER_URL_8453 ?? null,
+      ),
       __BASE_SEPOLIA_OUTGOING_BUDGET_POLICY_ADDRESS__: JSON.stringify(
         env.CONDUIT_OUTGOING_BUDGET_POLICY_ADDRESS_84532 ?? null,
+      ),
+      __BASE_OUTGOING_BUDGET_POLICY_ADDRESS__: JSON.stringify(
+        env.CONDUIT_OUTGOING_BUDGET_POLICY_ADDRESS_8453 ?? null,
       ),
     },
   };

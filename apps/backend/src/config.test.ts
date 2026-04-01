@@ -11,6 +11,8 @@ function createEnv(
     CONDUIT_MIN_FUNDING_WEI: "500000000000000",
     CONDUIT_SUPPORTED_CHAIN_IDS: "84532",
     CONDUIT_REQUEST_TTL_HOURS: "24",
+    CONDUIT_BUNDLER_URL_8453: "https://bundler-mainnet.example.com",
+    CONDUIT_PUBLIC_RPC_URL_8453: "https://rpc-mainnet.example.com",
     CONDUIT_BUNDLER_URL_84532: "https://bundler.example.com",
     CONDUIT_PUBLIC_RPC_URL_84532: "https://rpc.example.com",
     ...overrides,
@@ -48,6 +50,26 @@ describe("readConfig", () => {
         84532: "https://bundler.example.com",
       },
       rpcUrlsByChain: {
+        84532: "https://rpc.example.com",
+      },
+    });
+  });
+
+  it("parses multiple supported chains when both runtime maps are configured", () => {
+    expect(
+      readConfig(
+        createEnv({
+          CONDUIT_SUPPORTED_CHAIN_IDS: "8453,84532",
+        }),
+      ),
+    ).toMatchObject({
+      supportedChainIds: [8453, 84532],
+      bundlerUrlsByChain: {
+        8453: "https://bundler-mainnet.example.com",
+        84532: "https://bundler.example.com",
+      },
+      rpcUrlsByChain: {
+        8453: "https://rpc-mainnet.example.com",
         84532: "https://rpc.example.com",
       },
     });
