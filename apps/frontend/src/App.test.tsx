@@ -149,14 +149,16 @@ describe("frontend app mode B", () => {
       />,
     );
 
-    expect(await screen.findByText(/provision this wallet/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/set up this wallet/i),
+    ).toBeInTheDocument();
     expect(loadProvisioningRequest).toHaveBeenCalledWith({
       walletId: "wal_test",
       token: "token_123",
       backendUrl: "http://127.0.0.1:3000",
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /create a passkey/i }));
+    fireEvent.click(screen.getByRole("button", { name: /create passkey/i }));
 
     await waitFor(() => {
       expect(createProvisioningArtifacts).toHaveBeenCalledWith({
@@ -177,10 +179,31 @@ describe("frontend app mode B", () => {
       regularValidatorInitArtifact,
     });
 
-    expect(await screen.findByText(/wallet ready/i)).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: /wallet ready/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: /wallet permissions/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/your passkey remains the admin control/i),
+    ).toBeInTheDocument();
+
+    const technicalDetailsButton = screen.getByRole("button", {
+      name: /technical details/i,
+    });
+
+    expect(technicalDetailsButton).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText(/backend signer/i)).not.toBeInTheDocument();
+
+    fireEvent.click(technicalDetailsButton);
+
+    expect(technicalDetailsButton).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText(/backend signer/i)).toBeInTheDocument();
     expect(screen.getByText(/0x2222/i)).toBeInTheDocument();
-    expect(screen.getByText(walletConfig.regularValidator.threshold.toString())).toBeInTheDocument();
-    expect(screen.getByText(/deny by default/i)).toBeInTheDocument();
+    expect(
+      screen.getAllByText(walletConfig.regularValidator.threshold.toString()).length,
+    ).toBeGreaterThan(0);
     expect(screen.getByText(/transferwithauthorization/i)).toBeInTheDocument();
   });
 
@@ -190,6 +213,23 @@ describe("frontend app mode B", () => {
     expect(screen.getByText(/invalid provisioning link/i)).toBeInTheDocument();
     expect(
       screen.getByText(/open the full link from the cli output/i),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the homepage when opened without provisioning params", () => {
+    render(<App search="" />);
+
+    expect(
+      screen.getByRole("heading", { name: /secure wallet rails for autonomous agents/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /quickstart/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /install, provision, use/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /github/i }),
     ).toBeInTheDocument();
   });
 
@@ -256,7 +296,9 @@ describe("frontend app mode B", () => {
       />,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: /create a passkey/i }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: /create passkey/i }),
+    );
 
     await waitFor(() => {
       expect(refreshFunding).toHaveBeenCalledWith({
@@ -265,9 +307,113 @@ describe("frontend app mode B", () => {
       });
     });
 
-    expect(await screen.findByText(/wallet ready/i)).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: /wallet ready/i }),
+    ).toBeInTheDocument();
 
     setIntervalSpy.mockRestore();
     clearIntervalSpy.mockRestore();
+  });
+
+  it("shows one dominant next action when funding is required", async () => {
+    const loadProvisioningRequest = vi
+      .fn<() => Promise<ResolveProvisioningResponse>>()
+      .mockResolvedValue(
+        buildProvisioningResponse({
+          status: "owner_bound",
+          counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
+          funding: {
+            status: "insufficient",
+            minimumRequiredWei: "500000000000000",
+            balanceWei: "0",
+            checkedAt: "2026-03-29T11:59:00.000Z",
+          },
+        }),
+      );
+
+    render(
+      <App
+        search="?walletId=wal_test&token=token_123&backendUrl=http://127.0.0.1:3000"
+        api={{
+          loadProvisioningRequest,
+          publishOwnerArtifacts: vi.fn(),
+          refreshFunding: vi
+            .fn<() => Promise<WalletRequest>>()
+            .mockResolvedValue(
+              buildWalletRequest({
+                status: "owner_bound",
+                funding: {
+                  status: "insufficient",
+                  minimumRequiredWei: "500000000000000",
+                  balanceWei: "0",
+                  checkedAt: "2026-03-29T11:59:00.000Z",
+                },
+              }),
+            ),
+        }}
+        passkeyClient={{
+          createProvisioningArtifacts: vi.fn(),
+        }}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: /fund the wallet/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /technical details/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /passkey already created/i }),
+    ).toBeDisabled();
+  });
+
+  it("shows a recoverable backend error without dropping the screen structure", async () => {
+    const loadProvisioningRequest = vi
+      .fn<() => Promise<ResolveProvisioningResponse>>()
+      .mockResolvedValue(buildProvisioningResponse());
+    const createProvisioningArtifacts = vi
+      .fn<
+        () => Promise<{
+          owner: { credentialId: string; publicKey: string };
+          counterfactualWalletAddress: string;
+          regularValidatorInitArtifact: typeof regularValidatorInitArtifact;
+        }>
+      >()
+      .mockResolvedValue({
+        owner: {
+          credentialId: "credential-id",
+          publicKey: "0x1234",
+        },
+        counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
+        regularValidatorInitArtifact,
+      });
+    const publishOwnerArtifacts = vi
+      .fn<() => Promise<WalletRequest>>()
+      .mockRejectedValue(new Error("Unable to save passkey owner."));
+
+    render(
+      <App
+        search="?walletId=wal_test&token=token_123&backendUrl=http://127.0.0.1:3000"
+        api={{
+          loadProvisioningRequest,
+          publishOwnerArtifacts,
+          refreshFunding: vi.fn(),
+        }}
+        passkeyClient={{
+          createProvisioningArtifacts,
+        }}
+      />,
+    );
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: /create passkey/i }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/unable to save passkey owner/i);
+    expect(
+      screen.getByRole("heading", { name: /create the passkey/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: /wallet permissions/i }),
+    ).toBeInTheDocument();
   });
 });

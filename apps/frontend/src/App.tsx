@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import type { ResolveProvisioningResponse, WalletPolicy, WalletRequest } from "@conduit/shared";
-import { PROJECT_DEFAULT_BACKEND_URL } from "@conduit/shared";
-import { formatUnits } from "viem";
+import type { ResolveProvisioningResponse, WalletRequest } from "@conduit/shared";
+import { getSupportedChainById, PROJECT_DEFAULT_BACKEND_URL } from "@conduit/shared";
 import type { FrontendApi } from "./api.js";
 import { browserApi } from "./api.js";
+import { MarketingHome } from "./components/MarketingHome.js";
+import { PermissionSummary } from "./components/PermissionSummary.js";
+import { ProvisioningLayout } from "./components/ProvisioningLayout.js";
+import { TechnicalDetailsDisclosure } from "./components/TechnicalDetailsDisclosure.js";
+import { getProvisioningContentModel } from "./content/provisioningContent.js";
 import type { PasskeyClient } from "./passkey.js";
-import { formatFundingLabel, parseProvisioningQuery } from "./provisioning.js";
+import { parseProvisioningQuery } from "./provisioning.js";
 import "./styles.css";
 
 const resolvedBackendUrl = __DEFAULT_BACKEND_URL__ ?? PROJECT_DEFAULT_BACKEND_URL;
@@ -21,36 +25,61 @@ async function loadBrowserPasskeyClient() {
   return module.browserPasskeyClient;
 }
 
-function formatUsdcBudget(policy: WalletPolicy["usdcPolicy"]) {
-  if (!policy) {
-    return null;
-  }
-
-  const periodLabel =
-    policy.period === "daily"
-      ? "day"
-      : policy.period === "weekly"
-        ? "week"
-        : "month";
-
-  return `${formatUnits(BigInt(policy.maxAmountMinor), 6)} USDC per ${periodLabel}`;
+function hasWalletContext(
+  request: ResolveProvisioningResponse | WalletRequest | null,
+): request is WalletRequest & {
+  walletContext: NonNullable<WalletRequest["walletContext"]>;
+} {
+  return Boolean(request && "walletContext" in request && request.walletContext);
 }
 
-function describeRuntimePolicy(policy: WalletPolicy) {
-  const contractSummary = policy.contractAllowlist?.length
-    ? `${policy.contractAllowlist.length} contract${
-        policy.contractAllowlist.length > 1 ? "s" : ""
-      } with explicit selectors only`
-    : null;
-  const usdcSummary = policy.usdcPolicy
-    ? `Official USDC only: ${policy.usdcPolicy.allowedOperations.join(", ")}`
-    : null;
+function getChainLabel(chainId: number) {
+  return getSupportedChainById(chainId)?.name ?? `Chain ${chainId}`;
+}
 
-  return {
-    contractSummary,
-    usdcSummary,
-    usdcBudgetSummary: formatUsdcBudget(policy.usdcPolicy),
-  };
+function formatCompactValue(value: string | null | undefined) {
+  if (!value) {
+    return "Pending";
+  }
+
+  if (value.length <= 18) {
+    return value;
+  }
+
+  return `${value.slice(0, 8)}...${value.slice(-6)}`;
+}
+
+function MessageState({
+  title,
+  body,
+}: {
+  title: string;
+  body: string;
+}) {
+  return (
+    <section className="cw-message-state">
+      <p className="cw-kicker">Provisioning</p>
+      <h2>{title}</h2>
+      <p>{body}</p>
+    </section>
+  );
+}
+
+function TechnicalDetail({
+  label,
+  value,
+  code,
+}: {
+  label: string;
+  value: string;
+  code?: boolean;
+}) {
+  return (
+    <div className="cw-detail-row">
+      <span>{label}</span>
+      {code ? <code>{value}</code> : <strong>{value}</strong>}
+    </div>
+  );
 }
 
 export function App({
@@ -64,6 +93,10 @@ export function App({
   const [isRefreshingFunding, setIsRefreshingFunding] = useState(false);
   const currentSearch =
     search ?? (typeof window !== "undefined" ? window.location.search : "");
+  const hasProvisioningIntent = useMemo(() => {
+    const params = new URLSearchParams(currentSearch);
+    return params.has("walletId") || params.has("token");
+  }, [currentSearch]);
 
   const query = useMemo(() => {
     try {
@@ -184,152 +217,202 @@ export function App({
 
   const status = request?.status ?? "created";
   const funding = request?.funding;
-  const policySummary = request ? describeRuntimePolicy(request.policy) : null;
+  const contentModel = request
+    ? getProvisioningContentModel({
+        status,
+        fundingStatus: funding?.status ?? "unverified",
+        policy: request.policy,
+      })
+    : null;
+  const chainLabel = request ? getChainLabel(request.walletConfig.chainId) : "Supported network";
+  const isPrimaryActionDisabled =
+    isSubmitting || status === "owner_bound" || status === "ready";
+  const walletAddress =
+    request?.counterfactualWalletAddress ??
+    (hasWalletContext(request) ? request.walletContext.walletAddress : null);
 
-  return (
-    <main className="app-shell">
-      <section className="hero-panel">
-        <div className="hero-copy">
-          <p className="eyebrow">Conduit</p>
-          <h1>Provision this wallet</h1>
-          <p className="lede">
-            Create the Conduit Wallet passkey owner on this device, then fund
-            the wallet if activation requires it.
-          </p>
+  if (!hasProvisioningIntent) {
+    return <MarketingHome />;
+  }
+
+  const hero = (
+    <>
+      <div className="cw-hero-copy">
+        <div className="cw-brand-row">
+          <p className="cw-eyebrow">Conduit Wallet</p>
+          <span className="cw-hero-chip">Human-controlled provisioning</span>
         </div>
-        <div className="hero-side">
-          <span className={`status-pill status-${status}`}>
-            {status === "ready" ? "Wallet ready" : "Provisioning in progress"}
-          </span>
-          <p className="side-note">
-            Runtime transactions require both the local agent and the backend co-signer.
-          </p>
-        </div>
-      </section>
+        <h1>Set up this wallet</h1>
+        <p className="cw-lede">
+          Create the human passkey for this wallet, then fund it if activation
+          requires it.
+        </p>
 
-      {!query ? (
-        <section className="message-panel">
-          <h2>Invalid provisioning link</h2>
-          <p>Open the full link from the CLI output to continue.</p>
-        </section>
-      ) : !request && !error ? (
-        <section className="message-panel">
-          <h2>Loading wallet</h2>
-          <p>Checking the wallet and its weighted multisig configuration.</p>
-        </section>
-      ) : (
-        <section className="workspace">
-          <div className="workspace-main">
-            <div className="section-head">
-              <p className="section-kicker">Secure wallet access</p>
-              <h2>Create a passkey on this device</h2>
-            </div>
-
-            <p className="support-copy">
-              You are approving a passkey owner for one Conduit Wallet. The
-              agent will not receive your passkey secret.
-            </p>
-
-            <button
-              className="primary-button"
-              disabled={isSubmitting || status === "ready"}
-              onClick={() => {
-                void handleCreatePasskey();
-              }}
-              type="button"
-            >
-              {status === "ready"
-                ? "Passkey already created"
-                : isSubmitting
-                  ? "Creating passkey..."
-                  : "Create a passkey"}
-            </button>
-
-            {error ? (
-              <p className="error-copy" role="alert">
-                {error}
-              </p>
-            ) : null}
-
-            {request?.counterfactualWalletAddress ? (
-              <div className="wallet-readout">
-                <p className="section-kicker">Wallet address</p>
-                <code>{request.counterfactualWalletAddress}</code>
-              </div>
-            ) : null}
-
-            {request?.status === "owner_bound" ? (
-              <div className="funding-callout" aria-live="polite">
-                <p className="section-kicker">Next step</p>
-                <h3>Fund this wallet to continue activation</h3>
-                <p>
-                  Send at least {request.funding.minimumRequiredWei} wei to the wallet
-                  address above on Base Sepolia.
-                </p>
-                <p className="support-copy">
-                  Checking funding status automatically
-                  {isRefreshingFunding ? "..." : " every 5 seconds."}
-                </p>
-              </div>
-            ) : null}
+        <div className="cw-hero-meta" aria-label="Wallet snapshot">
+          <div className="cw-hero-meta-item">
+            <span>Network</span>
+            <strong>{chainLabel}</strong>
           </div>
-
-          <aside className="workspace-side">
-            <div className="detail-line">
-              <span>Chain</span>
-              <strong>Base Sepolia ({request?.walletConfig.chainId ?? "pending"})</strong>
-            </div>
-            <div className="detail-line">
-              <span>Threshold</span>
-              <strong>{request?.walletConfig.regularValidator.threshold ?? "Pending"}</strong>
-            </div>
-            <div className="detail-line">
-              <span>Agent signer</span>
-              <code>{request?.agentAddress ?? "Pending"}</code>
-            </div>
-            <div className="detail-line">
-              <span>Backend signer</span>
-              <code>{request?.backendAddress ?? "Pending"}</code>
-            </div>
-            <div className="detail-line">
-              <span>Funding</span>
-              <strong>{funding ? formatFundingLabel(funding.status) : "Pending"}</strong>
-            </div>
-            <div className="detail-line">
-              <span>Minimum funding</span>
-              <code>{funding?.minimumRequiredWei ?? "Pending"}</code>
-            </div>
-            {request ? (
-              <div className="policy-panel">
-                <p className="section-kicker">Runtime policy</p>
-                <h3>Agent + backend co-signer</h3>
-                <p className="policy-copy">
-                  Deny by default. The passkey keeps full admin access and does not use
-                  this policy.
-                </p>
-                {policySummary?.contractSummary ? (
-                  <div className="policy-line">
-                    <span>Contracts</span>
-                    <strong>{policySummary.contractSummary}</strong>
-                  </div>
-                ) : null}
-                {policySummary?.usdcSummary ? (
-                  <div className="policy-line">
-                    <span>USDC</span>
-                    <strong>{policySummary.usdcSummary}</strong>
-                  </div>
-                ) : null}
-                {policySummary?.usdcBudgetSummary ? (
-                  <div className="policy-line">
-                    <span>Budget</span>
-                    <strong>{policySummary.usdcBudgetSummary}</strong>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-          </aside>
-        </section>
-      )}
-    </main>
+          <div className="cw-hero-meta-item">
+            <span>Wallet ID</span>
+            <strong>{formatCompactValue(request?.walletId ?? null)}</strong>
+          </div>
+          <div className="cw-hero-meta-item">
+            <span>Funding</span>
+            <strong>{contentModel?.fundingLabel ?? "Loading"}</strong>
+          </div>
+        </div>
+      </div>
+    </>
   );
+
+  const technicalDetails = request && contentModel ? (
+    <TechnicalDetailsDisclosure summary="Technical details">
+      <div className="cw-technical-grid">
+        <TechnicalDetail label="Wallet ID" value={request.walletId} code />
+        <TechnicalDetail
+          label="Chain"
+          value={`${chainLabel} (${request.walletConfig.chainId})`}
+        />
+        <TechnicalDetail
+          label="Threshold"
+          value={request.walletConfig.regularValidator.threshold.toString()}
+        />
+        <TechnicalDetail label="Agent signer" value={request.agentAddress} code />
+        <TechnicalDetail label="Backend signer" value={request.backendAddress} code />
+        <TechnicalDetail label="Funding" value={contentModel.fundingLabel} />
+        <TechnicalDetail
+          label="Minimum funding (wei)"
+          value={request.funding.minimumRequiredWei}
+          code
+        />
+      </div>
+
+      <div className="cw-policy-block">
+        <p className="cw-kicker">Runtime policy</p>
+        <h3>Agent + backend co-signing</h3>
+        <p>
+          Denied by default. Only the rules below can execute without your direct
+          intervention. Your passkey does not use this policy.
+        </p>
+        {contentModel.technicalPolicySummary.contractSummary ? (
+          <TechnicalDetail
+            label="Contracts"
+            value={contentModel.technicalPolicySummary.contractSummary}
+          />
+        ) : null}
+        {contentModel.technicalPolicySummary.usdcSummary ? (
+          <TechnicalDetail
+            label="USDC"
+            value={contentModel.technicalPolicySummary.usdcSummary}
+          />
+        ) : null}
+        {contentModel.technicalPolicySummary.usdcBudgetSummary ? (
+          <TechnicalDetail
+            label="Budget"
+            value={contentModel.technicalPolicySummary.usdcBudgetSummary}
+          />
+        ) : null}
+      </div>
+    </TechnicalDetailsDisclosure>
+  ) : (
+    <MessageState
+      title="Technical details appear once the request loads"
+      body="Signer addresses, thresholds, and funding requirements stay tucked away until the wallet is available."
+    />
+  );
+
+  const secondary = request && contentModel ? (
+    <>
+      <PermissionSummary items={contentModel.permissionItems} />
+      {technicalDetails}
+    </>
+  ) : (
+    technicalDetails
+  );
+
+  const primary = !query ? (
+    <MessageState
+      title="Invalid provisioning link"
+      body="Open the full link from the CLI output to continue."
+    />
+  ) : !request && !error ? (
+    <MessageState
+      title="Loading wallet"
+      body="Checking the wallet request, passkey state, and activation requirements."
+    />
+  ) : request && contentModel ? (
+    <div className="cw-flow">
+      <section className="cw-action-panel">
+        <div className="cw-card-head">
+          <div className="cw-card-head-top">
+            <p className="cw-kicker">{contentModel.statusEyebrow}</p>
+            <span className={`cw-status-pill cw-status-pill-${status}`}>
+              {contentModel.statusLabel}
+            </span>
+          </div>
+          <h2>{contentModel.statusTitle}</h2>
+          <p className="cw-card-copy">{contentModel.statusBody}</p>
+        </div>
+
+        <button
+          className="cw-primary-button"
+          disabled={isPrimaryActionDisabled}
+          onClick={() => {
+            void handleCreatePasskey();
+          }}
+          type="button"
+        >
+          {isSubmitting ? "Creating passkey..." : contentModel.primaryActionLabel}
+        </button>
+
+        <p className="cw-support-copy cw-support-note">{contentModel.reassurance}</p>
+
+        {error ? (
+          <p className="cw-error-copy" role="alert">
+            {error}
+          </p>
+        ) : null}
+
+        {walletAddress ? (
+          <div className="cw-wallet-readout">
+            <div className="cw-readout-head">
+              <p className="cw-kicker">Wallet address</p>
+              <span>Use this exact destination on {chainLabel}</span>
+            </div>
+            <code>{walletAddress}</code>
+          </div>
+        ) : null}
+
+        {request.status === "owner_bound" ? (
+          <div aria-live="polite" className="cw-funding-callout">
+            <div className="cw-card-head">
+              <p className="cw-kicker">Activation</p>
+              <h3>
+                {request.funding.status === "verified"
+                  ? "Final readiness checks in progress"
+                  : "Send funds to the wallet address"}
+              </h3>
+              <p>
+                {request.funding.status === "verified"
+                  ? "Funding was detected and the wallet is completing its final readiness check."
+                  : `Send at least ${request.funding.minimumRequiredWei} wei to the wallet address above on ${chainLabel}.`}
+              </p>
+            </div>
+            <p className="cw-support-copy">
+              {contentModel.fundingGuidance}{" "}
+              {isRefreshingFunding ? "Checking again now..." : "Refreshes every 5 seconds."}
+            </p>
+          </div>
+        ) : null}
+      </section>
+    </div>
+  ) : (
+    <MessageState
+      title="Unable to load this provisioning request"
+      body={error ?? "The provisioning request could not be loaded."}
+    />
+  );
+
+  return <ProvisioningLayout hero={hero} primary={primary} secondary={secondary} />;
 }

@@ -18,6 +18,8 @@ It lets an agent trigger actions autonomously while staying secure because Condu
 
 The human stays the end owner through a passkey.
 
+The hosted frontend doubles as both the public homepage and the provisioning surface. Opening the app root gives a concise overview plus installation and usage examples, while provisioning links open the wallet setup flow directly.
+
 For more detail, see [How It Works](#how-it-works).
 
 ## 🚀 Quickstart
