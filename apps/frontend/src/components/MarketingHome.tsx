@@ -1,28 +1,9 @@
 import { ProvisioningLayout } from "./ProvisioningLayout.js";
 
-const quickstartSteps = [
-  {
-    label: "Create",
-    command: "npx @your-scope/conduit-wallet create --chain-id 84532",
-    detail: "Creates the wallet request and returns a provisioning link for the human owner.",
-  },
-  {
-    label: "Await",
-    command: "npx @your-scope/conduit-wallet await wal_xxx",
-    detail: "Waits until the wallet is fully ready for runtime use.",
-  },
-  {
-    label: "Use",
-    command:
-      "npx @your-scope/conduit-wallet call wal_xxx --to 0x1111111111111111111111111111111111111111 --data 0xa9059cbb --value-wei 0",
-    detail: "Runs the ready wallet from the CLI within the configured policy.",
-  },
-] as const;
-
 const basics = [
-  "Human stays the owner through a passkey.",
-  "Agent runtime access is policy-gated.",
-  "Built for task-scoped autonomous workflows.",
+  "No long-lived hot key shipped to the agent.",
+  "The human stays the durable owner through a passkey.",
+  "Runtime access stays policy-gated and deny-by-default.",
 ] as const;
 
 export function MarketingHome() {
@@ -38,12 +19,17 @@ export function MarketingHome() {
           <h1>Secure wallet rails for autonomous agents</h1>
           <p className="cw-lede">
             Conduit Wallet lets agents use onchain wallets without shipping a hot
-            key, while the human remains the owner through a passkey.
+            key. The human stays the owner, and the runtime path stays policy-gated.
           </p>
 
           <div className="cw-home-actions">
-            <a className="cw-primary-button cw-home-button" href="#quickstart">
-              Quickstart
+            <a
+              className="cw-primary-button cw-home-button"
+              href="https://github.com/nmalzieu/conduit/blob/main/docs/README.md"
+              rel="noreferrer"
+              target="_blank"
+            >
+              Docs
             </a>
             <a
               className="cw-secondary-button"
@@ -63,32 +49,41 @@ export function MarketingHome() {
               <li key={item}>{item}</li>
             ))}
           </ul>
+          <p className="cw-home-note">
+            Start with the GitHub docs for installation, policy examples, and the CLI flow.
+          </p>
         </div>
       </div>
     </div>
   );
 
   const primary = (
-    <section className="cw-home-single" id="quickstart">
+    <section className="cw-home-single">
       <div className="cw-home-single-head">
-        <p className="cw-kicker">Quickstart</p>
-        <h2>Install, provision, use</h2>
+        <p className="cw-kicker">Overview</p>
+        <h2>Agents can only do what their policy allows</h2>
         <p className="cw-card-copy">
-          The CLI is the main entry point. The hosted frontend is only for human
-          passkey provisioning.
+          Conduit is built for agents that need wallet access, but should not be
+          trusted with an unrestricted key they can export, reuse, or drain.
         </p>
       </div>
 
-      <div className="cw-home-command-stack">
-        {quickstartSteps.map((step) => (
-          <article className="cw-home-command-card" key={step.label}>
-            <p className="cw-kicker">{step.label}</p>
-            <pre className="cw-code-block">
-              <code>{step.command}</code>
-            </pre>
-            <p>{step.detail}</p>
-          </article>
-        ))}
+      <div className="cw-home-explainer">
+        <p className="cw-home-explainer-copy">
+          The agent does not hold a fully privileged wallet key. It can only ask
+          to perform runtime actions that fit the wallet policy.
+        </p>
+        <p className="cw-home-explainer-copy">
+          Conduit enforces that policy on the backend and co-signs only the
+          actions that are allowed. Anything outside the configured policy is
+          denied.
+        </p>
+
+        <ul className="cw-home-flow">
+          <li>The human remains the durable wallet owner through a passkey.</li>
+          <li>The agent can request runtime actions autonomously.</li>
+          <li>The Conduit backend co-signs only what the policy explicitly allows.</li>
+        </ul>
       </div>
     </section>
   );

@@ -508,7 +508,7 @@ code {
 
 .cw-home-copy {
   display: grid;
-  gap: 1rem;
+  gap: 0.85rem;
 }
 
 .cw-home-copy h1 {
@@ -524,7 +524,7 @@ code {
 .cw-home-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.65rem;
   align-items: center;
 }
 
@@ -547,18 +547,18 @@ code {
 }
 
 .cw-home-note {
-  max-width: 33rem;
+  max-width: 30rem;
   margin: 0;
   color: var(--cw-ink-soft);
-  font-size: 0.94rem;
-  line-height: 1.55;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .cw-home-summary,
 .cw-home-single,
 .cw-home-command-card {
   border: 1px solid var(--cw-line);
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.88);
 }
 
 .cw-home-command-card {
@@ -568,15 +568,15 @@ code {
 .cw-home-summary,
 .cw-home-single {
   display: grid;
-  gap: 0.9rem;
-  padding: 1.45rem;
-  border-radius: var(--cw-radius-lg);
-  box-shadow: var(--cw-shadow);
+  gap: 0.75rem;
+  padding: 1.2rem;
+  border-radius: var(--cw-radius-md);
+  box-shadow: none;
 }
 
 .cw-home-single-head {
   display: grid;
-  gap: 0.45rem;
+  gap: 0.35rem;
 }
 
 .cw-home-single h2 {
@@ -588,21 +588,16 @@ code {
   color: var(--cw-ink);
 }
 
-.cw-home-command-stack {
+.cw-home-explainer {
   display: grid;
-  gap: 0.9rem;
-  width: 100%;
+  gap: 0.8rem;
+  max-width: 46rem;
 }
 
-.cw-home-command-card {
-  padding: 1.05rem;
-  border-radius: var(--cw-radius-md);
-}
-
-.cw-home-command-card p {
+.cw-home-explainer-copy {
   margin: 0;
   color: var(--cw-ink-soft);
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .cw-home-bullet-list {
@@ -697,10 +692,6 @@ code {
   .cw-home-hero-grid {
     grid-template-columns: minmax(0, 1.35fr) minmax(18rem, 0.9fr);
   }
-
-  .cw-home-command-stack {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 640px) {
@@ -743,7 +734,7 @@ code {
   .cw-home-single,
   .cw-home-command-card,
   .cw-home-flow li {
-    padding: 1rem;
+    padding: 0.9rem;
   }
 }
 

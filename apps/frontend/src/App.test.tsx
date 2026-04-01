@@ -223,10 +223,13 @@ describe("frontend app mode B", () => {
       screen.getByRole("heading", { name: /secure wallet rails for autonomous agents/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /quickstart/i }),
+      screen.getByRole("heading", { name: /agents can only do what their policy allows/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /install, provision, use/i }),
+      screen.getByText(/conduit enforces that policy on the backend/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /docs/i }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /github/i }),
