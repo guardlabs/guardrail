@@ -4,6 +4,8 @@
 
 These examples use placeholder package and hosted URLs until the public deployment is finalized.
 
+The official hosted frontend is paired with the official backend. If you deploy your own backend, deploy your own frontend too.
+
 ## 1. Create A Wallet Request
 
 This example creates a wallet that can only use official USDC and is capped at `$10` over the trailing 24 hours.

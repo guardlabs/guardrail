@@ -59,14 +59,12 @@ function isExpired(expiresAt: string) {
 
 function createProvisioningUrl(input: {
   frontendBaseUrl: string;
-  backendBaseUrl: string;
   walletId: string;
   token: string;
 }) {
   const url = new URL(input.frontendBaseUrl);
   url.searchParams.set("walletId", input.walletId);
   url.searchParams.set("token", input.token);
-  url.searchParams.set("backendUrl", input.backendBaseUrl);
   return url.toString();
 }
 
@@ -123,7 +121,6 @@ function buildInitialRequest(
         status: "undeployed",
       },
       runtimePolicyState: createInitialRuntimePolicyState(),
-      usedSigningRequestIds: [],
       createdAt: timestamp,
       updatedAt: timestamp,
       expiresAt: createExpiresAt(now, config.requestTtlHours),
@@ -391,6 +388,81 @@ async function listRelevantUsdcConsumptions(input: {
   });
 }
 
+async function finalizeBackendSigning<T>(input: {
+  app: FastifyInstance;
+  repository: WalletRequestRepository;
+  walletRequest: StoredWalletRequest;
+  route: string;
+  requestId: string;
+  method: BackendSignerMethod;
+  createdAt: string;
+  consumption?: {
+    asset: "usdc";
+    operation: string;
+    amountMinor: string;
+  };
+  handler: () => Promise<T>;
+}) {
+  const outcome = await input.repository.runBackendSigningOperation({
+    walletId: input.walletRequest.walletId,
+    requestId: input.requestId,
+    method: input.method,
+    createdAt: input.createdAt,
+    updatedAt: input.createdAt,
+    consumption: input.consumption
+      ? {
+          walletId: input.walletRequest.walletId,
+          requestId: input.requestId,
+          asset: input.consumption.asset,
+          operation: input.consumption.operation,
+          amountMinor: input.consumption.amountMinor,
+          createdAt: input.createdAt,
+        }
+      : undefined,
+    handler: input.handler,
+  });
+
+  if (outcome.status !== "ok") {
+    if (outcome.status === "not_found") {
+      return {
+        ok: false as const,
+        reply: {
+          statusCode: 404,
+          body: {
+            error: "request_not_found",
+          },
+        },
+      };
+    }
+
+    logDebug(
+      input.app,
+      "backend_signer_request_replayed",
+      `Rejected replayed ${input.route} request.`,
+      {
+        walletId: input.walletRequest.walletId,
+        route: input.route,
+        requestId: input.requestId,
+      },
+    );
+    return {
+      ok: false as const,
+      reply: {
+        statusCode: 409,
+        body: {
+          error: "request_replayed",
+          message: "This backend signer requestId has already been used.",
+        },
+      },
+    };
+  }
+
+  return {
+    ok: true as const,
+    result: outcome.result,
+  };
+}
+
 export function registerRoutes(
   app: FastifyInstance,
   repository: WalletRequestRepository,
@@ -494,7 +566,6 @@ export function registerRoutes(
 
     const provisioningUrl = createProvisioningUrl({
       frontendBaseUrl: config.frontendBaseUrl,
-      backendBaseUrl: config.publicBackendUrl,
       walletId: nextRequest.walletId,
       token: provisioningToken,
     });
@@ -716,53 +787,31 @@ export function registerRoutes(
         });
       }
 
-      const replay = await repository.recordUsedSigningRequestId({
-        walletId: walletRequest.walletId,
+      const signingResult = await finalizeBackendSigning({
+        app,
+        repository,
+        walletRequest,
+        route: "backend-sign-typed-data",
         requestId: parsedRequest.auth.requestId,
-        updatedAt: now.toISOString(),
+        method: parsedRequest.auth.method,
+        createdAt: now.toISOString(),
+        consumption: policyDecision.consumption,
+        handler: async () => {
+          const backendAccount = privateKeyToAccount(
+            walletRequest.backendPrivateKey as Hex,
+          );
+
+          return backendAccount.signTypedData(
+            parsedRequest.signaturePayload.typedData as never,
+          );
+        },
       });
 
-      if (replay === "not_found") {
-        return reply.status(404).send({
-          error: "request_not_found",
-        });
-      }
-
-      if (replay === "duplicate") {
-        logDebug(
-          app,
-          "backend_signer_request_replayed",
-          "Rejected replayed backend typed-data request.",
-          {
-            walletId: walletRequest.walletId,
-            route: "backend-sign-typed-data",
-            requestId: parsedRequest.auth.requestId,
-          },
+      if (!signingResult.ok) {
+        return reply.status(signingResult.reply.statusCode).send(
+          signingResult.reply.body,
         );
-        return reply.status(409).send({
-          error: "request_replayed",
-          message: "This backend signer requestId has already been used.",
-        });
       }
-
-      if (policyDecision.consumption) {
-        await repository.createRuntimePolicyConsumption({
-          walletId: walletRequest.walletId,
-          requestId: parsedRequest.auth.requestId,
-          asset: policyDecision.consumption.asset,
-          operation: policyDecision.consumption.operation,
-          amountMinor: policyDecision.consumption.amountMinor,
-          createdAt: now.toISOString(),
-        });
-      }
-
-      const backendAccount = privateKeyToAccount(
-        walletRequest.backendPrivateKey as Hex,
-      );
-
-      const signature = await backendAccount.signTypedData(
-        parsedRequest.signaturePayload.typedData as never,
-      );
 
       logInfo(
         app,
@@ -779,7 +828,7 @@ export function registerRoutes(
 
       return reply.send(
         backendSignResponseSchema.parse({
-          signature,
+          signature: signingResult.result,
         }),
       );
     },
@@ -865,50 +914,27 @@ export function registerRoutes(
         });
       }
 
-      const replay = await repository.recordUsedSigningRequestId({
-        walletId: walletRequest.walletId,
+      const signingResult = await finalizeBackendSigning({
+        app,
+        repository,
+        walletRequest,
+        route: "backend-sign-user-operation",
         requestId: parsedRequest.auth.requestId,
-        updatedAt: now.toISOString(),
+        method: parsedRequest.auth.method,
+        createdAt: now.toISOString(),
+        consumption: policyDecision.consumption,
+        handler: () =>
+          signBackendUserOperationPayload({
+            backendPrivateKey: walletRequest.backendPrivateKey as Hex,
+            signaturePayload: parsedRequest.signaturePayload,
+          }),
       });
 
-      if (replay === "not_found") {
-        return reply.status(404).send({
-          error: "request_not_found",
-        });
-      }
-
-      if (replay === "duplicate") {
-        logDebug(
-          app,
-          "backend_signer_request_replayed",
-          "Rejected replayed backend user-operation request.",
-          {
-            walletId: walletRequest.walletId,
-            route: "backend-sign-user-operation",
-            requestId: parsedRequest.auth.requestId,
-          },
+      if (!signingResult.ok) {
+        return reply.status(signingResult.reply.statusCode).send(
+          signingResult.reply.body,
         );
-        return reply.status(409).send({
-          error: "request_replayed",
-          message: "This backend signer requestId has already been used.",
-        });
       }
-
-      if (policyDecision.consumption) {
-        await repository.createRuntimePolicyConsumption({
-          walletId: walletRequest.walletId,
-          requestId: parsedRequest.auth.requestId,
-          asset: policyDecision.consumption.asset,
-          operation: policyDecision.consumption.operation,
-          amountMinor: policyDecision.consumption.amountMinor,
-          createdAt: now.toISOString(),
-        });
-      }
-
-      const signature = await signBackendUserOperationPayload({
-        backendPrivateKey: walletRequest.backendPrivateKey as Hex,
-        signaturePayload: parsedRequest.signaturePayload,
-      });
 
       logInfo(
         app,
@@ -925,7 +951,7 @@ export function registerRoutes(
 
       return reply.send(
         backendSignResponseSchema.parse({
-          signature,
+          signature: signingResult.result,
         }),
       );
     },
@@ -999,39 +1025,27 @@ export function registerRoutes(
         });
       }
 
-      const replay = await repository.recordUsedSigningRequestId({
-        walletId: walletRequest.walletId,
+      const now = new Date().toISOString();
+      const signingResult = await finalizeBackendSigning({
+        app,
+        repository,
+        walletRequest,
+        route: "backend-deploy-wallet",
         requestId: parsedRequest.auth.requestId,
-        updatedAt: new Date().toISOString(),
+        method: parsedRequest.auth.method,
+        createdAt: now,
+        handler: () =>
+          signBackendUserOperationPayload({
+            backendPrivateKey: walletRequest.backendPrivateKey as Hex,
+            signaturePayload: parsedRequest.signaturePayload,
+          }),
       });
 
-      if (replay === "not_found") {
-        return reply.status(404).send({
-          error: "request_not_found",
-        });
-      }
-
-      if (replay === "duplicate") {
-        logDebug(
-          app,
-          "backend_signer_request_replayed",
-          "Rejected replayed backend deploy request.",
-          {
-            walletId: walletRequest.walletId,
-            route: "backend-deploy-wallet",
-            requestId: parsedRequest.auth.requestId,
-          },
+      if (!signingResult.ok) {
+        return reply.status(signingResult.reply.statusCode).send(
+          signingResult.reply.body,
         );
-        return reply.status(409).send({
-          error: "request_replayed",
-          message: "This backend signer requestId has already been used.",
-        });
       }
-
-      const signature = await signBackendUserOperationPayload({
-        backendPrivateKey: walletRequest.backendPrivateKey as Hex,
-        signaturePayload: parsedRequest.signaturePayload,
-      });
 
       logInfo(
         app,
@@ -1047,7 +1061,7 @@ export function registerRoutes(
 
       return reply.send(
         backendSignResponseSchema.parse({
-          signature,
+          signature: signingResult.result,
         }),
       );
     },

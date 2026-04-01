@@ -16,7 +16,7 @@ Conduit Wallet is an EVM wallet flow for autonomous agents that avoids shipping 
 
 The human stays the owner through a passkey. The agent can still act autonomously, but only on the runtime path that Conduit is willing to co-sign under the wallet policy.
 
-The hosted frontend serves both as the public homepage and the provisioning surface. Opening the app root shows a high-level overview plus links to the GitHub docs; opening a provisioning link starts passkey setup directly.
+The hosted frontend serves both as the public homepage and the provisioning surface. The official hosted frontend is pinned to the official backend. If you deploy your own backend, deploy your own frontend with it.
 
 ## Quickstart
 
@@ -109,6 +109,8 @@ Useful local URLs:
 
 For the full local flow, required environment variables, and testing commands, see [Local development](docs/local-development.md).
 
+Before starting the backend, fill the per-chain RPC and bundler variables in `.env.local`. The backend now fails fast if those supported-chain runtime URLs are missing.
+
 Coverage across the workspace test suites is available with:
 
 ```bash
@@ -141,3 +143,17 @@ This repository is still pre-deployment:
 - the npm package name is still a placeholder
 - Base Sepolia is the only supported chain
 - runtime policy is intentionally narrow and deny-by-default on the agent runtime path
+
+## Deployment Model
+
+- the official frontend is paired with the official backend
+- provisioning links no longer carry a backend override parameter
+- if you self-host the backend, self-host the frontend too
+
+## Signer Trust Model
+
+- the human passkey is the durable owner path
+- the local agent key alone is not enough to use the runtime path
+- the backend signer key alone is not enough to use the runtime path
+- the `agent + backend` runtime path is where Conduit enforces policy
+- the backend operator is trusted for policy enforcement and service availability

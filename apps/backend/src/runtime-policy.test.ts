@@ -89,7 +89,6 @@ function buildStoredWalletRequest(
     },
     provisioningTokenHash: "token-hash",
     backendPrivateKey: "0x1234",
-    usedSigningRequestIds: [],
     runtimePolicyState: createInitialRuntimePolicyState(),
     createdAt: "2026-03-29T12:00:00.000Z",
     updatedAt: "2026-03-29T12:05:00.000Z",

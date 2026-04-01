@@ -53,8 +53,9 @@ export function MarketingHome() {
             ))}
           </ul>
           <p className="cw-home-note">
-            Start with the GitHub docs for installation, policy examples, and
-            the CLI flow.
+            Start with the GitHub docs for installation, policy examples, the
+            CLI flow, and the hosted deployment model. If you self-host the
+            backend, self-host the frontend too.
           </p>
         </div>
       </div>
@@ -81,6 +82,10 @@ export function MarketingHome() {
           Conduit enforces that policy on the backend and co-signs only the
           actions that are allowed. Anything outside the configured policy is
           denied.
+        </p>
+        <p className="cw-home-explainer-copy">
+          The official hosted frontend is pinned to the official backend. Custom
+          backend deployments should ship with their own frontend.
         </p>
 
         <ul className="cw-home-flow">

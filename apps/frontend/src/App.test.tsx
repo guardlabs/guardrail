@@ -150,7 +150,7 @@ describe("frontend app mode B", () => {
 
     render(
       <App
-        search="?walletId=wal_test&token=token_123&backendUrl=http://127.0.0.1:3000"
+        search="?walletId=wal_test&token=token_123&backendUrl=https://malicious.example"
         api={{
           loadProvisioningRequest,
           publishOwnerArtifacts,
@@ -163,11 +163,18 @@ describe("frontend app mode B", () => {
     );
 
     expect(await screen.findByText(/set up this wallet/i)).toBeInTheDocument();
-    expect(loadProvisioningRequest).toHaveBeenCalledWith({
-      walletId: "wal_test",
-      token: "token_123",
-      backendUrl: "http://127.0.0.1:3000",
-    });
+    expect(loadProvisioningRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        walletId: "wal_test",
+        token: "token_123",
+        backendUrl: expect.stringMatching(
+          /^http:\/\/(127\.0\.0\.1|localhost):3000$/,
+        ),
+      }),
+    );
+    expect(JSON.stringify(loadProvisioningRequest.mock.calls)).not.toContain(
+      "https://malicious.example",
+    );
 
     fireEvent.click(screen.getByRole("button", { name: /create passkey/i }));
 
@@ -178,17 +185,22 @@ describe("frontend app mode B", () => {
       });
     });
 
-    expect(publishOwnerArtifacts).toHaveBeenCalledWith({
-      walletId: "wal_test",
-      token: "token_123",
-      backendUrl: "http://127.0.0.1:3000",
-      owner: {
-        credentialId: "credential-id",
-        publicKey: "0x1234",
-      },
-      counterfactualWalletAddress: "0x2222222222222222222222222222222222222222",
-      regularValidatorInitArtifact,
-    });
+    expect(publishOwnerArtifacts).toHaveBeenCalledWith(
+      expect.objectContaining({
+        walletId: "wal_test",
+        token: "token_123",
+        backendUrl: expect.stringMatching(
+          /^http:\/\/(127\.0\.0\.1|localhost):3000$/,
+        ),
+        owner: {
+          credentialId: "credential-id",
+          publicKey: "0x1234",
+        },
+        counterfactualWalletAddress:
+          "0x2222222222222222222222222222222222222222",
+        regularValidatorInitArtifact,
+      }),
+    );
 
     expect(
       await screen.findByRole("heading", { name: /wallet ready/i }),
@@ -300,7 +312,7 @@ describe("frontend app mode B", () => {
 
     render(
       <App
-        search="?walletId=wal_test&token=token_123&backendUrl=http://127.0.0.1:3000"
+        search="?walletId=wal_test&token=token_123"
         api={{
           loadProvisioningRequest,
           publishOwnerArtifacts,
@@ -317,10 +329,14 @@ describe("frontend app mode B", () => {
     );
 
     await waitFor(() => {
-      expect(refreshFunding).toHaveBeenCalledWith({
-        walletId: "wal_test",
-        backendUrl: "http://127.0.0.1:3000",
-      });
+      expect(refreshFunding).toHaveBeenCalledWith(
+        expect.objectContaining({
+          walletId: "wal_test",
+          backendUrl: expect.stringMatching(
+            /^http:\/\/(127\.0\.0\.1|localhost):3000$/,
+          ),
+        }),
+      );
     });
 
     expect(
@@ -350,7 +366,7 @@ describe("frontend app mode B", () => {
 
     render(
       <App
-        search="?walletId=wal_test&token=token_123&backendUrl=http://127.0.0.1:3000"
+        search="?walletId=wal_test&token=token_123"
         api={{
           loadProvisioningRequest,
           publishOwnerArtifacts: vi.fn(),
@@ -412,7 +428,7 @@ describe("frontend app mode B", () => {
 
     render(
       <App
-        search="?walletId=wal_test&token=token_123&backendUrl=http://127.0.0.1:3000"
+        search="?walletId=wal_test&token=token_123"
         api={{
           loadProvisioningRequest,
           publishOwnerArtifacts,

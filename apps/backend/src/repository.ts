@@ -1,4 +1,5 @@
 import type {
+  BackendSignerMethod,
   OwnerPublicArtifacts,
   RegularValidatorInitArtifact,
   WalletContext,
@@ -24,7 +25,6 @@ export type RuntimePolicyConsumption = {
 export type StoredWalletRequest = WalletRequest & {
   provisioningTokenHash: string;
   backendPrivateKey: string;
-  usedSigningRequestIds: string[];
   runtimePolicyState: RuntimePolicyState;
 };
 
@@ -55,11 +55,18 @@ export type WalletRequestRepository = {
     walletContext?: WalletContext;
     updatedAt: string;
   }): Promise<StoredWalletRequest | null>;
-  recordUsedSigningRequestId(input: {
+  runBackendSigningOperation<T>(input: {
     walletId: string;
     requestId: string;
+    method: BackendSignerMethod;
+    createdAt: string;
     updatedAt: string;
-  }): Promise<"ok" | "duplicate" | "not_found">;
+    consumption?: RuntimePolicyConsumption;
+    handler: () => Promise<T>;
+  }): Promise<
+    | { status: "ok"; result: T }
+    | { status: "duplicate" | "not_found" }
+  >;
   updateRuntimePolicyState(input: {
     walletId: string;
     runtimePolicyState: RuntimePolicyState;
@@ -81,7 +88,6 @@ export function toPublicWalletRequest(
   const {
     provisioningTokenHash: _tokenHash,
     backendPrivateKey: _backendPrivateKey,
-    usedSigningRequestIds: _usedSigningRequestIds,
     runtimePolicyState: _runtimePolicyState,
     ...publicRequest
   } = request;

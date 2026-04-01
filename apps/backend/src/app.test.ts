@@ -35,6 +35,7 @@ const testConfig: AppConfig = {
 
 function createTestRepository(): WalletRequestRepository {
   const requests = new Map<string, StoredWalletRequest>();
+  const signingRequests = new Set<string>();
   const consumptions = new Map<
     string,
     Array<{
@@ -116,23 +117,51 @@ function createTestRepository(): WalletRequestRepository {
       requests.set(walletId, updatedRequest);
       return updatedRequest;
     },
-    async recordUsedSigningRequestId({ walletId, requestId, updatedAt }) {
+    async runBackendSigningOperation({
+      walletId,
+      requestId,
+      consumption,
+      handler,
+      updatedAt,
+    }) {
       const request = requests.get(walletId);
       if (!request) {
-        return "not_found";
+        return {
+          status: "not_found" as const,
+        };
       }
 
-      if (request.usedSigningRequestIds.includes(requestId)) {
-        return "duplicate";
+      if (signingRequests.has(requestId)) {
+        return {
+          status: "duplicate" as const,
+        };
       }
 
-      requests.set(walletId, {
+      signingRequests.add(requestId);
+      const previousConsumptions = consumptions.get(walletId) ?? [];
+      const updatedRequest: StoredWalletRequest = {
         ...request,
-        usedSigningRequestIds: [...request.usedSigningRequestIds, requestId],
         updatedAt,
-      });
+      };
+      requests.set(walletId, updatedRequest);
 
-      return "ok";
+      if (consumption) {
+        consumptions.set(walletId, [...previousConsumptions, consumption]);
+      }
+
+      try {
+        const result = await handler();
+
+        return {
+          status: "ok" as const,
+          result,
+        };
+      } catch (error) {
+        signingRequests.delete(requestId);
+        requests.set(walletId, request);
+        consumptions.set(walletId, previousConsumptions);
+        throw error;
+      }
     },
     async updateRuntimePolicyState({
       walletId,

@@ -48,6 +48,7 @@ export function buildLoggerOptions(
 
 export function buildApp(options: BuildAppOptions = {}) {
   const config = options.config ?? readConfig();
+  const allowedOrigin = new URL(config.frontendBaseUrl).origin;
   const app = Fastify({
     logger: buildLoggerOptions(process.env),
     disableRequestLogging: true,
@@ -62,7 +63,14 @@ export function buildApp(options: BuildAppOptions = {}) {
     options.chainRelayService ?? createChainRelayService(config);
 
   app.register(cors, {
-    origin: true,
+    origin(origin, callback) {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      callback(null, origin === allowedOrigin);
+    },
   });
 
   app.get("/health", async () => ({

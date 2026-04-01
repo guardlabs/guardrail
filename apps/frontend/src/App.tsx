@@ -101,7 +101,7 @@ export function App({ search, api = browserApi, passkeyClient }: AppProps) {
 
   const query = useMemo(() => {
     try {
-      return parseProvisioningQuery(currentSearch, resolvedBackendUrl);
+      return parseProvisioningQuery(currentSearch);
     } catch {
       return null;
     }
@@ -114,12 +114,15 @@ export function App({ search, api = browserApi, passkeyClient }: AppProps) {
 
     let cancelled = false;
 
-    void api
-      .loadProvisioningRequest(query)
-      .then((nextRequest) => {
-        if (!cancelled) {
-          setRequest(nextRequest);
-        }
+      void api
+        .loadProvisioningRequest({
+          ...query,
+          backendUrl: resolvedBackendUrl,
+        })
+        .then((nextRequest) => {
+          if (!cancelled) {
+            setRequest(nextRequest);
+          }
       })
       .catch((nextError) => {
         if (!cancelled) {
@@ -147,10 +150,10 @@ export function App({ search, api = browserApi, passkeyClient }: AppProps) {
       setIsRefreshingFunding(true);
 
       void api
-        .refreshFunding({
-          walletId: query.walletId,
-          backendUrl: query.backendUrl,
-        })
+          .refreshFunding({
+            walletId: query.walletId,
+            backendUrl: resolvedBackendUrl,
+          })
         .then((nextRequest) => {
           if (!cancelled) {
             setRequest(nextRequest);
@@ -201,6 +204,7 @@ export function App({ search, api = browserApi, passkeyClient }: AppProps) {
 
       const updatedRequest = await api.publishOwnerArtifacts({
         ...query,
+        backendUrl: resolvedBackendUrl,
         owner: provisioningArtifacts.owner,
         counterfactualWalletAddress:
           provisioningArtifacts.counterfactualWalletAddress,

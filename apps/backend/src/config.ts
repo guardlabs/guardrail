@@ -1,4 +1,5 @@
 import {
+  getSupportedChainById,
   PROJECT_DEFAULT_BACKEND_URL,
   PROJECT_DEFAULT_FRONTEND_URL,
   SUPPORTED_CHAIN_IDS,
@@ -20,28 +21,71 @@ export type AppConfig = {
   rpcUrlsByChain: Record<number, string>;
 };
 
-function parseSupportedChainIds(rawValue: string | undefined) {
-  if (!rawValue) {
-    return [...SUPPORTED_CHAIN_IDS];
+function parsePositiveInteger(rawValue: string | undefined, fallback: number, label: string) {
+  const value = Number(rawValue ?? fallback);
+
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(`${label} must be a positive integer.`);
   }
 
-  return rawValue
-    .split(",")
-    .map((value) => Number(value.trim()))
-    .filter((value) => Number.isInteger(value) && value > 0);
+  return value;
 }
 
-function collectChainUrlMap(
+function parseAbsoluteUrl(rawValue: string | undefined, fallback: string, label: string) {
+  const value = rawValue ?? fallback;
+
+  try {
+    return new URL(value).toString();
+  } catch {
+    throw new Error(`${label} must be a valid absolute URL.`);
+  }
+}
+
+function parseMinFundingWei(rawValue: string | undefined) {
+  const value = rawValue ?? DEFAULT_MIN_FUNDING_WEI;
+
+  if (!/^\d+$/.test(value)) {
+    throw new Error("CONDUIT_MIN_FUNDING_WEI must be an unsigned integer string.");
+  }
+
+  return value;
+}
+
+function parseSupportedChainIds(rawValue: string | undefined) {
+  const chainIds = rawValue
+    ? rawValue
+        .split(",")
+        .map((value) => Number(value.trim()))
+        .filter((value) => Number.isInteger(value) && value > 0)
+    : [...SUPPORTED_CHAIN_IDS];
+
+  if (chainIds.length === 0) {
+    throw new Error("CONDUIT_SUPPORTED_CHAIN_IDS must include at least one supported chain.");
+  }
+
+  for (const chainId of chainIds) {
+    if (!getSupportedChainById(chainId)) {
+      throw new Error(`Unsupported chainId ${chainId} in CONDUIT_SUPPORTED_CHAIN_IDS.`);
+    }
+  }
+
+  return chainIds;
+}
+
+function collectRequiredChainUrlMap(
   env: NodeJS.ProcessEnv,
   chainIds: number[],
   prefix: string,
+  label: string,
 ) {
   return chainIds.reduce<Record<number, string>>((accumulator, chainId) => {
     const value = env[`${prefix}_${chainId}`];
 
     if (!value) {
-      return accumulator;
+      throw new Error(`${prefix}_${chainId} is required for supported chain ${chainId} (${label}).`);
     }
+
+    parseAbsoluteUrl(value, value, `${prefix}_${chainId}`);
 
     return {
       ...accumulator,
@@ -62,26 +106,38 @@ export function readConfig(env = process.env): AppConfig {
   );
 
   return {
-    port: Number(env.PORT ?? DEFAULT_PORT),
+    port: parsePositiveInteger(env.PORT, DEFAULT_PORT, "PORT"),
     databaseUrl,
     publicBackendUrl:
-      env.CONDUIT_PUBLIC_BACKEND_URL ?? PROJECT_DEFAULT_BACKEND_URL,
+      parseAbsoluteUrl(
+        env.CONDUIT_PUBLIC_BACKEND_URL,
+        PROJECT_DEFAULT_BACKEND_URL,
+        "CONDUIT_PUBLIC_BACKEND_URL",
+      ),
     frontendBaseUrl:
-      env.CONDUIT_PUBLIC_FRONTEND_URL ?? PROJECT_DEFAULT_FRONTEND_URL,
-    minFundingWei: env.CONDUIT_MIN_FUNDING_WEI ?? DEFAULT_MIN_FUNDING_WEI,
-    requestTtlHours: Number(
-      env.CONDUIT_REQUEST_TTL_HOURS ?? DEFAULT_REQUEST_TTL_HOURS,
+      parseAbsoluteUrl(
+        env.CONDUIT_PUBLIC_FRONTEND_URL,
+        PROJECT_DEFAULT_FRONTEND_URL,
+        "CONDUIT_PUBLIC_FRONTEND_URL",
+      ),
+    minFundingWei: parseMinFundingWei(env.CONDUIT_MIN_FUNDING_WEI),
+    requestTtlHours: parsePositiveInteger(
+      env.CONDUIT_REQUEST_TTL_HOURS,
+      DEFAULT_REQUEST_TTL_HOURS,
+      "CONDUIT_REQUEST_TTL_HOURS",
     ),
     supportedChainIds,
-    bundlerUrlsByChain: collectChainUrlMap(
+    bundlerUrlsByChain: collectRequiredChainUrlMap(
       env,
       supportedChainIds,
       "CONDUIT_BUNDLER_URL",
+      "bundler",
     ),
-    rpcUrlsByChain: collectChainUrlMap(
+    rpcUrlsByChain: collectRequiredChainUrlMap(
       env,
       supportedChainIds,
       "CONDUIT_PUBLIC_RPC_URL",
+      "rpc",
     ),
   };
 }

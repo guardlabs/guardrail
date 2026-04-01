@@ -220,7 +220,7 @@ async function getWalletPersistenceState(
           consumedAmountMinor: string;
         } | null;
       };
-      used_signing_request_ids: string[];
+      backend_signing_request_count: string;
     }>(
       `
         select
@@ -228,7 +228,11 @@ async function getWalletPersistenceState(
           counterfactual_wallet_address,
           deployment,
           runtime_policy_state,
-          used_signing_request_ids
+          (
+            select count(*)::text
+            from wallet_backend_signing_requests
+            where wallet_id = wallets.wallet_id
+          ) as backend_signing_request_count
         from wallets
         where wallet_id = $1
       `,
@@ -450,7 +454,7 @@ describe("headless provisioning e2e", () => {
 
       expect(walletId).toMatch(/^wal_/);
       expect(token).toBeTruthy();
-      expect(provisioningBackendUrl).toBe(backendUrl);
+      expect(provisioningBackendUrl).toBeNull();
       const createdWallet = await getWalletPersistenceState(
         databaseUrl,
         walletId,
@@ -458,7 +462,7 @@ describe("headless provisioning e2e", () => {
       expect(createdWallet.status).toBe("created");
       expect(createdWallet.counterfactual_wallet_address).toBeNull();
       expect(createdWallet.runtime_policy_state.usdc).toBeNull();
-      expect(createdWallet.used_signing_request_ids).toEqual([]);
+      expect(createdWallet.backend_signing_request_count).toBe("0");
 
       const published = await publishHeadlessOwnerArtifacts({
         walletId,
@@ -557,7 +561,7 @@ describe("headless provisioning e2e", () => {
 
       const signingRequestCountBeforeDeniedTypedData = (
         await getWalletPersistenceState(databaseUrl, walletId)
-      ).used_signing_request_ids.length;
+      ).backend_signing_request_count;
       const deniedTypedDataError = await runCliFailure(
         [
           "sign-typed-data",
@@ -596,11 +600,11 @@ describe("headless provisioning e2e", () => {
       );
       expect(persistedAfterDeniedTypedData.deployment.status).toBe("deployed");
       expect(
-        persistedAfterDeniedTypedData.used_signing_request_ids.length,
-      ).toBeGreaterThanOrEqual(signingRequestCountBeforeDeniedTypedData + 1);
+        Number(persistedAfterDeniedTypedData.backend_signing_request_count),
+      ).toBeGreaterThanOrEqual(Number(signingRequestCountBeforeDeniedTypedData) + 1);
 
       const signingRequestCountBeforeAllowedCall =
-        persistedAfterDeniedTypedData.used_signing_request_ids.length;
+        persistedAfterDeniedTypedData.backend_signing_request_count;
       const allowedCallResult = await runCliJson(
         [
           "call",
@@ -629,11 +633,11 @@ describe("headless provisioning e2e", () => {
       expect(allowedCallReceipt.status).toBe("success");
       expect(persistedAfterAllowedCall.deployment.status).toBe("deployed");
       expect(
-        persistedAfterAllowedCall.used_signing_request_ids.length,
-      ).toBeGreaterThanOrEqual(signingRequestCountBeforeAllowedCall + 1);
+        Number(persistedAfterAllowedCall.backend_signing_request_count),
+      ).toBeGreaterThanOrEqual(Number(signingRequestCountBeforeAllowedCall) + 1);
 
       const signingRequestCountBeforeDeniedCall =
-        persistedAfterAllowedCall.used_signing_request_ids.length;
+        persistedAfterAllowedCall.backend_signing_request_count;
       const deniedCallError = await runCliFailure(
         [
           "call",
@@ -654,7 +658,7 @@ describe("headless provisioning e2e", () => {
 
       expect(deniedCallError).toContain("Backend signer request failed");
       expect(deniedCallError).toContain("runtime allowlist");
-      expect(persistedAfterDeniedCall.used_signing_request_ids.length).toBe(
+      expect(persistedAfterDeniedCall.backend_signing_request_count).toBe(
         signingRequestCountBeforeDeniedCall,
       );
 

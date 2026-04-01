@@ -120,3 +120,10 @@ The important distinction is:
 - the agent runtime path always depends on backend co-signing
 
 That is what prevents a leaked local agent key from draining the wallet by itself.
+
+In the current trust model:
+
+- the passkey is the durable owner path
+- the local agent key alone is insufficient
+- the backend signer key alone is insufficient
+- the backend operator is trusted to enforce policy and keep the service available

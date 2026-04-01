@@ -55,15 +55,6 @@ const transferWithAuthorizationTypes = {
   ],
 } as const;
 
-function rewriteProvisioningUrlBackend(
-  provisioningUrl: string,
-  backendUrl: string,
-) {
-  const url = new URL(provisioningUrl);
-  url.searchParams.set("backendUrl", backendUrl);
-  return url.toString();
-}
-
 function buildNextSteps(
   walletId: string,
   backendUrl: string,
@@ -508,14 +499,13 @@ export async function executeCreate(options: {
     },
   );
 
-  const provisioningUrl = rewriteProvisioningUrlBackend(
-    backendResponse.provisioningUrl,
-    backendUrl,
-  );
   const response = createWalletRequestResponseSchema.parse({
     ...backendResponse,
-    provisioningUrl,
-    nextSteps: buildNextSteps("wal_placeholder", backendUrl, provisioningUrl),
+    nextSteps: buildNextSteps(
+      "wal_placeholder",
+      backendUrl,
+      backendResponse.provisioningUrl,
+    ),
   });
   const nextSteps = buildNextSteps(
     response.walletId,

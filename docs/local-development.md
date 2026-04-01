@@ -27,10 +27,10 @@ At minimum, review these variables in `.env.local`:
 
 - `DATABASE_URL`
 - `CONDUIT_PUBLIC_BACKEND_URL`
-- `CONDUIT_PUBLIC_FRONTEND_URL`
+- `CONDUIT_PUBLIC_FRONTEND_URL` for the hosted frontend origin
 - `CONDUIT_BACKEND_URL`
-- `CONDUIT_BUNDLER_URL_84532`
-- `CONDUIT_PUBLIC_RPC_URL_84532`
+- `CONDUIT_BUNDLER_URL_84532` required for backend startup
+- `CONDUIT_PUBLIC_RPC_URL_84532` required for backend startup
 - `CONDUIT_PASSKEY_SERVER_URL`
 
 Start Postgres and run migrations:
@@ -39,6 +39,8 @@ Start Postgres and run migrations:
 docker compose up -d postgres
 pnpm db:migrate
 ```
+
+`pnpm db:migrate` now applies the checked-in Drizzle migrations. The backend fails fast on startup if a supported chain is missing its RPC or bundler URL.
 
 Start the workspace:
 
@@ -85,6 +87,8 @@ Local wallet state is stored under:
 ```text
 ~/.conduit/wallets
 ```
+
+For hosted deployments, treat the frontend and backend as a pair. The official frontend is pinned to its configured backend; custom backends should ship with their own frontend deployment.
 
 ## Testing
 

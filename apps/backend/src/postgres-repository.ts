@@ -2,6 +2,7 @@ import { and, eq, gte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import {
+  walletBackendSigningRequestsTable,
   walletPolicyConsumptionsTable,
   walletsTable,
   type WalletPolicyConsumptionRow,
@@ -31,7 +32,6 @@ function serialize(row: WalletRow): StoredWalletRequest {
     deployment: row.deployment,
     runtimePolicyState: row.runtimePolicyState,
     walletContext: row.walletContext ?? undefined,
-    usedSigningRequestIds: row.usedSigningRequestIds,
     errorCode: row.errorCode ?? undefined,
     errorMessage: row.errorMessage ?? undefined,
     createdAt: row.createdAt.toISOString(),
@@ -80,7 +80,6 @@ export function createPostgresWalletRequestRepository(
         deployment: request.deployment,
         runtimePolicyState: request.runtimePolicyState,
         walletContext: request.walletContext,
-        usedSigningRequestIds: request.usedSigningRequestIds,
         errorCode: request.errorCode,
         errorMessage: request.errorMessage,
         createdAt: new Date(request.createdAt),
@@ -178,26 +177,74 @@ export function createPostgresWalletRequestRepository(
       return row ? serialize(row) : null;
     },
 
-    async recordUsedSigningRequestId({ walletId, requestId, updatedAt }) {
-      const current = await this.findById(walletId);
+    async runBackendSigningOperation({
+      walletId,
+      requestId,
+      method,
+      createdAt,
+      updatedAt,
+      consumption,
+      handler,
+    }) {
+      return db.transaction(async (tx) => {
+        const rows = await tx
+          .select({
+            walletId: walletsTable.walletId,
+          })
+          .from(walletsTable)
+          .where(eq(walletsTable.walletId, walletId))
+          .limit(1);
 
-      if (!current) {
-        return "not_found";
-      }
+        if (rows.length === 0) {
+          return {
+            status: "not_found" as const,
+          };
+        }
 
-      if (current.usedSigningRequestIds.includes(requestId)) {
-        return "duplicate";
-      }
+        const inserted = await tx
+          .insert(walletBackendSigningRequestsTable)
+          .values({
+            requestId,
+            walletId,
+            method,
+            createdAt: new Date(createdAt),
+          })
+          .onConflictDoNothing()
+          .returning({
+            requestId: walletBackendSigningRequestsTable.requestId,
+          });
 
-      await db
-        .update(walletsTable)
-        .set({
-          usedSigningRequestIds: [...current.usedSigningRequestIds, requestId],
-          updatedAt: new Date(updatedAt),
-        })
-        .where(eq(walletsTable.walletId, walletId));
+        if (inserted.length === 0) {
+          return {
+            status: "duplicate" as const,
+          };
+        }
 
-      return "ok";
+        if (consumption) {
+          await tx.insert(walletPolicyConsumptionsTable).values({
+            requestId: consumption.requestId,
+            walletId: consumption.walletId,
+            asset: consumption.asset,
+            operation: consumption.operation,
+            amountMinor: consumption.amountMinor,
+            createdAt: new Date(consumption.createdAt),
+          });
+        }
+
+        await tx
+          .update(walletsTable)
+          .set({
+            updatedAt: new Date(updatedAt),
+          })
+          .where(eq(walletsTable.walletId, walletId));
+
+        const result = await handler();
+
+        return {
+          status: "ok" as const,
+          result,
+        };
+      });
     },
 
     async updateRuntimePolicyState({

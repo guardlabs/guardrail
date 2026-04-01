@@ -14,6 +14,8 @@ The ownership model is split:
 
 This makes the model safer than handing the agent a hot EOA private key. If the local agent key leaks, it is still not enough to drain the wallet or execute arbitrary actions.
 
+The backend signer is still signing material, but in this model it is not meant to be an independently sufficient wallet secret. Conduit only grants runtime access when the runtime validator sees both the local agent signature and the backend signature.
+
 ## High-Level Flow
 
 1. The CLI creates a wallet request and generates an agent key locally.
@@ -38,6 +40,12 @@ In the current setup, the runtime validator is `2-of-2`:
 - both signatures are required on the runtime path
 
 The provisioning frontend shows the attached runtime policy before the human creates the passkey owner.
+
+## Deployment Pairing
+
+The official hosted frontend is intentionally paired with the official backend. Provisioning links only carry the wallet request and token. They do not carry a backend override.
+
+If you deploy your own backend, deploy your own frontend with the matching backend URL and origin settings.
 
 ## Supported Chain
 

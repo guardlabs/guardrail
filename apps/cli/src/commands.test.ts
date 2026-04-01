@@ -111,13 +111,13 @@ describe("cli commands mode B", () => {
             status: "undeployed",
           },
           provisioningUrl:
-            "http://127.0.0.1:5173/?walletId=wal_123&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
+            "http://127.0.0.1:5173/?walletId=wal_123&token=abc",
           expiresAt: "2026-03-30T12:00:00.000Z",
           nextSteps: {
             recommendedPollIntervalMs: 5000,
             walletAddressStatus: "owner_bound",
             humanActionUrl:
-              "http://127.0.0.1:5173/?walletId=wal_123&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
+              "http://127.0.0.1:5173/?walletId=wal_123&token=abc",
             humanAction:
               "Ask the human to open the provisioning URL and create the passkey owner for the Conduit Wallet.",
             walletAddressCommand:
@@ -254,8 +254,7 @@ describe("cli commands mode B", () => {
       walletMode: PROJECT_WALLET_MODE,
       walletId: "wal_123",
       backendBaseUrl: "http://127.0.0.1:3000",
-      provisioningUrl:
-        "http://127.0.0.1:5173/?walletId=wal_123&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
+      provisioningUrl: "http://127.0.0.1:5173/?walletId=wal_123&token=abc",
       chainId: 84532,
       walletConfig,
       policy: createRuntimePolicy(),
@@ -349,8 +348,7 @@ describe("cli commands mode B", () => {
       walletMode: PROJECT_WALLET_MODE,
       walletId: "wal_123",
       backendBaseUrl: "http://127.0.0.1:3000",
-      provisioningUrl:
-        "http://127.0.0.1:5173/?walletId=wal_123&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
+      provisioningUrl: "http://127.0.0.1:5173/?walletId=wal_123&token=abc",
       chainId: 84532,
       walletConfig,
       policy: createRuntimePolicy(),
@@ -451,8 +449,7 @@ describe("cli commands mode B", () => {
       walletMode: PROJECT_WALLET_MODE,
       walletId: "wal_123",
       backendBaseUrl: "http://127.0.0.1:3000",
-      provisioningUrl:
-        "http://127.0.0.1:5173/?walletId=wal_123&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
+      provisioningUrl: "http://127.0.0.1:5173/?walletId=wal_123&token=abc",
       chainId: 84532,
       walletConfig,
       policy: createRuntimePolicy(),
@@ -601,8 +598,7 @@ describe("cli commands mode B", () => {
       walletMode: PROJECT_WALLET_MODE,
       walletId: "wal_123",
       backendBaseUrl: "http://127.0.0.1:3000",
-      provisioningUrl:
-        "http://127.0.0.1:5173/?walletId=wal_123&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
+      provisioningUrl: "http://127.0.0.1:5173/?walletId=wal_123&token=abc",
       chainId: 84532,
       walletConfig,
       policy: createRuntimePolicy(),
@@ -741,8 +737,7 @@ describe("cli commands mode B", () => {
       walletMode: PROJECT_WALLET_MODE,
       walletId: "wal_123",
       backendBaseUrl: "http://127.0.0.1:3000",
-      provisioningUrl:
-        "http://127.0.0.1:5173/?walletId=wal_123&token=abc&backendUrl=http%3A%2F%2F127.0.0.1%3A3000",
+      provisioningUrl: "http://127.0.0.1:5173/?walletId=wal_123&token=abc",
       chainId: 84532,
       walletConfig,
       policy: createRuntimePolicy(),
