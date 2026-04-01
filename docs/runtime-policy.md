@@ -15,6 +15,49 @@ Conduit currently supports two policy mechanisms:
 
 The official USDC contract is reserved for the `--usdc-*` policy and is rejected from the generic allowlist.
 
+## Flag Semantics
+
+### `--chain-id`
+
+Selects the supported chain for the wallet request and therefore the official USDC contract and runtime environment used by policy enforcement.
+
+### `--allow-call`
+
+Defines the generic non-USDC runtime allowlist.
+
+Each entry ties:
+
+- one contract address
+- one or more allowed method selectors
+
+At runtime, the backend only co-signs non-USDC calls when both the contract address and the method selector match this allowlist.
+
+### `--usdc-period`
+
+Defines the budget window used for official USDC consumption:
+
+- `daily`: trailing 24 hours
+- `weekly`: trailing 7 days
+- `monthly`: trailing 30 days
+
+### `--usdc-max`
+
+Defines the maximum official USDC amount allowed during the selected trailing window.
+
+### `--usdc-allow`
+
+Defines which official USDC operations are even eligible for backend approval.
+
+In the current implementation, supported values are:
+
+- `transfer`
+- `approve`
+- `increaseAllowance`
+- `permit`
+- `transferWithAuthorization`
+
+If the agent requests any other official USDC operation, the backend denies it.
+
 ## USDC Example: `$10` Daily Limit
 
 ```bash

@@ -49,6 +49,126 @@ See [x402 payments](x402.md) for the end-to-end flow and what these commands are
 
 Runtime policy is required at wallet creation.
 
+## Create Command Parameters
+
+### `--chain-id`
+
+The EIP-155 chain id for the wallet request.
+
+Example:
+
+```bash
+conduit-wallet create --chain-id 84532
+```
+
+Current support:
+
+- `84532`: Base Sepolia
+
+The selected chain controls the wallet configuration and the official USDC contract used by the dedicated USDC policy.
+
+### `--allow-call`
+
+Adds a non-USDC runtime allowlist entry.
+
+Format:
+
+```text
+--allow-call <address>:<methodOrSelector>[,<methodOrSelector>...]
+```
+
+What it means:
+
+- `<address>` is the target contract address
+- each method can be either a raw `0x` selector or a Solidity signature such as `transfer(address,uint256)`
+- the CLI normalizes these method entries into selectors
+- you can pass `--allow-call` multiple times for multiple contracts
+- repeated entries for the same contract are merged into one allowlist
+
+Example:
+
+```bash
+conduit-wallet create \
+  --chain-id 84532 \
+  --allow-call '0x1111111111111111111111111111111111111111:transfer(address,uint256),approve(address,uint256)'
+```
+
+Important constraints:
+
+- `--allow-call` is for non-USDC contracts
+- the official USDC contract must not appear here
+- native `ETH` value is still not allowed on the runtime path in this version
+
+### `--usdc-period`
+
+Defines the sliding budget window for official USDC spending.
+
+Allowed values:
+
+- `daily`: trailing 24 hours
+- `weekly`: trailing 7 days
+- `monthly`: trailing 30 days
+
+This is a trailing window, not a calendar reset.
+
+### `--usdc-max`
+
+Defines the maximum official USDC amount allowed inside the selected budget window.
+
+It is written in human-readable USDC units:
+
+- `10` means `10` USDC
+- `0.5` means `0.5` USDC
+
+The CLI converts this to USDC minor units internally using the chain's official USDC decimals.
+
+### `--usdc-allow`
+
+Defines which official USDC operations the backend may co-sign on the runtime path.
+
+Format:
+
+```text
+--usdc-allow <comma-separated-operations>
+```
+
+Supported operations in the current product shape:
+
+- `transfer`
+- `approve`
+- `increaseAllowance`
+- `permit`
+- `transferWithAuthorization`
+
+Example:
+
+```bash
+conduit-wallet create \
+  --chain-id 84532 \
+  --usdc-period daily \
+  --usdc-max 10 \
+  --usdc-allow transfer,approve,increaseAllowance,permit,transferWithAuthorization
+```
+
+What this means:
+
+- only official USDC uses this policy
+- only the listed operations are allowed
+- the authorized amount for those operations consumes the configured USDC budget
+- anything outside this allowlist is denied by the backend
+
+### Required Combinations
+
+- you must provide at least one runtime policy mechanism
+- that means either `--allow-call`, or the full `--usdc-period + --usdc-max + --usdc-allow` set
+- if you provide one `--usdc-*` flag, you must provide all three
+
+In practice:
+
+- `--chain-id` selects the chain and wallet environment
+- `--allow-call` authorizes specific non-USDC contract methods
+- `--usdc-period`, `--usdc-max`, and `--usdc-allow` define the dedicated official USDC policy
+
 Non-USDC contract policy:
 
 ```bash
@@ -73,4 +193,4 @@ Rules:
 - `--usdc-period`, `--usdc-max`, and `--usdc-allow` must be provided together
 - the official USDC contract must not appear in `--allow-call`
 
-See [Runtime policy](runtime-policy.md) for the semantics behind these flags.
+See [Runtime policy](runtime-policy.md) for how the backend applies these flags at runtime.
