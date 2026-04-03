@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { Command, Option } from "commander";
 import { supportedChains } from "@conduit/shared";
@@ -189,9 +190,19 @@ export async function runCli(argv = process.argv) {
   await program.parseAsync(argv);
 }
 
-const entrypointPath = process.argv[1];
+export function isCliEntrypoint(moduleUrl: string, argvPath: string | undefined) {
+  if (!argvPath) {
+    return false;
+  }
 
-if (entrypointPath && fileURLToPath(import.meta.url) === entrypointPath) {
+  try {
+    return realpathSync(fileURLToPath(moduleUrl)) === realpathSync(argvPath);
+  } catch {
+    return false;
+  }
+}
+
+if (isCliEntrypoint(import.meta.url, process.argv[1])) {
   runCli().catch((error: unknown) => {
     console.error(error);
     process.exitCode = 1;

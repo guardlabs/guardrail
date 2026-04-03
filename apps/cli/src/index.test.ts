@@ -1,5 +1,8 @@
+import { mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildProgram } from "./index.js";
+import { buildProgram, isCliEntrypoint } from "./index.js";
 
 describe("cli help", () => {
   it("lists the expected commands and backend override flag", () => {
@@ -96,5 +99,18 @@ describe("cli help", () => {
 
     expect(x402FetchCommand?.helpInformation()).toContain("<wallet-id>");
     expect(x402FetchCommand?.helpInformation()).toContain("<url>");
+  });
+
+  it("treats symlinked launcher paths as the cli entrypoint", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "conduit-wallet-cli-"));
+    const realModulePath = join(tempDir, "index.js");
+    const symlinkPath = join(tempDir, "conduit-wallet");
+
+    writeFileSync(realModulePath, "export {};\n");
+    symlinkSync(realModulePath, symlinkPath);
+
+    expect(
+      isCliEntrypoint(new URL(`file://${realModulePath}`).href, symlinkPath),
+    ).toBe(true);
   });
 });
