@@ -9,8 +9,5 @@ export default defineConfig({
   clean: true,
   sourcemap: false,
   splitting: false,
-  banner: {
-    js: "#!/usr/bin/env node",
-  },
   noExternal: ["@conduit/shared", "@conduit/zerodev"],
 });
