@@ -1,27 +1,54 @@
 {
-  "name": "@conduit/cli",
-  "private": true,
+  "name": "@conduit-wallet/cli",
+  "version": "0.1.0",
   "license": "MIT",
+  "description": "CLI for provisioning and using Conduit Wallet agent wallets.",
   "type": "module",
+  "homepage": "https://github.com/nmalzieu/conduit",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nmalzieu/conduit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nmalzieu/conduit/issues"
+  },
+  "keywords": [
+    "conduit",
+    "wallet",
+    "cli",
+    "agents",
+    "evm",
+    "base"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "bin": {
     "conduit-wallet": "dist/index.js"
   },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsup",
     "dev": "tsx src/index.ts",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage.enabled=true --coverage.provider=v8 --coverage.reporter=json-summary --coverage.reporter=html --coverage.include=\"src/**/*.ts\" --coverage.exclude=\"src/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@conduit/shared": "workspace:*",
-    "@conduit/zerodev": "workspace:*",
     "commander": "^13.1.0",
     "dotenv": "^16.6.1",
     "viem": "2.47.6"
   },
   "devDependencies": {
+    "@conduit/shared": "workspace:*",
+    "@conduit/zerodev": "workspace:*",
     "@types/node": "^22.13.10",
+    "tsup": "^8.5.0",
     "tsx": "^4.19.3",
     "vitest": "^3.0.9"
   }

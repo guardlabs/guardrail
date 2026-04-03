@@ -20,14 +20,14 @@ The hosted frontend serves both as the public homepage and the provisioning surf
 
 ## Quickstart
 
-> These commands still use placeholder package and hosted URLs until the public deployment is finalized.
+> These commands use the final npm package name. Hosted URLs are still placeholders until the public deployment is finalized.
 
 Create a wallet request with an official USDC budget limited to `$10` per trailing 24 hours.
 
 The example below uses Base Sepolia for safe testing. The same flow also supports Base Mainnet with `--chain-id 8453` once production endpoints are configured:
 
 ```bash
-npx @your-scope/conduit-wallet create \
+npx @conduit-wallet/cli create \
   --chain-id 84532 \
   --usdc-period daily \
   --usdc-max 10 \
@@ -50,13 +50,13 @@ https://app.example.com/?walletId=wal_xxx&token=token_xxx
 Wait for readiness:
 
 ```bash
-npx @your-scope/conduit-wallet await wal_xxx
+npx @conduit-wallet/cli await wal_xxx
 ```
 
 Use the ready wallet:
 
 ```bash
-npx @your-scope/conduit-wallet call wal_xxx \
+npx @conduit-wallet/cli call wal_xxx \
   --to 0x1111111111111111111111111111111111111111 \
   --data 0xa9059cbb \
   --value-wei 0
@@ -143,7 +143,7 @@ pnpm check
 This repository is still pre-deployment:
 
 - the hosted URLs in examples are placeholders
-- the npm package name is still a placeholder
+- the CLI package name is `@conduit-wallet/cli`
 - Base and Base Sepolia are supported
 - runtime policy is intentionally narrow and deny-by-default on the agent runtime path
 

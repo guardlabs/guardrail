@@ -42,13 +42,13 @@ const coverageProjects = [
     command: ["pnpm", "--filter", "@conduit/backend", "test:coverage"],
   },
   {
-    label: "@conduit/cli",
+    label: "@conduit-wallet/cli",
     cwd: resolve(workspaceRoot, "apps/cli"),
     summaryPath: resolve(
       workspaceRoot,
       "apps/cli/coverage/coverage-summary.json",
     ),
-    command: ["pnpm", "--filter", "@conduit/cli", "test:coverage"],
+    command: ["pnpm", "--filter", "@conduit-wallet/cli", "test:coverage"],
   },
   {
     label: "@conduit/frontend",

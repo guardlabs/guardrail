@@ -61,7 +61,7 @@ If the agent requests any other official USDC operation, the backend denies it.
 ## USDC Example: `$10` Daily Limit
 
 ```bash
-npx @your-scope/conduit-wallet create \
+npx @conduit-wallet/cli create \
   --chain-id 84532 \
   --usdc-period daily \
   --usdc-max 10 \

@@ -61,7 +61,7 @@ Run apps individually if needed:
 ```bash
 pnpm --filter @conduit/backend dev
 pnpm --filter @conduit/frontend dev
-pnpm --filter @conduit/cli dev -- --help
+pnpm --filter @conduit-wallet/cli dev -- --help
 ```
 
 ## Local End-To-End Flow
@@ -69,7 +69,7 @@ pnpm --filter @conduit/cli dev -- --help
 Create a wallet request locally:
 
 ```bash
-pnpm --filter @conduit/cli dev -- create \
+pnpm --filter @conduit-wallet/cli dev -- create \
   --chain-id 84532 \
   --allow-call '0x1111111111111111111111111111111111111111:0xdeadbeef' \
   --usdc-period daily \
@@ -81,7 +81,7 @@ pnpm --filter @conduit/cli dev -- create \
 Open the returned provisioning URL in a browser, create the passkey, fund the wallet on Base Sepolia, then wait for readiness:
 
 ```bash
-pnpm --filter @conduit/cli dev -- await wal_xxx \
+pnpm --filter @conduit-wallet/cli dev -- await wal_xxx \
   --backend-url http://localhost:3000
 ```
 

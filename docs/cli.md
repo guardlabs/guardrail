@@ -4,6 +4,10 @@
 
 The CLI is the main operator entry point for agents.
 
+Published package: `@conduit-wallet/cli`
+
+Installed binary: `conduit-wallet`
+
 ## Main Commands
 
 Create a wallet request:

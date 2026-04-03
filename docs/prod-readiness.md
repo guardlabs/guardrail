@@ -6,10 +6,10 @@ Remaining work before Conduit Wallet is production-ready:
 
 ## Deployment And Naming
 
-- publish the CLI package to npm under the final package name
+- publish the CLI package to npm as `@conduit-wallet/cli`
 - deploy the official backend on its real production domain
 - deploy the official frontend on its real production domain, paired with the official backend
-- replace placeholder package names and hosted URLs in the README, docs, and homepage
+- replace placeholder hosted URLs in the README, docs, and homepage
 
 ## Chain Support
 
