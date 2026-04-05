@@ -53,10 +53,10 @@ export function MarketingHome() {
             ))}
           </ul>
           <p className="cw-home-note">
-            Run the CLI with <code>npx @conduit-wallet/cli ...</code>. Start with
-            the GitHub docs for installation, policy examples, the CLI flow,
-            and the hosted deployment model. If you self-host the backend,
-            self-host the frontend too.
+            Run the CLI with <code>npx @conduit-wallet/cli ...</code>. Start
+            with the GitHub docs for installation, policy examples, the CLI
+            flow, and the hosted deployment model. If you self-host the
+            backend, self-host the frontend too.
           </p>
         </div>
       </div>
