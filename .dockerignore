@@ -1,0 +1,13 @@
+.git
+.github
+.turbo
+.worktrees
+.superpowers
+node_modules
+coverage
+dist
+tmp
+*.log
+.env
+.env.*
+!.env.example

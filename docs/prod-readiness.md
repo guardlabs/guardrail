@@ -6,7 +6,7 @@ Remaining work before Guardrail is production-ready:
 
 ## Deployment And Naming
 
-- publish the CLI package to npm as `@guardlabs/guardrail-cli`
+- build the backend image from `apps/backend/Dockerfile`
 - deploy the official backend on `https://api.guardlabs.ai`
 - deploy the official frontend on `https://guardlabs.ai`, paired with the official backend
 
@@ -17,7 +17,7 @@ Remaining work before Guardrail is production-ready:
 ## Production Infrastructure
 
 - provision the production Postgres instance
-- run the checked-in Drizzle baseline migration in production
+- verify the backend container can run the checked-in Drizzle migration automatically at startup against the production database
 - set the final production environment variables for backend URL, frontend URL, RPC, bundler, and passkey server
 - configure backend CORS to the real production frontend origin
 - put the backend behind Cloudflare with the intended rate limiting and edge protection

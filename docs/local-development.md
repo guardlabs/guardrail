@@ -64,6 +64,20 @@ pnpm --filter @guardlabs/guardrail-frontend dev
 pnpm --filter @guardlabs/guardrail-cli dev -- --help
 ```
 
+Build the backend production image from the repository root:
+
+```bash
+docker build -f apps/backend/Dockerfile -t guardrail-backend .
+```
+
+Run the backend container against your local `.env.local` values:
+
+```bash
+docker run --rm -p 3000:3000 --env-file .env.local guardrail-backend
+```
+
+The production image runs the checked-in Drizzle migration automatically before starting the backend server.
+
 ## Local End-To-End Flow
 
 Create a wallet request locally:

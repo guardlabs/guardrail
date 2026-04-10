@@ -17,8 +17,7 @@
     "@zerodev/webauthn-key": "^5.4.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "viem": "2.47.6",
-    "zod": "^3.25.76"
+    "viem": "2.47.6"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",

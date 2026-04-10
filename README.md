@@ -110,6 +110,14 @@ Useful local URLs:
 - frontend: `http://localhost:5173`
 - backend: `http://localhost:3000`
 
+The backend also ships with a production Dockerfile at `apps/backend/Dockerfile`. Build it from the repository root with:
+
+```bash
+docker build -f apps/backend/Dockerfile -t guardrail-backend .
+```
+
+The container runs the checked-in Drizzle migrations automatically before starting the backend server.
+
 For the full local flow, required environment variables, and testing commands, see [Local development](docs/local-development.md).
 
 Before starting the backend, fill the per-chain RPC and bundler variables in `.env.local`. The backend only requires URLs for chains listed in `GUARDRAIL_SUPPORTED_CHAIN_IDS`, and it fails fast if any enabled chain is missing its runtime URLs.
@@ -142,7 +150,7 @@ pnpm check
 
 This repository is still pre-deployment:
 
-- the CLI package name is `@guardlabs/guardrail-cli`
+- the CLI is published on npm as `@guardlabs/guardrail-cli`
 - the official hosted frontend domain is `https://guardlabs.ai`
 - the intended official backend domain is `https://api.guardlabs.ai`
 - Base and Base Sepolia are supported
