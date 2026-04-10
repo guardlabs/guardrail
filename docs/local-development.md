@@ -26,13 +26,13 @@ cp .env.example .env.local
 At minimum, review these variables in `.env.local`:
 
 - `DATABASE_URL`
-- `CONDUIT_PUBLIC_BACKEND_URL`
-- `CONDUIT_PUBLIC_FRONTEND_URL` for the hosted frontend origin
-- `CONDUIT_BACKEND_URL`
-- `CONDUIT_BUNDLER_URL_8453` and `CONDUIT_PUBLIC_RPC_URL_8453` when enabling Base Mainnet locally
-- `CONDUIT_BUNDLER_URL_84532` required for backend startup
-- `CONDUIT_PUBLIC_RPC_URL_84532` required for backend startup
-- `CONDUIT_PASSKEY_SERVER_URL`
+- `GUARDRAIL_PUBLIC_BACKEND_URL`
+- `GUARDRAIL_PUBLIC_FRONTEND_URL` for the hosted frontend origin
+- `GUARDRAIL_BACKEND_URL`
+- `GUARDRAIL_BUNDLER_URL_8453` and `GUARDRAIL_PUBLIC_RPC_URL_8453` when enabling Base Mainnet locally
+- `GUARDRAIL_BUNDLER_URL_84532` required for backend startup
+- `GUARDRAIL_PUBLIC_RPC_URL_84532` required for backend startup
+- `GUARDRAIL_PASSKEY_SERVER_URL`
 
 Start Postgres and run migrations:
 
@@ -41,9 +41,9 @@ docker compose up -d postgres
 pnpm db:migrate
 ```
 
-`pnpm db:migrate` now applies the checked-in Drizzle migrations. The backend only requires RPC and bundler URLs for chains listed in `CONDUIT_SUPPORTED_CHAIN_IDS`, and it fails fast on startup if any enabled chain is missing one.
+`pnpm db:migrate` now applies the checked-in Drizzle migrations. The backend only requires RPC and bundler URLs for chains listed in `GUARDRAIL_SUPPORTED_CHAIN_IDS`, and it fails fast on startup if any enabled chain is missing one.
 
-For local Sepolia-only development, keeping `CONDUIT_SUPPORTED_CHAIN_IDS=84532` is fine, and the backend does not need the `8453` URLs to boot. Add `8453` and the matching Base Mainnet URLs only when you want the backend to expose both chains.
+For local Sepolia-only development, keeping `GUARDRAIL_SUPPORTED_CHAIN_IDS=84532` is fine, and the backend does not need the `8453` URLs to boot. Add `8453` and the matching Base Mainnet URLs only when you want the backend to expose both chains.
 
 Start the workspace:
 
@@ -59,9 +59,9 @@ Useful local URLs:
 Run apps individually if needed:
 
 ```bash
-pnpm --filter @conduit/backend dev
-pnpm --filter @conduit/frontend dev
-pnpm --filter @conduit-wallet/cli dev -- --help
+pnpm --filter @guardlabs/guardrail-backend dev
+pnpm --filter @guardlabs/guardrail-frontend dev
+pnpm --filter @guardlabs/guardrail-cli dev -- --help
 ```
 
 ## Local End-To-End Flow
@@ -69,7 +69,7 @@ pnpm --filter @conduit-wallet/cli dev -- --help
 Create a wallet request locally:
 
 ```bash
-pnpm --filter @conduit-wallet/cli dev -- create \
+pnpm --filter @guardlabs/guardrail-cli dev -- create \
   --chain-id 84532 \
   --allow-call '0x1111111111111111111111111111111111111111:0xdeadbeef' \
   --usdc-period daily \
@@ -81,14 +81,14 @@ pnpm --filter @conduit-wallet/cli dev -- create \
 Open the returned provisioning URL in a browser, create the passkey, fund the wallet on Base Sepolia, then wait for readiness:
 
 ```bash
-pnpm --filter @conduit-wallet/cli dev -- await wal_xxx \
+pnpm --filter @guardlabs/guardrail-cli dev -- await wal_xxx \
   --backend-url http://localhost:3000
 ```
 
 Local wallet state is stored under:
 
 ```text
-~/.conduit/wallets
+~/.guardrail/wallets
 ```
 
 For hosted deployments, treat the frontend and backend as a pair. The official frontend is pinned to its configured backend; custom backends should ship with their own frontend deployment.
@@ -111,9 +111,9 @@ pnpm check
 Run frontend checks only:
 
 ```bash
-pnpm --filter @conduit/frontend test
-pnpm --filter @conduit/frontend typecheck
-pnpm --filter @conduit/frontend build
+pnpm --filter @guardlabs/guardrail-frontend test
+pnpm --filter @guardlabs/guardrail-frontend typecheck
+pnpm --filter @guardlabs/guardrail-frontend build
 ```
 
 `pnpm test:coverage` runs coverage for the CLI, backend, frontend, shared packages, ZeroDev helpers, and the Vitest-based e2e workspace, then writes an aggregate summary to `coverage/combined-summary.json`.

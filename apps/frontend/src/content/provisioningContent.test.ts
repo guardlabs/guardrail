@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { WalletPolicy } from "@conduit/shared";
+import type { WalletPolicy } from "@guardlabs/guardrail-core";
 import { getProvisioningContentModel } from "./provisioningContent.js";
 
 function createPolicy(overrides: Partial<WalletPolicy> = {}): WalletPolicy {

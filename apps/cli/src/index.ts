@@ -2,7 +2,7 @@
 import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { Command, Option } from "commander";
-import { supportedChains } from "@conduit/shared";
+import { supportedChains } from "@guardlabs/guardrail-core";
 import {
   registerAwaitCommand,
   registerCallCommand,
@@ -36,9 +36,9 @@ export function buildProgram() {
   const supportedChainsText = formatSupportedChains();
 
   program
-    .name("conduit-wallet")
+    .name("guardrail")
     .description(
-      `provision and manage secure wallet rails for autonomous agents\n\nsupported chains:\n  ${supportedChainsText}`,
+      `provision and manage wallet guardrails for agents\n\nsupported chains:\n  ${supportedChainsText}`,
     )
     .showHelpAfterError()
     .showSuggestionAfterError(true);
@@ -74,7 +74,7 @@ export function buildProgram() {
       "after",
       `
 Example:
-  conduit-wallet create --chain-id 84532 --allow-call 0x1111111111111111111111111111111111111111:transfer(address,uint256) --backend-url http://127.0.0.1:3000
+  guardrail create --chain-id 84532 --allow-call 0x1111111111111111111111111111111111111111:transfer(address,uint256) --backend-url http://127.0.0.1:3000
       `.trimEnd(),
     );
   addBackendOption(createCommand);
@@ -88,7 +88,7 @@ Example:
       "after",
       `
 Example:
-  conduit-wallet status wal_123 --backend-url http://127.0.0.1:3000
+  guardrail status wal_123 --backend-url http://127.0.0.1:3000
       `.trimEnd(),
     );
   addBackendOption(statusCommand);
@@ -103,7 +103,7 @@ Example:
       "after",
       `
 Example:
-  conduit-wallet await wal_123 --interval-ms 3000 --backend-url http://127.0.0.1:3000
+  guardrail await wal_123 --interval-ms 3000 --backend-url http://127.0.0.1:3000
       `.trimEnd(),
     );
   addBackendOption(awaitCommand);
@@ -120,7 +120,7 @@ Example:
       "after",
       `
 Example:
-  conduit-wallet call wal_123 --to 0x1111111111111111111111111111111111111111 --data 0xa9059cbb --value-wei 0
+  guardrail call wal_123 --to 0x1111111111111111111111111111111111111111 --data 0xa9059cbb --value-wei 0
       `.trimEnd(),
     );
   registerCallCommand(callCommand);
@@ -141,7 +141,7 @@ Example:
       "after",
       `
 Example:
-  conduit-wallet sign-typed-data wal_123 --typed-data-file /tmp/typed-data.json
+  guardrail sign-typed-data wal_123 --typed-data-file /tmp/typed-data.json
       `.trimEnd(),
     );
   registerSignTypedDataCommand(signTypedDataCommand);
@@ -149,7 +149,7 @@ Example:
   const x402SignCommand = program
     .command("x402-sign")
     .description(
-      "build an x402 PAYMENT-SIGNATURE header for an exact/eip3009 requirement using the ready Conduit wallet signer",
+      "build an x402 PAYMENT-SIGNATURE header for an exact/eip3009 requirement using a ready Guardrail wallet signer",
     )
     .argument("<wallet-id>", "wallet id")
     .requiredOption(
@@ -160,7 +160,7 @@ Example:
       "after",
       `
 Example:
-  conduit-wallet x402-sign wal_123 --payment-required-header eyJ4NDAyVmVyc2lvbiI6Mn0=
+  guardrail x402-sign wal_123 --payment-required-header eyJ4NDAyVmVyc2lvbiI6Mn0=
       `.trimEnd(),
     );
   registerX402SignCommand(x402SignCommand);
@@ -176,7 +176,7 @@ Example:
       "after",
       `
 Example:
-  conduit-wallet x402-fetch wal_123 http://127.0.0.1:4010/x402/premium-data
+  guardrail x402-fetch wal_123 http://127.0.0.1:4010/x402/premium-data
       `.trimEnd(),
     );
   registerX402FetchCommand(x402FetchCommand);
@@ -190,7 +190,10 @@ export async function runCli(argv = process.argv) {
   await program.parseAsync(argv);
 }
 
-export function isCliEntrypoint(moduleUrl: string, argvPath: string | undefined) {
+export function isCliEntrypoint(
+  moduleUrl: string,
+  argvPath: string | undefined,
+) {
   if (!argvPath) {
     return false;
   }

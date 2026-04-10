@@ -2,13 +2,13 @@
 
 [Docs index](README.md) | [Quickstart](quickstart.md) | [How it works](how-it-works.md)
 
-Conduit is deny-by-default on the `agent + backend` runtime path.
+Guardrail is deny-by-default on the `agent + backend` runtime path.
 
 The passkey remains the human-controlled admin path. Runtime actions only succeed when they fit the wallet policy and the backend is willing to co-sign them.
 
 ## Policy Types
 
-Conduit currently supports two policy mechanisms:
+Guardrail currently supports two policy mechanisms:
 
 - `--allow-call <address>:<methodOrSelector>[,<methodOrSelector>...]` for non-USDC contract calls
 - `--usdc-period`, `--usdc-max`, and `--usdc-allow` together for official USDC
@@ -61,7 +61,7 @@ If the agent requests any other official USDC operation, the backend denies it.
 ## USDC Example: `$10` Daily Limit
 
 ```bash
-npx @conduit-wallet/cli create \
+npx @guardlabs/guardrail-cli create \
   --chain-id 84532 \
   --usdc-period daily \
   --usdc-max 10 \
@@ -76,7 +76,7 @@ This means:
 
 ## What Counts As Spending
 
-For official USDC, Conduit counts the authorized USDC amount on these operations:
+For official USDC, Guardrail counts the authorized USDC amount on these operations:
 
 - `transfer`
 - `approve`
@@ -104,7 +104,7 @@ So if the wallet already used `4` USDC and then asks for a `Permit` of `6` USDC,
 
 ## Sliding Windows
 
-Conduit supports three USDC budget windows:
+Guardrail supports three USDC budget windows:
 
 - `daily`: trailing 24 hours
 - `weekly`: trailing 7 days

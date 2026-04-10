@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDefaultWalletConfig } from "@conduit/shared";
+import { buildDefaultWalletConfig } from "@guardlabs/guardrail-core";
 import { entryPoint07Address } from "viem/account-abstraction";
 import {
   encodeAbiParameters,

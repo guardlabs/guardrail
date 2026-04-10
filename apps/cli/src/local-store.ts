@@ -4,12 +4,12 @@ import { join } from "node:path";
 import {
   localWalletRequestSchema,
   type LocalWalletRequest,
-} from "@conduit/shared";
+} from "@guardlabs/guardrail-core";
 
 function resolveStoreDirectory() {
   return (
-    process.env.CONDUIT_LOCAL_STORE_DIR ??
-    join(homedir(), ".conduit", "wallets")
+    process.env.GUARDRAIL_LOCAL_STORE_DIR ??
+    join(homedir(), ".guardrail", "wallets")
   );
 }
 

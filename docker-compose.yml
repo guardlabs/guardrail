@@ -1,20 +1,20 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: conduit-postgres
+    container_name: guardrail-postgres
     environment:
-      POSTGRES_DB: conduit
-      POSTGRES_USER: conduit
-      POSTGRES_PASSWORD: conduit
+      POSTGRES_DB: guardrail
+      POSTGRES_USER: guardrail
+      POSTGRES_PASSWORD: guardrail
     ports:
       - "5432:5432"
     volumes:
-      - conduit_postgres_data:/var/lib/postgresql/data
+      - guardrail_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U conduit -d conduit"]
+      test: ["CMD-SHELL", "pg_isready -U guardrail -d guardrail"]
       interval: 5s
       timeout: 5s
       retries: 10
 
 volumes:
-  conduit_postgres_data:
+  guardrail_postgres_data:

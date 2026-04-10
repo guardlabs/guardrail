@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   type DeploymentState,
-  PROJECT_WALLET_MODE,
+  GUARDRAIL_WALLET_MODE,
   buildDefaultWalletConfig,
   getBackendSignerAuthorizationTypedData,
   hashBackendSignerRequestBody,
@@ -9,7 +9,7 @@ import {
   type OwnerPublicArtifacts,
   type RegularValidatorInitArtifact,
   type WalletContext,
-} from "@conduit/shared";
+} from "@guardlabs/guardrail-core";
 import { hashTypedData } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { buildApp } from "./app.js";
@@ -23,7 +23,7 @@ import type { WalletProvisioningService } from "./wallet.js";
 
 const testConfig: AppConfig = {
   port: 3000,
-  databaseUrl: "postgresql://test:test@127.0.0.1:5432/conduit_test",
+  databaseUrl: "postgresql://test:test@127.0.0.1:5432/guardrail_test",
   publicBackendUrl: "http://127.0.0.1:3000",
   frontendBaseUrl: "http://127.0.0.1:5173",
   minFundingWei: "500000000000000",
@@ -371,7 +371,7 @@ describe("backend app mode B", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       status: "ok",
-      service: "conduit-wallet-backend",
+      service: "guardrail-backend",
     });
 
     await app.close();
@@ -397,7 +397,7 @@ describe("backend app mode B", () => {
       method: "POST",
       url: "/v1/wallets",
       payload: {
-        walletMode: PROJECT_WALLET_MODE,
+        walletMode: GUARDRAIL_WALLET_MODE,
         chainId: 84532,
         agentAddress: agentAccount.address,
         policy: createRuntimePolicy(),
@@ -426,7 +426,7 @@ describe("backend app mode B", () => {
 
     expect(statusResponse.statusCode).toBe(200);
     expect(statusResponse.json()).toMatchObject({
-      walletMode: PROJECT_WALLET_MODE,
+      walletMode: GUARDRAIL_WALLET_MODE,
       walletId: createdWallet.walletId,
       status: "created",
       agentAddress: agentAccount.address,
@@ -473,7 +473,7 @@ describe("backend app mode B", () => {
       method: "POST",
       url: "/v1/wallets",
       payload: {
-        walletMode: PROJECT_WALLET_MODE,
+        walletMode: GUARDRAIL_WALLET_MODE,
         chainId: 84532,
         agentAddress: agentAccount.address,
         policy: {
@@ -682,7 +682,7 @@ describe("backend app mode B", () => {
       method: "POST",
       url: "/v1/wallets",
       payload: {
-        walletMode: PROJECT_WALLET_MODE,
+        walletMode: GUARDRAIL_WALLET_MODE,
         chainId: 84532,
         agentAddress: agentAccount.address,
         policy: createRuntimePolicy(),
@@ -730,7 +730,7 @@ describe("backend app mode B", () => {
       method: "POST",
       url: "/v1/wallets",
       payload: {
-        walletMode: PROJECT_WALLET_MODE,
+        walletMode: GUARDRAIL_WALLET_MODE,
         chainId: 84532,
         agentAddress: agentAccount.address,
         policy: createRuntimePolicy(),
@@ -786,7 +786,7 @@ describe("backend app mode B", () => {
       method: "POST",
       url: "/v1/wallets",
       payload: {
-        walletMode: PROJECT_WALLET_MODE,
+        walletMode: GUARDRAIL_WALLET_MODE,
         chainId: 84532,
         agentAddress: agentAccount.address,
         policy: createRuntimePolicy(),
@@ -968,7 +968,7 @@ describe("backend app mode B", () => {
       method: "POST",
       url: "/v1/wallets",
       payload: {
-        walletMode: PROJECT_WALLET_MODE,
+        walletMode: GUARDRAIL_WALLET_MODE,
         chainId: 84532,
         agentAddress: agentAccount.address,
         policy: {

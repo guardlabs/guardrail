@@ -2,7 +2,7 @@
 
 [Docs index](README.md) | [Runtime policy](runtime-policy.md) | [CLI reference](cli.md) | [x402 payments](x402.md)
 
-These examples use the final npm package name. Hosted URLs are still placeholders until the public deployment is finalized.
+These examples use the published package name and the official Guard Labs domain shape.
 
 The official hosted frontend is paired with the official backend. If you deploy your own backend, deploy your own frontend too.
 
@@ -13,7 +13,7 @@ The examples below use Base Sepolia (`84532`) for safe testing. Base Mainnet (`8
 This example creates a wallet that can only use official USDC and is capped at `$10` over the trailing 24 hours.
 
 ```bash
-npx @conduit-wallet/cli create \
+npx @guardlabs/guardrail-cli create \
   --chain-id 84532 \
   --usdc-period daily \
   --usdc-max 10 \
@@ -32,7 +32,7 @@ The command returns:
 Send the provisioning URL to the human operator:
 
 ```text
-https://app.example.com/?walletId=wal_xxx&token=token_xxx
+https://guardlabs.ai/?walletId=wal_xxx&token=token_xxx
 ```
 
 The human opens the hosted frontend, creates the passkey, and becomes the durable wallet owner.
@@ -40,7 +40,7 @@ The human opens the hosted frontend, creates the passkey, and becomes the durabl
 ## 3. Wait For Readiness
 
 ```bash
-npx @conduit-wallet/cli await wal_xxx
+npx @guardlabs/guardrail-cli await wal_xxx
 ```
 
 This waits until the wallet is ready for runtime use.
@@ -48,33 +48,33 @@ This waits until the wallet is ready for runtime use.
 ## 4. Use The Wallet
 
 ```bash
-npx @conduit-wallet/cli call wal_xxx \
+npx @guardlabs/guardrail-cli call wal_xxx \
   --to 0x1111111111111111111111111111111111111111 \
   --data 0xa9059cbb \
   --value-wei 0
 ```
 
-The runtime call still goes through Conduit policy checks before the backend co-signs it.
+The runtime call still goes through Guardrail policy checks before the backend co-signs it.
 
 ## Optional Commands
 
 Check status:
 
 ```bash
-npx @conduit-wallet/cli status wal_xxx
+npx @guardlabs/guardrail-cli status wal_xxx
 ```
 
 Sign typed data:
 
 ```bash
-npx @conduit-wallet/cli sign-typed-data wal_xxx \
+npx @guardlabs/guardrail-cli sign-typed-data wal_xxx \
   --typed-data-file ./typed-data.json
 ```
 
 Complete an x402 challenge:
 
 ```bash
-npx @conduit-wallet/cli x402-fetch wal_xxx \
+npx @guardlabs/guardrail-cli x402-fetch wal_xxx \
   https://api.example.com/premium-data
 ```
 

@@ -1,10 +1,4 @@
-import {
-  index,
-  jsonb,
-  pgTable,
-  text,
-  timestamp,
-} from "drizzle-orm/pg-core";
+import { index, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import type {
   DeploymentState,
   FundingState,
@@ -15,7 +9,7 @@ import type {
   WalletMode,
   WalletPolicy,
   WalletRequestStatus,
-} from "@conduit/shared";
+} from "@guardlabs/guardrail-core";
 import type {
   RuntimePolicyConsumption,
   RuntimePolicyState,

@@ -8,9 +8,7 @@ describe("cli help", () => {
   it("lists the expected commands and backend override flag", () => {
     const help = buildProgram().helpInformation();
 
-    expect(help).toContain(
-      "provision and manage secure wallet rails for autonomous agents",
-    );
+    expect(help).toContain("provision and manage wallet guardrails for agents");
     expect(help).toContain(
       "create [options]                       create a wallet provisioning request",
     );
@@ -81,7 +79,7 @@ describe("cli help", () => {
     );
   });
 
-  it("documents x402 signing usage for the ready conduit wallet signer", () => {
+  it("documents x402 signing usage for the ready Guardrail wallet signer", () => {
     const x402SignCommand = buildProgram().commands.find(
       (command) => command.name() === "x402-sign",
     );
@@ -102,9 +100,9 @@ describe("cli help", () => {
   });
 
   it("treats symlinked launcher paths as the cli entrypoint", () => {
-    const tempDir = mkdtempSync(join(tmpdir(), "conduit-wallet-cli-"));
+    const tempDir = mkdtempSync(join(tmpdir(), "guardrail-cli-"));
     const realModulePath = join(tempDir, "index.js");
-    const symlinkPath = join(tempDir, "conduit-wallet");
+    const symlinkPath = join(tempDir, "guardrail");
 
     writeFileSync(realModulePath, "export {};\n");
     symlinkSync(realModulePath, symlinkPath);

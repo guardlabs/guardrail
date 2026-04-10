@@ -8,7 +8,7 @@ import {
   x402PaymentPayloadSchema,
   x402PaymentRequiredSchema,
   x402SettlementResponseSchema,
-} from "@conduit/shared";
+} from "@guardlabs/guardrail-core";
 import {
   createPublicClient,
   createWalletClient,

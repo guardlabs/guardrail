@@ -4,47 +4,47 @@
 
 The CLI is the main operator entry point for agents.
 
-Published package: `@conduit-wallet/cli`
+Published package: `@guardlabs/guardrail-cli`
 
-Installed binary: `conduit-wallet`
+Installed binary: `guardrail`
 
 ## Main Commands
 
 Create a wallet request:
 
 ```bash
-conduit-wallet create --chain-id 84532
+guardrail create --chain-id 84532
 ```
 
 Inspect a wallet:
 
 ```bash
-conduit-wallet status wal_123
+guardrail status wal_123
 ```
 
 Wait until a wallet is ready:
 
 ```bash
-conduit-wallet await wal_123 --interval-ms 3000
+guardrail await wal_123 --interval-ms 3000
 ```
 
 Execute a call:
 
 ```bash
-conduit-wallet call wal_123 --to 0x1111111111111111111111111111111111111111 --data 0xa9059cbb --value-wei 0
+guardrail call wal_123 --to 0x1111111111111111111111111111111111111111 --data 0xa9059cbb --value-wei 0
 ```
 
 Sign typed data:
 
 ```bash
-conduit-wallet sign-typed-data wal_123 --typed-data-file /tmp/typed-data.json
+guardrail sign-typed-data wal_123 --typed-data-file /tmp/typed-data.json
 ```
 
 Complete x402 payment flows:
 
 ```bash
-conduit-wallet x402-sign wal_123 --payment-required-header eyJ4NDAyVmVyc2lvbiI6Mn0=
-conduit-wallet x402-fetch wal_123 https://api.example.com/premium-data
+guardrail x402-sign wal_123 --payment-required-header eyJ4NDAyVmVyc2lvbiI6Mn0=
+guardrail x402-fetch wal_123 https://api.example.com/premium-data
 ```
 
 See [x402 payments](x402.md) for the end-to-end flow and what these commands are doing.
@@ -62,7 +62,7 @@ The EIP-155 chain id for the wallet request.
 Example:
 
 ```bash
-conduit-wallet create --chain-id 84532
+guardrail create --chain-id 84532
 ```
 
 Current support:
@@ -93,7 +93,7 @@ What it means:
 Example:
 
 ```bash
-conduit-wallet create \
+guardrail create \
   --chain-id 84532 \
   --allow-call '0x1111111111111111111111111111111111111111:transfer(address,uint256),approve(address,uint256)'
 ```
@@ -148,7 +148,7 @@ Supported operations in the current product shape:
 Example:
 
 ```bash
-conduit-wallet create \
+guardrail create \
   --chain-id 84532 \
   --usdc-period daily \
   --usdc-max 10 \
@@ -177,7 +177,7 @@ In practice:
 Non-USDC contract policy:
 
 ```bash
-conduit-wallet create \
+guardrail create \
   --chain-id 84532 \
   --allow-call '0x1111111111111111111111111111111111111111:transfer(address,uint256)'
 ```
@@ -185,7 +185,7 @@ conduit-wallet create \
 Official USDC policy:
 
 ```bash
-conduit-wallet create \
+guardrail create \
   --chain-id 84532 \
   --usdc-period daily \
   --usdc-max 10 \

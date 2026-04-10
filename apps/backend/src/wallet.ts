@@ -6,7 +6,7 @@ import type {
   WalletConfig,
   WalletContext,
   WalletRequestStatus,
-} from "@conduit/shared";
+} from "@guardlabs/guardrail-core";
 import type { AppConfig } from "./config.js";
 import { buildFundingState } from "./funding.js";
 

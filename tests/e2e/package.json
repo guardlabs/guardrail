@@ -1,5 +1,5 @@
 {
-  "name": "@conduit/e2e",
+  "name": "@guardlabs/guardrail-e2e",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -9,8 +9,8 @@
     "test:provisioning": "vitest run provisioning-headless.e2e.test.ts"
   },
   "dependencies": {
-    "@conduit/shared": "workspace:*",
-    "@conduit/zerodev": "workspace:*",
+    "@guardlabs/guardrail-core": "workspace:*",
+    "@guardlabs/guardrail-kernel": "workspace:*",
     "dotenv": "^16.6.1",
     "pg": "^8.14.1",
     "viem": "2.47.6"

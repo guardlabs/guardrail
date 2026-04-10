@@ -1,20 +1,22 @@
 {
-  "name": "@conduit-wallet/cli",
+  "name": "@guardlabs/guardrail-cli",
   "version": "0.1.2",
   "license": "MIT",
-  "description": "CLI for provisioning and using Conduit Wallet agent wallets.",
+  "description": "CLI for provisioning and using Guardrail, the Guard Labs wallet-control product for agents.",
   "type": "module",
-  "homepage": "https://github.com/nmalzieu/conduit",
+  "homepage": "https://github.com/guardlabs/guardrail",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nmalzieu/conduit.git"
+    "url": "git+https://github.com/guardlabs/guardrail.git"
   },
   "bugs": {
-    "url": "https://github.com/nmalzieu/conduit/issues"
+    "url": "https://github.com/guardlabs/guardrail/issues"
   },
   "keywords": [
-    "conduit",
+    "guardrail",
+    "guardlabs",
     "wallet",
+    "guardrails",
     "cli",
     "agents",
     "evm",
@@ -24,7 +26,7 @@
     "node": ">=22"
   },
   "bin": {
-    "conduit-wallet": "dist/index.js"
+    "guardrail": "dist/index.js"
   },
   "files": [
     "dist"
@@ -45,8 +47,8 @@
     "viem": "2.47.6"
   },
   "devDependencies": {
-    "@conduit/shared": "workspace:*",
-    "@conduit/zerodev": "workspace:*",
+    "@guardlabs/guardrail-core": "workspace:*",
+    "@guardlabs/guardrail-kernel": "workspace:*",
     "@types/node": "^22.13.10",
     "tsup": "^8.5.0",
     "tsx": "^4.19.3",

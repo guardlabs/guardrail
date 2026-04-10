@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
   getWalletRequestResponseSchema,
   localWalletRequestSchema,
-} from "@conduit/shared";
+} from "@guardlabs/guardrail-core";
 import {
   createPublicClient,
   createWalletClient,
@@ -107,7 +107,7 @@ async function ensurePostgres(projectName: string) {
       `Failed to resolve mapped Postgres port from "${mappedPortOutput}".`,
     );
   }
-  const databaseUrl = `postgresql://conduit:conduit@127.0.0.1:${mappedPort}/conduit`;
+  const databaseUrl = `postgresql://guardrail:guardrail@127.0.0.1:${mappedPort}/guardrail`;
 
   await pollUntil(() => isPostgresReachable(databaseUrl), {
     timeoutMs: 30_000,
@@ -308,16 +308,16 @@ async function runCliJson(args: string[], env: NodeJS.ProcessEnv) {
 describe("headless provisioning e2e", () => {
   it("provisions a wallet and executes co-signed runtime operations through the real local stack", async () => {
     const forkUrl =
-      process.env.CONDUIT_E2E_FORK_URL ??
-      process.env.CONDUIT_PUBLIC_RPC_URL_84532;
+      process.env.GUARDRAIL_E2E_FORK_URL ??
+      process.env.GUARDRAIL_PUBLIC_RPC_URL_84532;
 
     if (!forkUrl) {
       throw new Error(
-        "Set CONDUIT_E2E_FORK_URL or CONDUIT_PUBLIC_RPC_URL_84532 before running the provisioning e2e.",
+        "Set GUARDRAIL_E2E_FORK_URL or GUARDRAIL_PUBLIC_RPC_URL_84532 before running the provisioning e2e.",
       );
     }
 
-    const postgresProjectName = `conduit-wallet-e2e-${process.pid}`;
+    const postgresProjectName = `guardrail-e2e-${process.pid}`;
     const backendPort = await reservePort();
     const frontendPort = await reservePort();
     const anvilPort = await reservePort();
@@ -330,14 +330,12 @@ describe("headless provisioning e2e", () => {
     const allowedGenericTarget = "0x1111111111111111111111111111111111111111";
     const allowedGenericSelector = "0xdeadbeef";
     const deniedGenericSelector = "0xaabbccdd";
-    const tempStoreDirectory = await mkdtemp(
-      join(tmpdir(), "conduit-wallet-e2e-"),
-    );
+    const tempStoreDirectory = await mkdtemp(join(tmpdir(), "guardrail-e2e-"));
     const postgresHandle = await ensurePostgres(postgresProjectName);
     const { databaseUrl } = postgresHandle;
     const anvilProcess = startProcess({
       name: "anvil",
-      command: process.env.CONDUIT_E2E_ANVIL_BIN ?? "anvil",
+      command: process.env.GUARDRAIL_E2E_ANVIL_BIN ?? "anvil",
       args: [
         "--host",
         "127.0.0.1",
@@ -391,10 +389,10 @@ describe("headless provisioning e2e", () => {
         ...process.env,
         PORT: String(backendPort),
         DATABASE_URL: databaseUrl,
-        CONDUIT_PUBLIC_BACKEND_URL: backendUrl,
-        CONDUIT_PUBLIC_FRONTEND_URL: frontendUrl,
-        CONDUIT_PUBLIC_RPC_URL_84532: anvilUrl,
-        CONDUIT_BUNDLER_URL_84532: bundlerUrl,
+        GUARDRAIL_PUBLIC_BACKEND_URL: backendUrl,
+        GUARDRAIL_PUBLIC_FRONTEND_URL: frontendUrl,
+        GUARDRAIL_PUBLIC_RPC_URL_84532: anvilUrl,
+        GUARDRAIL_BUNDLER_URL_84532: bundlerUrl,
       },
     });
     let x402Server: Awaited<
@@ -426,7 +424,7 @@ describe("headless provisioning e2e", () => {
 
       const cliEnv = {
         ...process.env,
-        CONDUIT_LOCAL_STORE_DIR: tempStoreDirectory,
+        GUARDRAIL_LOCAL_STORE_DIR: tempStoreDirectory,
       };
       const createResult = await runCliJson(
         [
@@ -569,7 +567,7 @@ describe("headless provisioning e2e", () => {
           "--typed-data-json",
           JSON.stringify({
             domain: {
-              name: "Conduit Wallet E2E",
+              name: "Guardrail E2E",
               version: "1",
               chainId: 84532,
               verifyingContract: localWallet.walletAddress,
@@ -601,7 +599,9 @@ describe("headless provisioning e2e", () => {
       expect(persistedAfterDeniedTypedData.deployment.status).toBe("deployed");
       expect(
         Number(persistedAfterDeniedTypedData.backend_signing_request_count),
-      ).toBeGreaterThanOrEqual(Number(signingRequestCountBeforeDeniedTypedData) + 1);
+      ).toBeGreaterThanOrEqual(
+        Number(signingRequestCountBeforeDeniedTypedData) + 1,
+      );
 
       const signingRequestCountBeforeAllowedCall =
         persistedAfterDeniedTypedData.backend_signing_request_count;
@@ -634,7 +634,9 @@ describe("headless provisioning e2e", () => {
       expect(persistedAfterAllowedCall.deployment.status).toBe("deployed");
       expect(
         Number(persistedAfterAllowedCall.backend_signing_request_count),
-      ).toBeGreaterThanOrEqual(Number(signingRequestCountBeforeAllowedCall) + 1);
+      ).toBeGreaterThanOrEqual(
+        Number(signingRequestCountBeforeAllowedCall) + 1,
+      );
 
       const signingRequestCountBeforeDeniedCall =
         persistedAfterAllowedCall.backend_signing_request_count;

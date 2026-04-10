@@ -2,8 +2,8 @@ import {
   getSupportedChainById,
   type RegularValidatorInitArtifact,
   type WalletConfig,
-} from "@conduit/shared";
-import { createProvisioningArtifacts } from "@conduit/zerodev";
+} from "@guardlabs/guardrail-core";
+import { createProvisioningArtifacts } from "@guardlabs/guardrail-kernel";
 import { toWebAuthnKey, WebAuthnMode } from "@zerodev/permissions/signers";
 import { createPublicClient, http } from "viem";
 
@@ -48,7 +48,9 @@ export type PasskeyClient = {
 export const browserPasskeyClient: PasskeyClient = {
   async createProvisioningArtifacts({ displayName, walletConfig }) {
     if (!__PASSKEY_SERVER_URL__) {
-      throw new Error("Missing CONDUIT_PASSKEY_SERVER_URL in frontend build.");
+      throw new Error(
+        "Missing GUARDRAIL_PASSKEY_SERVER_URL in frontend build.",
+      );
     }
 
     const rpcUrl = getPublicRpcUrl(walletConfig.chainId);

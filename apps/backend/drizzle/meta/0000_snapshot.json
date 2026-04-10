@@ -61,12 +61,8 @@
           "name": "wallet_backend_signing_requests_wallet_id_wallets_wallet_id_fk",
           "tableFrom": "wallet_backend_signing_requests",
           "tableTo": "wallets",
-          "columnsFrom": [
-            "wallet_id"
-          ],
-          "columnsTo": [
-            "wallet_id"
-          ],
+          "columnsFrom": ["wallet_id"],
+          "columnsTo": ["wallet_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -152,12 +148,8 @@
           "name": "wallet_policy_consumptions_wallet_id_wallets_wallet_id_fk",
           "tableFrom": "wallet_policy_consumptions",
           "tableTo": "wallets",
-          "columnsFrom": [
-            "wallet_id"
-          ],
-          "columnsTo": [
-            "wallet_id"
-          ],
+          "columnsFrom": ["wallet_id"],
+          "columnsTo": ["wallet_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }

@@ -1,4 +1,7 @@
-import type { WalletPolicy, WalletRequestStatus } from "@conduit/shared";
+import type {
+  WalletPolicy,
+  WalletRequestStatus,
+} from "@guardlabs/guardrail-core";
 import { formatUnits } from "viem";
 
 type FundingStatus = "unverified" | "insufficient" | "verified";

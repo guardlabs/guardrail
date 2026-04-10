@@ -32,7 +32,10 @@ export default tseslint.config(
     languageOptions: {
       parserOptions: {
         projectService: {
-          allowDefaultProject: ["apps/backend/drizzle.config.ts"],
+          allowDefaultProject: [
+            "apps/backend/drizzle.config.ts",
+            "apps/cli/tsup.config.ts",
+          ],
         },
         tsconfigRootDir: rootDir,
       },

@@ -4,7 +4,7 @@ import { keccak256, encodeAbiParameters, isHex, toBytes, toHex } from "viem";
 const HEADLESS_OWNER_PRIVATE_KEY =
   "0000000000000000000000000000000000000000000000000000000000000001";
 const HEADLESS_OWNER_CREDENTIAL_BYTES = Buffer.from(
-  "conduit-headless-owner",
+  "guardrail-headless-owner",
   "utf8",
 );
 const P256_CURVE_ORDER = BigInt(

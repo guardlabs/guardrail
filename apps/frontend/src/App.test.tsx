@@ -8,12 +8,12 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  PROJECT_WALLET_MODE,
+  GUARDRAIL_WALLET_MODE,
   buildDefaultWalletConfig,
   type ResolveProvisioningResponse,
   type WalletPolicy,
   type WalletRequest,
-} from "@conduit/shared";
+} from "@guardlabs/guardrail-core";
 import { App } from "./App.js";
 
 const walletConfig = buildDefaultWalletConfig({
@@ -53,7 +53,7 @@ function buildProvisioningResponse(
   overrides: Partial<ResolveProvisioningResponse> = {},
 ): ResolveProvisioningResponse {
   return {
-    walletMode: PROJECT_WALLET_MODE,
+    walletMode: GUARDRAIL_WALLET_MODE,
     walletId: "wal_test",
     status: "created",
     walletConfig,
@@ -79,7 +79,7 @@ function buildWalletRequest(
   overrides: Partial<WalletRequest> = {},
 ): WalletRequest {
   return {
-    walletMode: PROJECT_WALLET_MODE,
+    walletMode: GUARDRAIL_WALLET_MODE,
     walletId: "wal_test",
     status: "ready",
     walletConfig,
@@ -180,7 +180,7 @@ describe("frontend app mode B", () => {
 
     await waitFor(() => {
       expect(createProvisioningArtifacts).toHaveBeenCalledWith({
-        displayName: "Conduit Wallet",
+        displayName: "Guardrail",
         walletConfig,
       });
     });
@@ -245,7 +245,7 @@ describe("frontend app mode B", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /secure wallet rails for autonomous agents/i,
+        name: /wallet guardrails for agents/i,
       }),
     ).toBeInTheDocument();
     expect(
@@ -254,7 +254,7 @@ describe("frontend app mode B", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/conduit enforces that policy on the backend/i),
+      screen.getByText(/guardrail enforces that policy on the backend/i),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /docs/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /github/i })).toBeInTheDocument();

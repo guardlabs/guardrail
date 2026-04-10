@@ -9,5 +9,5 @@ export default defineConfig({
   clean: true,
   sourcemap: false,
   splitting: false,
-  noExternal: ["@conduit/shared", "@conduit/zerodev"],
+  noExternal: ["@guardlabs/guardrail-core", "@guardlabs/guardrail-kernel"],
 });

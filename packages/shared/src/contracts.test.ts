@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  PROJECT_PASSKEY_VALIDATOR_ADDRESS,
-  PROJECT_WALLET_MODE,
+  GUARDRAIL_PASSKEY_VALIDATOR_ADDRESS,
+  GUARDRAIL_WALLET_MODE,
   backendDeployWalletRequestSchema,
   backendSignTypedDataRequestSchema,
   buildDefaultWalletConfig,
@@ -22,10 +22,10 @@ describe("mode B wallet contracts", () => {
       backendAddress: "0x00000000000000000000000000000000000000bb",
     });
 
-    expect(walletConfig.walletMode).toBe(PROJECT_WALLET_MODE);
+    expect(walletConfig.walletMode).toBe(GUARDRAIL_WALLET_MODE);
     expect(walletConfig.sudoValidator).toEqual({
       type: "passkey",
-      address: PROJECT_PASSKEY_VALIDATOR_ADDRESS,
+      address: GUARDRAIL_PASSKEY_VALIDATOR_ADDRESS,
     });
     expect(walletConfig.regularValidator.threshold).toBe(2);
     expect(walletConfig.regularValidator.delaySeconds).toBe(0);
@@ -65,7 +65,7 @@ describe("mode B wallet contracts", () => {
 
   it("validates create-wallet inputs for mode B", () => {
     const parsed = createWalletRequestInputSchema.parse({
-      walletMode: PROJECT_WALLET_MODE,
+      walletMode: GUARDRAIL_WALLET_MODE,
       chainId: 84532,
       agentAddress: "0x00000000000000000000000000000000000000aa",
       policy: {
@@ -78,7 +78,7 @@ describe("mode B wallet contracts", () => {
       },
     });
 
-    expect(parsed.walletMode).toBe(PROJECT_WALLET_MODE);
+    expect(parsed.walletMode).toBe(GUARDRAIL_WALLET_MODE);
   });
 
   it("accepts a standalone USDC policy", () => {
@@ -101,7 +101,7 @@ describe("mode B wallet contracts", () => {
   it("rejects wallet creation when no policy mechanism is configured", () => {
     expect(() =>
       createWalletRequestInputSchema.parse({
-        walletMode: PROJECT_WALLET_MODE,
+        walletMode: GUARDRAIL_WALLET_MODE,
         chainId: 84532,
         agentAddress: "0x00000000000000000000000000000000000000aa",
         policy: {},
@@ -116,7 +116,7 @@ describe("mode B wallet contracts", () => {
 
     expect(() =>
       createWalletRequestInputSchema.parse({
-        walletMode: PROJECT_WALLET_MODE,
+        walletMode: GUARDRAIL_WALLET_MODE,
         chainId: 84532,
         agentAddress: "0x00000000000000000000000000000000000000aa",
         policy: {
@@ -146,7 +146,7 @@ describe("mode B wallet contracts", () => {
   it("rejects local wallet state when signer addresses drift from walletConfig", () => {
     expect(() =>
       localWalletRequestSchema.parse({
-        walletMode: PROJECT_WALLET_MODE,
+        walletMode: GUARDRAIL_WALLET_MODE,
         walletId: "wal_123",
         backendBaseUrl: "http://127.0.0.1:3000",
         provisioningUrl: "http://127.0.0.1:5173/?walletId=wal_123",

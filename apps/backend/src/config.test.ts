@@ -5,16 +5,16 @@ function createEnv(
   overrides: Partial<NodeJS.ProcessEnv> = {},
 ): NodeJS.ProcessEnv {
   return {
-    DATABASE_URL: "postgresql://conduit:conduit@127.0.0.1:5432/conduit",
-    CONDUIT_PUBLIC_BACKEND_URL: "http://127.0.0.1:3000",
-    CONDUIT_PUBLIC_FRONTEND_URL: "http://127.0.0.1:5173",
-    CONDUIT_MIN_FUNDING_WEI: "500000000000000",
-    CONDUIT_SUPPORTED_CHAIN_IDS: "84532",
-    CONDUIT_REQUEST_TTL_HOURS: "24",
-    CONDUIT_BUNDLER_URL_8453: "https://bundler-mainnet.example.com",
-    CONDUIT_PUBLIC_RPC_URL_8453: "https://rpc-mainnet.example.com",
-    CONDUIT_BUNDLER_URL_84532: "https://bundler.example.com",
-    CONDUIT_PUBLIC_RPC_URL_84532: "https://rpc.example.com",
+    DATABASE_URL: "postgresql://guardrail:guardrail@127.0.0.1:5432/guardrail",
+    GUARDRAIL_PUBLIC_BACKEND_URL: "http://127.0.0.1:3000",
+    GUARDRAIL_PUBLIC_FRONTEND_URL: "http://127.0.0.1:5173",
+    GUARDRAIL_MIN_FUNDING_WEI: "500000000000000",
+    GUARDRAIL_SUPPORTED_CHAIN_IDS: "84532",
+    GUARDRAIL_REQUEST_TTL_HOURS: "24",
+    GUARDRAIL_BUNDLER_URL_8453: "https://bundler-mainnet.example.com",
+    GUARDRAIL_PUBLIC_RPC_URL_8453: "https://rpc-mainnet.example.com",
+    GUARDRAIL_BUNDLER_URL_84532: "https://bundler.example.com",
+    GUARDRAIL_PUBLIC_RPC_URL_84532: "https://rpc.example.com",
     ...overrides,
   };
 }
@@ -24,17 +24,17 @@ describe("readConfig", () => {
     expect(() =>
       readConfig(
         createEnv({
-          CONDUIT_BUNDLER_URL_84532: "",
+          GUARDRAIL_BUNDLER_URL_84532: "",
         }),
       ),
-    ).toThrow(/CONDUIT_BUNDLER_URL_84532/i);
+    ).toThrow(/GUARDRAIL_BUNDLER_URL_84532/i);
   });
 
   it("rejects unsupported chain ids", () => {
     expect(() =>
       readConfig(
         createEnv({
-          CONDUIT_SUPPORTED_CHAIN_IDS: "1",
+          GUARDRAIL_SUPPORTED_CHAIN_IDS: "1",
         }),
       ),
     ).toThrow(/Unsupported chainId 1/i);
@@ -59,7 +59,7 @@ describe("readConfig", () => {
     expect(
       readConfig(
         createEnv({
-          CONDUIT_SUPPORTED_CHAIN_IDS: "8453,84532",
+          GUARDRAIL_SUPPORTED_CHAIN_IDS: "8453,84532",
         }),
       ),
     ).toMatchObject({

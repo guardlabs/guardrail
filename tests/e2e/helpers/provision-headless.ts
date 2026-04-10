@@ -4,8 +4,8 @@ import {
   resolveProvisioningResponseSchema,
   type ResolveProvisioningResponse,
   type WalletRequest,
-} from "@conduit/shared";
-import { createProvisioningArtifacts } from "@conduit/zerodev";
+} from "@guardlabs/guardrail-core";
+import { createProvisioningArtifacts } from "@guardlabs/guardrail-kernel";
 import { createPublicClient, http } from "viem";
 import { createHeadlessWebAuthnKey } from "../fixtures/headless-owner.js";
 

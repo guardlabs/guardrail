@@ -2,13 +2,13 @@
 
 [Docs index](README.md) | [Quickstart](quickstart.md) | [How it works](how-it-works.md)
 
-Conduit Wallet is most useful when an agent genuinely needs wallet capabilities, but should not be trusted with a fully exportable hot key.
+Guardrail is most useful when an agent genuinely needs wallet capabilities, but should not be trusted with a fully exportable hot key.
 
 ## Paid API And Resource Access
 
 An agent needs to fetch protected data or use a paid API without asking a human to manually approve every payment.
 
-Why Conduit fits:
+Why Guardrail fits:
 
 - the agent can complete the runtime payment flow on its own
 - the wallet can still be limited to a narrow policy such as official USDC only
@@ -20,7 +20,7 @@ This is the most direct fit for the current x402 support. See [x402 payments](x4
 
 An agent or skill needs a wallet dedicated to one workflow, one customer, one environment, or one narrow class of calls.
 
-Why Conduit fits:
+Why Guardrail fits:
 
 - each wallet can be created with a dedicated runtime policy
 - the agent gets usable wallet rails without becoming the full owner
@@ -36,15 +36,15 @@ Examples:
 
 Some agent workflows need to survive process restarts, handoffs, or longer-lived operation windows.
 
-Why Conduit fits:
+Why Guardrail fits:
 
 - the human passkey remains the durable owner path
 - the local agent key is not the root of trust
 - policy changes can be handled on the owner path later without rebuilding the core trust model
 
-## When Conduit Is Probably Not Worth It
+## When Guardrail Is Probably Not Worth It
 
-Conduit is probably too much machinery if:
+Guardrail is probably too much machinery if:
 
 - the agent never needs to touch funds or sign anything
 - a short-lived burner key is already acceptable for the risk level

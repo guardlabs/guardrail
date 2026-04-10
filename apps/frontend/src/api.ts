@@ -6,7 +6,7 @@ import {
   type ResolveProvisioningResponse,
   type WalletRequest,
   walletRequestSchema,
-} from "@conduit/shared";
+} from "@guardlabs/guardrail-core";
 
 async function fetchJson<T>(url: string, init: RequestInit): Promise<T> {
   const headers =

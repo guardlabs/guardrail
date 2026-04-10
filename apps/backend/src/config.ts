@@ -1,9 +1,9 @@
 import {
   getSupportedChainById,
-  PROJECT_DEFAULT_BACKEND_URL,
-  PROJECT_DEFAULT_FRONTEND_URL,
+  GUARDRAIL_DEFAULT_BACKEND_URL,
+  GUARDRAIL_DEFAULT_FRONTEND_URL,
   SUPPORTED_CHAIN_IDS,
-} from "@conduit/shared";
+} from "@guardlabs/guardrail-core";
 
 export const DEFAULT_PORT = 3000;
 export const DEFAULT_MIN_FUNDING_WEI = "500000000000000";
@@ -21,7 +21,11 @@ export type AppConfig = {
   rpcUrlsByChain: Record<number, string>;
 };
 
-function parsePositiveInteger(rawValue: string | undefined, fallback: number, label: string) {
+function parsePositiveInteger(
+  rawValue: string | undefined,
+  fallback: number,
+  label: string,
+) {
   const value = Number(rawValue ?? fallback);
 
   if (!Number.isInteger(value) || value <= 0) {
@@ -31,7 +35,11 @@ function parsePositiveInteger(rawValue: string | undefined, fallback: number, la
   return value;
 }
 
-function parseAbsoluteUrl(rawValue: string | undefined, fallback: string, label: string) {
+function parseAbsoluteUrl(
+  rawValue: string | undefined,
+  fallback: string,
+  label: string,
+) {
   const value = rawValue ?? fallback;
 
   try {
@@ -45,7 +53,9 @@ function parseMinFundingWei(rawValue: string | undefined) {
   const value = rawValue ?? DEFAULT_MIN_FUNDING_WEI;
 
   if (!/^\d+$/.test(value)) {
-    throw new Error("CONDUIT_MIN_FUNDING_WEI must be an unsigned integer string.");
+    throw new Error(
+      "GUARDRAIL_MIN_FUNDING_WEI must be an unsigned integer string.",
+    );
   }
 
   return value;
@@ -60,12 +70,16 @@ function parseSupportedChainIds(rawValue: string | undefined) {
     : [...SUPPORTED_CHAIN_IDS];
 
   if (chainIds.length === 0) {
-    throw new Error("CONDUIT_SUPPORTED_CHAIN_IDS must include at least one supported chain.");
+    throw new Error(
+      "GUARDRAIL_SUPPORTED_CHAIN_IDS must include at least one supported chain.",
+    );
   }
 
   for (const chainId of chainIds) {
     if (!getSupportedChainById(chainId)) {
-      throw new Error(`Unsupported chainId ${chainId} in CONDUIT_SUPPORTED_CHAIN_IDS.`);
+      throw new Error(
+        `Unsupported chainId ${chainId} in GUARDRAIL_SUPPORTED_CHAIN_IDS.`,
+      );
     }
   }
 
@@ -82,7 +96,9 @@ function collectRequiredChainUrlMap(
     const value = env[`${prefix}_${chainId}`];
 
     if (!value) {
-      throw new Error(`${prefix}_${chainId} is required for supported chain ${chainId} (${label}).`);
+      throw new Error(
+        `${prefix}_${chainId} is required for supported chain ${chainId} (${label}).`,
+      );
     }
 
     parseAbsoluteUrl(value, value, `${prefix}_${chainId}`);
@@ -102,41 +118,39 @@ export function readConfig(env = process.env): AppConfig {
   }
 
   const supportedChainIds = parseSupportedChainIds(
-    env.CONDUIT_SUPPORTED_CHAIN_IDS,
+    env.GUARDRAIL_SUPPORTED_CHAIN_IDS,
   );
 
   return {
     port: parsePositiveInteger(env.PORT, DEFAULT_PORT, "PORT"),
     databaseUrl,
-    publicBackendUrl:
-      parseAbsoluteUrl(
-        env.CONDUIT_PUBLIC_BACKEND_URL,
-        PROJECT_DEFAULT_BACKEND_URL,
-        "CONDUIT_PUBLIC_BACKEND_URL",
-      ),
-    frontendBaseUrl:
-      parseAbsoluteUrl(
-        env.CONDUIT_PUBLIC_FRONTEND_URL,
-        PROJECT_DEFAULT_FRONTEND_URL,
-        "CONDUIT_PUBLIC_FRONTEND_URL",
-      ),
-    minFundingWei: parseMinFundingWei(env.CONDUIT_MIN_FUNDING_WEI),
+    publicBackendUrl: parseAbsoluteUrl(
+      env.GUARDRAIL_PUBLIC_BACKEND_URL,
+      GUARDRAIL_DEFAULT_BACKEND_URL,
+      "GUARDRAIL_PUBLIC_BACKEND_URL",
+    ),
+    frontendBaseUrl: parseAbsoluteUrl(
+      env.GUARDRAIL_PUBLIC_FRONTEND_URL,
+      GUARDRAIL_DEFAULT_FRONTEND_URL,
+      "GUARDRAIL_PUBLIC_FRONTEND_URL",
+    ),
+    minFundingWei: parseMinFundingWei(env.GUARDRAIL_MIN_FUNDING_WEI),
     requestTtlHours: parsePositiveInteger(
-      env.CONDUIT_REQUEST_TTL_HOURS,
+      env.GUARDRAIL_REQUEST_TTL_HOURS,
       DEFAULT_REQUEST_TTL_HOURS,
-      "CONDUIT_REQUEST_TTL_HOURS",
+      "GUARDRAIL_REQUEST_TTL_HOURS",
     ),
     supportedChainIds,
     bundlerUrlsByChain: collectRequiredChainUrlMap(
       env,
       supportedChainIds,
-      "CONDUIT_BUNDLER_URL",
+      "GUARDRAIL_BUNDLER_URL",
       "bundler",
     ),
     rpcUrlsByChain: collectRequiredChainUrlMap(
       env,
       supportedChainIds,
-      "CONDUIT_PUBLIC_RPC_URL",
+      "GUARDRAIL_PUBLIC_RPC_URL",
       "rpc",
     ),
   };

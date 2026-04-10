@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  PROJECT_WALLET_MODE,
+  GUARDRAIL_WALLET_MODE,
   buildDefaultWalletConfig,
   type WalletPolicy,
-} from "@conduit/shared";
+} from "@guardlabs/guardrail-core";
 import { browserApi } from "./api.js";
 
 function createRuntimePolicy(): WalletPolicy {
@@ -38,7 +38,7 @@ describe("frontend api mode B", () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        walletMode: PROJECT_WALLET_MODE,
+        walletMode: GUARDRAIL_WALLET_MODE,
         walletId: "wal_test",
         status: "owner_bound",
         walletConfig,
@@ -120,7 +120,7 @@ describe("frontend api mode B", () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        walletMode: PROJECT_WALLET_MODE,
+        walletMode: GUARDRAIL_WALLET_MODE,
         walletId: "wal_test",
         status: "owner_bound",
         walletConfig,

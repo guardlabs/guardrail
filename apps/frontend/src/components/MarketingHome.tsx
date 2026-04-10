@@ -10,25 +10,23 @@ export function MarketingHome() {
   const hero = (
     <div className="cw-home-hero">
       <div className="cw-brand-row">
-        <p className="cw-eyebrow">Conduit Wallet</p>
-        <span className="cw-hero-chip">
-          Secure wallet rails for autonomous agents
-        </span>
+        <p className="cw-eyebrow">Guard Labs</p>
+        <span className="cw-hero-chip">Wallet guardrails for agents</span>
       </div>
 
       <div className="cw-home-hero-grid">
         <div className="cw-home-copy">
-          <h1>Secure wallet rails for autonomous agents</h1>
+          <h1>Wallet guardrails for agents</h1>
           <p className="cw-lede">
-            Conduit Wallet lets agents use onchain wallets without shipping a
-            hot key. The human stays the owner, and the runtime path stays
-            policy-gated.
+            Guardrail is the Guard Labs product for giving agents onchain wallet
+            access without shipping a hot key. The human stays the owner, and
+            the runtime path stays policy-gated.
           </p>
 
           <div className="cw-home-actions">
             <a
               className="cw-primary-button cw-home-button"
-              href="https://github.com/nmalzieu/conduit/blob/main/docs/README.md"
+              href="https://github.com/guardlabs/guardrail/blob/main/docs/README.md"
               rel="noreferrer"
               target="_blank"
             >
@@ -36,7 +34,7 @@ export function MarketingHome() {
             </a>
             <a
               className="cw-secondary-button"
-              href="https://github.com/nmalzieu/conduit"
+              href="https://github.com/guardlabs/guardrail"
               rel="noreferrer"
               target="_blank"
             >
@@ -53,10 +51,11 @@ export function MarketingHome() {
             ))}
           </ul>
           <p className="cw-home-note">
-            Run the CLI with <code>npx @conduit-wallet/cli ...</code>. Start
+            Run the CLI with <code>npx @guardlabs/guardrail-cli ...</code>. The
+            official hosted frontend lives at <code>guardlabs.ai</code>. Start
             with the GitHub docs for installation, policy examples, the CLI
-            flow, and the hosted deployment model. If you self-host the
-            backend, self-host the frontend too.
+            flow, and the hosted deployment model. If you self-host the backend,
+            self-host the frontend too.
           </p>
         </div>
       </div>
@@ -69,8 +68,8 @@ export function MarketingHome() {
         <p className="cw-kicker">Overview</p>
         <h2>Agents can only do what their policy allows</h2>
         <p className="cw-card-copy">
-          Conduit is built for agents that need wallet access, but should not be
-          trusted with an unrestricted key they can export, reuse, or drain.
+          Guardrail is built for agents that need wallet access, but should not
+          be trusted with an unrestricted key they can export, reuse, or drain.
         </p>
       </div>
 
@@ -80,7 +79,7 @@ export function MarketingHome() {
           to perform runtime actions that fit the wallet policy.
         </p>
         <p className="cw-home-explainer-copy">
-          Conduit enforces that policy on the backend and co-signs only the
+          Guardrail enforces that policy on the backend and co-signs only the
           actions that are allowed. Anything outside the configured policy is
           denied.
         </p>
@@ -93,7 +92,8 @@ export function MarketingHome() {
           <li>The human remains the durable wallet owner through a passkey.</li>
           <li>The agent can request runtime actions autonomously.</li>
           <li>
-            The Conduit backend co-signs only what the policy explicitly allows.
+            The Guardrail backend co-signs only what the policy explicitly
+            allows.
           </li>
         </ul>
       </div>

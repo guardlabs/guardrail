@@ -1,7 +1,7 @@
 import type {
   RegularValidatorInitArtifact,
   WalletConfig,
-} from "@conduit/shared";
+} from "@guardlabs/guardrail-core";
 import {
   PasskeyValidatorContractVersion,
   toPasskeyValidator,

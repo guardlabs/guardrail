@@ -2,14 +2,13 @@
 
 [Docs index](README.md) | [Quickstart](quickstart.md) | [Local development](local-development.md)
 
-Remaining work before Conduit Wallet is production-ready:
+Remaining work before Guardrail is production-ready:
 
 ## Deployment And Naming
 
-- publish the CLI package to npm as `@conduit-wallet/cli`
-- deploy the official backend on its real production domain
-- deploy the official frontend on its real production domain, paired with the official backend
-- replace placeholder hosted URLs in the README, docs, and homepage
+- publish the CLI package to npm as `@guardlabs/guardrail-cli`
+- deploy the official backend on `https://api.guardlabs.ai`
+- deploy the official frontend on `https://guardlabs.ai`, paired with the official backend
 
 ## Chain Support
 

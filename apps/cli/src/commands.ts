@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import type { Command } from "commander";
 import {
-  PROJECT_WALLET_MODE,
+  GUARDRAIL_WALLET_MODE,
   bytes4HexSchema,
   bytes32HexSchema,
   createWalletRequestInputSchema,
@@ -18,7 +18,7 @@ import {
   x402SettlementResponseSchema,
   type CreateWalletRequestResponse,
   type WalletRequest,
-} from "@conduit/shared";
+} from "@guardlabs/guardrail-core";
 import {
   bytesToHex,
   parseUnits,
@@ -65,12 +65,12 @@ function buildNextSteps(
     walletAddressStatus: "owner_bound" as const,
     humanActionUrl: provisioningUrl,
     humanAction:
-      "Ask the human to open the provisioning URL and create the passkey owner for the Conduit Wallet.",
-    walletAddressCommand: `conduit-wallet status ${walletId} --backend-url ${backendUrl}`,
-    statusCommand: `conduit-wallet status ${walletId} --backend-url ${backendUrl}`,
-    awaitCommand: `conduit-wallet await ${walletId} --backend-url ${backendUrl}`,
+      "Ask the human to open the provisioning URL and create the owner passkey for Guardrail.",
+    walletAddressCommand: `guardrail status ${walletId} --backend-url ${backendUrl}`,
+    statusCommand: `guardrail status ${walletId} --backend-url ${backendUrl}`,
+    awaitCommand: `guardrail await ${walletId} --backend-url ${backendUrl}`,
     guidance: [
-      "Ask the human to open the provisioning URL and create the Conduit Wallet passkey owner.",
+      "Ask the human to open the provisioning URL and create the owner passkey for Guardrail.",
       "Wait for the wallet address to appear once the owner is bound.",
       "Fund the wallet on the target chain.",
       "Continue waiting until the request reaches ready.",
@@ -485,7 +485,7 @@ export async function executeCreate(options: {
     usdcAllow: options.usdcAllow,
   });
   const payload = createWalletRequestInputSchema.parse({
-    walletMode: PROJECT_WALLET_MODE,
+    walletMode: GUARDRAIL_WALLET_MODE,
     chainId,
     agentAddress: agentAccount.address,
     policy,
@@ -514,7 +514,7 @@ export async function executeCreate(options: {
   );
 
   const localPath = await saveLocalWalletRequest({
-    walletMode: PROJECT_WALLET_MODE,
+    walletMode: GUARDRAIL_WALLET_MODE,
     walletId: response.walletId,
     backendBaseUrl: backendUrl,
     provisioningUrl: response.provisioningUrl,

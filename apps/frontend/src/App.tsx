@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import type {
   ResolveProvisioningResponse,
   WalletRequest,
-} from "@conduit/shared";
+} from "@guardlabs/guardrail-core";
 import {
   getSupportedChainById,
-  PROJECT_DEFAULT_BACKEND_URL,
-} from "@conduit/shared";
+  GUARDRAIL_DEFAULT_BACKEND_URL,
+} from "@guardlabs/guardrail-core";
 import type { FrontendApi } from "./api.js";
 import { browserApi } from "./api.js";
 import { MarketingHome } from "./components/MarketingHome.js";
@@ -19,7 +19,7 @@ import { parseProvisioningQuery } from "./provisioning.js";
 import "./styles.css";
 
 const resolvedBackendUrl =
-  __DEFAULT_BACKEND_URL__ ?? PROJECT_DEFAULT_BACKEND_URL;
+  __DEFAULT_BACKEND_URL__ ?? GUARDRAIL_DEFAULT_BACKEND_URL;
 
 type AppProps = {
   search?: string;
@@ -114,15 +114,15 @@ export function App({ search, api = browserApi, passkeyClient }: AppProps) {
 
     let cancelled = false;
 
-      void api
-        .loadProvisioningRequest({
-          ...query,
-          backendUrl: resolvedBackendUrl,
-        })
-        .then((nextRequest) => {
-          if (!cancelled) {
-            setRequest(nextRequest);
-          }
+    void api
+      .loadProvisioningRequest({
+        ...query,
+        backendUrl: resolvedBackendUrl,
+      })
+      .then((nextRequest) => {
+        if (!cancelled) {
+          setRequest(nextRequest);
+        }
       })
       .catch((nextError) => {
         if (!cancelled) {
@@ -150,10 +150,10 @@ export function App({ search, api = browserApi, passkeyClient }: AppProps) {
       setIsRefreshingFunding(true);
 
       void api
-          .refreshFunding({
-            walletId: query.walletId,
-            backendUrl: resolvedBackendUrl,
-          })
+        .refreshFunding({
+          walletId: query.walletId,
+          backendUrl: resolvedBackendUrl,
+        })
         .then((nextRequest) => {
           if (!cancelled) {
             setRequest(nextRequest);
@@ -198,7 +198,7 @@ export function App({ search, api = browserApi, passkeyClient }: AppProps) {
         passkeyClient ?? (await loadBrowserPasskeyClient());
       const provisioningArtifacts =
         await resolvedPasskeyClient.createProvisioningArtifacts({
-          displayName: "Conduit Wallet",
+          displayName: "Guardrail",
           walletConfig: request.walletConfig,
         });
 
@@ -250,7 +250,7 @@ export function App({ search, api = browserApi, passkeyClient }: AppProps) {
     <>
       <div className="cw-hero-copy">
         <div className="cw-brand-row">
-          <p className="cw-eyebrow">Conduit Wallet</p>
+          <p className="cw-eyebrow">Guard Labs</p>
           <span className="cw-hero-chip">Human-controlled provisioning</span>
         </div>
         <h1>Set up this wallet</h1>

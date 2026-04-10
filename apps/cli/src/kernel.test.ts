@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  PROJECT_WALLET_MODE,
+  GUARDRAIL_WALLET_MODE,
   buildDefaultWalletConfig,
   type LocalWalletRequest,
   type WalletRequest,
-} from "@conduit/shared";
-import { createWeightedKernelRuntime } from "@conduit/zerodev";
+} from "@guardlabs/guardrail-core";
+import { createWeightedKernelRuntime } from "@guardlabs/guardrail-kernel";
 import {
   callReadyWalletTransaction,
   ensureReadyWalletDeployed,
@@ -13,7 +13,7 @@ import {
   signReadyWalletTypedData,
 } from "./kernel.js";
 
-vi.mock("@conduit/zerodev", () => ({
+vi.mock("@guardlabs/guardrail-kernel", () => ({
   createWeightedKernelRuntime: vi.fn(),
 }));
 
@@ -48,7 +48,7 @@ function buildLocalWalletRequest(
   });
 
   return {
-    walletMode: PROJECT_WALLET_MODE,
+    walletMode: GUARDRAIL_WALLET_MODE,
     walletId: "wal_123",
     backendBaseUrl: "http://127.0.0.1:3000",
     provisioningUrl: "http://127.0.0.1:5173/?walletId=wal_123&token=token_123",
@@ -83,7 +83,7 @@ function buildReadyWalletRequest(
   });
 
   return {
-    walletMode: PROJECT_WALLET_MODE,
+    walletMode: GUARDRAIL_WALLET_MODE,
     walletId: "wal_123",
     status: "ready",
     walletConfig,

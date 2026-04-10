@@ -15,59 +15,74 @@ const combinedCoverageDir = resolve(workspaceRoot, "coverage");
 
 const coverageProjects = [
   {
-    label: "@conduit/shared",
+    label: "@guardlabs/guardrail-core",
     cwd: resolve(workspaceRoot, "packages/shared"),
     summaryPath: resolve(
       workspaceRoot,
       "packages/shared/coverage/coverage-summary.json",
     ),
-    command: ["pnpm", "--filter", "@conduit/shared", "test:coverage"],
+    command: ["pnpm", "--filter", "@guardlabs/guardrail-core", "test:coverage"],
   },
   {
-    label: "@conduit/zerodev",
+    label: "@guardlabs/guardrail-kernel",
     cwd: resolve(workspaceRoot, "packages/zerodev"),
     summaryPath: resolve(
       workspaceRoot,
       "packages/zerodev/coverage/coverage-summary.json",
     ),
-    command: ["pnpm", "--filter", "@conduit/zerodev", "test:coverage"],
+    command: [
+      "pnpm",
+      "--filter",
+      "@guardlabs/guardrail-kernel",
+      "test:coverage",
+    ],
   },
   {
-    label: "@conduit/backend",
+    label: "@guardlabs/guardrail-backend",
     cwd: resolve(workspaceRoot, "apps/backend"),
     summaryPath: resolve(
       workspaceRoot,
       "apps/backend/coverage/coverage-summary.json",
     ),
-    command: ["pnpm", "--filter", "@conduit/backend", "test:coverage"],
+    command: [
+      "pnpm",
+      "--filter",
+      "@guardlabs/guardrail-backend",
+      "test:coverage",
+    ],
   },
   {
-    label: "@conduit-wallet/cli",
+    label: "@guardlabs/guardrail-cli",
     cwd: resolve(workspaceRoot, "apps/cli"),
     summaryPath: resolve(
       workspaceRoot,
       "apps/cli/coverage/coverage-summary.json",
     ),
-    command: ["pnpm", "--filter", "@conduit-wallet/cli", "test:coverage"],
+    command: ["pnpm", "--filter", "@guardlabs/guardrail-cli", "test:coverage"],
   },
   {
-    label: "@conduit/frontend",
+    label: "@guardlabs/guardrail-frontend",
     cwd: resolve(workspaceRoot, "apps/frontend"),
     summaryPath: resolve(
       workspaceRoot,
       "apps/frontend/coverage/coverage-summary.json",
     ),
-    command: ["pnpm", "--filter", "@conduit/frontend", "test:coverage"],
+    command: [
+      "pnpm",
+      "--filter",
+      "@guardlabs/guardrail-frontend",
+      "test:coverage",
+    ],
   },
   {
-    label: "@conduit/e2e",
+    label: "@guardlabs/guardrail-e2e",
     cwd: resolve(workspaceRoot, "tests/e2e"),
     summaryPath: resolve(
       workspaceRoot,
       "tests/e2e/coverage/coverage-summary.json",
     ),
     setupCommand: ["pnpm", "build"],
-    command: ["pnpm", "--filter", "@conduit/e2e", "test:coverage"],
+    command: ["pnpm", "--filter", "@guardlabs/guardrail-e2e", "test:coverage"],
   },
 ];
 

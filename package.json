@@ -1,12 +1,12 @@
 {
-  "name": "conduit-wallet",
+  "name": "guardrail",
   "private": true,
   "license": "MIT",
   "packageManager": "pnpm@10.33.0",
   "scripts": {
     "build": "turbo build",
     "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm knip",
-    "db:migrate": "pnpm --filter @conduit/backend db:migrate",
+    "db:migrate": "pnpm --filter @guardlabs/guardrail-backend db:migrate",
     "dev": "turbo dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -15,9 +15,9 @@
     "lint:fix": "eslint . --fix",
     "test": "turbo test",
     "test:coverage": "node scripts/test-coverage.mjs",
-    "test:coverage:e2e": "pnpm build && pnpm --filter @conduit/e2e test:coverage",
-    "test:e2e": "pnpm build && pnpm --filter @conduit/e2e test:e2e",
-    "test:e2e:provisioning": "pnpm build && pnpm --filter @conduit/e2e test:provisioning",
+    "test:coverage:e2e": "pnpm build && pnpm --filter @guardlabs/guardrail-e2e test:coverage",
+    "test:e2e": "pnpm build && pnpm --filter @guardlabs/guardrail-e2e test:e2e",
+    "test:e2e:provisioning": "pnpm build && pnpm --filter @guardlabs/guardrail-e2e test:provisioning",
     "typecheck": "turbo typecheck"
   },
   "devDependencies": {

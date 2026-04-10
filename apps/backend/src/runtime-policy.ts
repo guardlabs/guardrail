@@ -4,7 +4,7 @@ import {
   type BackendSignerTypedDataPayload,
   type BackendSingleCallOperation,
   type BackendUserOperationSignaturePayload,
-} from "@conduit/shared";
+} from "@guardlabs/guardrail-core";
 import {
   decodeFunctionData,
   encodeAbiParameters,

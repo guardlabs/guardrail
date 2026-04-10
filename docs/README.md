@@ -1,6 +1,6 @@
-# Conduit Wallet Docs
+# Guardrail Docs
 
-Start here if you want the detailed documentation rather than the short repository overview.
+Start here if you want the detailed Guardrail documentation rather than the short repository overview.
 
 ## Guides
 
@@ -15,7 +15,7 @@ Start here if you want the detailed documentation rather than the short reposito
 
 ## What To Read
 
-- If you want to try Conduit quickly: [Quickstart](quickstart.md)
+- If you want to try Guardrail quickly: [Quickstart](quickstart.md)
 - If you want to understand the `$10/day` USDC example: [Runtime policy](runtime-policy.md)
 - If you want the product framing and likely adoption paths: [Use cases](use-cases.md)
 - If you want to understand paid-resource flows: [x402 payments](x402.md)

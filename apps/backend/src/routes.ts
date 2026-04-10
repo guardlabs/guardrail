@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
-  PROJECT_WALLET_MODE,
+  GUARDRAIL_WALLET_MODE,
   backendDeployWalletRequestSchema,
   backendSignResponseSchema,
   backendSignTypedDataRequestSchema,
@@ -18,7 +18,7 @@ import {
   type BackendSignerMethod,
   type BackendUserOperationSignaturePayload,
   type CreateWalletRequestInput,
-} from "@conduit/shared";
+} from "@guardlabs/guardrail-core";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { verifyTypedData, type Address, type Hex } from "viem";
 import type { AppConfig } from "./config.js";
@@ -105,7 +105,7 @@ function buildInitialRequest(
     provisioningToken,
     request: {
       walletId,
-      walletMode: PROJECT_WALLET_MODE,
+      walletMode: GUARDRAIL_WALLET_MODE,
       status: "created",
       walletConfig,
       policy: payload.policy,
@@ -138,12 +138,12 @@ function buildNextSteps(
     walletAddressStatus: "owner_bound" as const,
     humanActionUrl: provisioningUrl,
     humanAction:
-      "Ask the human to open the provisioning URL and create the passkey owner for the Conduit Wallet.",
-    walletAddressCommand: `conduit-wallet status ${walletId} --backend-url ${backendUrl}`,
-    statusCommand: `conduit-wallet status ${walletId} --backend-url ${backendUrl}`,
-    awaitCommand: `conduit-wallet await ${walletId} --backend-url ${backendUrl}`,
+      "Ask the human to open the provisioning URL and create the owner passkey for Guardrail.",
+    walletAddressCommand: `guardrail status ${walletId} --backend-url ${backendUrl}`,
+    statusCommand: `guardrail status ${walletId} --backend-url ${backendUrl}`,
+    awaitCommand: `guardrail await ${walletId} --backend-url ${backendUrl}`,
     guidance: [
-      "Ask the human to open the provisioning URL and create the Conduit Wallet passkey owner.",
+      "Ask the human to open the provisioning URL and create the owner passkey for Guardrail.",
       "Wait for the wallet address to appear once the passkey owner is bound.",
       "Fund the wallet on the target chain so the backend can mark it ready.",
       "Continue waiting until the request reaches ready before sending runtime operations.",
@@ -808,9 +808,9 @@ export function registerRoutes(
       });
 
       if (!signingResult.ok) {
-        return reply.status(signingResult.reply.statusCode).send(
-          signingResult.reply.body,
-        );
+        return reply
+          .status(signingResult.reply.statusCode)
+          .send(signingResult.reply.body);
       }
 
       logInfo(
@@ -931,9 +931,9 @@ export function registerRoutes(
       });
 
       if (!signingResult.ok) {
-        return reply.status(signingResult.reply.statusCode).send(
-          signingResult.reply.body,
-        );
+        return reply
+          .status(signingResult.reply.statusCode)
+          .send(signingResult.reply.body);
       }
 
       logInfo(
@@ -1042,9 +1042,9 @@ export function registerRoutes(
       });
 
       if (!signingResult.ok) {
-        return reply.status(signingResult.reply.statusCode).send(
-          signingResult.reply.body,
-        );
+        return reply
+          .status(signingResult.reply.statusCode)
+          .send(signingResult.reply.body);
       }
 
       logInfo(

@@ -1,4 +1,4 @@
-import type { FundingState } from "@conduit/shared";
+import type { FundingState } from "@guardlabs/guardrail-core";
 
 export function compareWei(left: string, right: string) {
   const leftWei = BigInt(left);

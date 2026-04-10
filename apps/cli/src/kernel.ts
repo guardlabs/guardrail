@@ -3,8 +3,8 @@ import {
   getSupportedChainById,
   type LocalWalletRequest,
   type WalletRequest,
-} from "@conduit/shared";
-import { createWeightedKernelRuntime } from "@conduit/zerodev";
+} from "@guardlabs/guardrail-core";
+import { createWeightedKernelRuntime } from "@guardlabs/guardrail-kernel";
 import type { Chain, Hex, TypedData, TypedDataDefinition } from "viem";
 
 function getChain(chainId: number): Chain {

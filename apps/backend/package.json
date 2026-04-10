@@ -1,5 +1,5 @@
 {
-  "name": "@conduit/backend",
+  "name": "@guardlabs/guardrail-backend",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -13,7 +13,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@conduit/shared": "workspace:*",
+    "@guardlabs/guardrail-core": "workspace:*",
     "@fastify/cors": "^10.0.1",
     "dotenv": "^16.6.1",
     "drizzle-orm": "^0.43.1",

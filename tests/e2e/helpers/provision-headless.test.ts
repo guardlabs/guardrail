@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  PROJECT_WALLET_MODE,
+  GUARDRAIL_WALLET_MODE,
   buildDefaultWalletConfig,
   type ResolveProvisioningResponse,
   type WalletRequest,
-} from "@conduit/shared";
+} from "@guardlabs/guardrail-core";
 import { createHeadlessWebAuthnKey } from "../fixtures/headless-owner.js";
 import { publishHeadlessOwnerArtifacts } from "./provision-headless.js";
 
@@ -27,7 +27,7 @@ function buildProvisioningResponse(): ResolveProvisioningResponse {
   });
 
   return {
-    walletMode: PROJECT_WALLET_MODE,
+    walletMode: GUARDRAIL_WALLET_MODE,
     walletId: "wal_test",
     status: "created",
     walletConfig,

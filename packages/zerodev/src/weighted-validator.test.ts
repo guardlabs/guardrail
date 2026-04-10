@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { buildDefaultWalletConfig } from "@conduit/shared";
+import { buildDefaultWalletConfig } from "@guardlabs/guardrail-core";
 import {
   createKernelAccount,
   toKernelPluginManager,

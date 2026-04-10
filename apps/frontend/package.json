@@ -1,5 +1,5 @@
 {
-  "name": "@conduit/frontend",
+  "name": "@guardlabs/guardrail-frontend",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -11,8 +11,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@conduit/shared": "workspace:*",
-    "@conduit/zerodev": "workspace:*",
+    "@guardlabs/guardrail-core": "workspace:*",
+    "@guardlabs/guardrail-kernel": "workspace:*",
     "@zerodev/permissions": "5.6.3",
     "@zerodev/webauthn-key": "^5.4.2",
     "react": "^19.0.0",

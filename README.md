@@ -1,7 +1,7 @@
-<h1 align="center">Conduit Wallet</h1>
+<h1 align="center">Guardrail</h1>
 
 <p align="center">
-  Secure wallet rails for autonomous agents.
+  Wallet guardrails for agents.
 </p>
 
 <p align="center">
@@ -12,22 +12,22 @@
 
 ## Overview
 
-Conduit Wallet is an EVM wallet flow for autonomous agents that avoids shipping a long-lived hot private key.
+Guardrail is the Guard Labs product for giving agents wallet access without shipping a long-lived hot private key.
 
-The human stays the owner through a passkey. The agent can still act autonomously, but only on the runtime path that Conduit is willing to co-sign under the wallet policy.
+The human stays the owner through a passkey. The agent can still act autonomously, but only on the runtime path that Guardrail is willing to co-sign under the wallet policy.
 
-The hosted frontend serves both as the public homepage and the provisioning surface. The official hosted frontend is pinned to the official backend. If you deploy your own backend, deploy your own frontend with it.
+The hosted frontend at `https://guardlabs.ai` serves both as the public homepage and the provisioning surface. The official hosted frontend is pinned to the official backend. If you deploy your own backend, deploy your own frontend with it.
 
 ## Quickstart
 
-> These commands use the final npm package name. Hosted URLs are still placeholders until the public deployment is finalized.
+> These commands use the published package name and the official Guard Labs domain shape.
 
 Create a wallet request with an official USDC budget limited to `$10` per trailing 24 hours.
 
 The example below uses Base Sepolia for safe testing. The same flow also supports Base Mainnet with `--chain-id 8453` once production endpoints are configured:
 
 ```bash
-npx @conduit-wallet/cli create \
+npx @guardlabs/guardrail-cli create \
   --chain-id 84532 \
   --usdc-period daily \
   --usdc-max 10 \
@@ -44,25 +44,25 @@ This returns:
 Share the provisioning URL with the human:
 
 ```text
-https://app.example.com/?walletId=wal_xxx&token=token_xxx
+https://guardlabs.ai/?walletId=wal_xxx&token=token_xxx
 ```
 
 Wait for readiness:
 
 ```bash
-npx @conduit-wallet/cli await wal_xxx
+npx @guardlabs/guardrail-cli await wal_xxx
 ```
 
 Use the ready wallet:
 
 ```bash
-npx @conduit-wallet/cli call wal_xxx \
+npx @guardlabs/guardrail-cli call wal_xxx \
   --to 0x1111111111111111111111111111111111111111 \
   --data 0xa9059cbb \
   --value-wei 0
 ```
 
-In this example, Conduit counts the authorized USDC amount for official USDC `transfer`, `approve`, `increaseAllowance`, `Permit`, and `TransferWithAuthorization`. A `4` USDC transfer plus a `6` USDC permit fills the budget. Another `1` USDC action is denied until enough prior usage falls out of the trailing 24-hour window.
+In this example, Guardrail counts the authorized USDC amount for official USDC `transfer`, `approve`, `increaseAllowance`, `Permit`, and `TransferWithAuthorization`. A `4` USDC transfer plus a `6` USDC permit fills the budget. Another `1` USDC action is denied until enough prior usage falls out of the trailing 24-hour window.
 
 ## Documentation
 
@@ -79,7 +79,7 @@ Detailed documentation lives under [`docs/`](docs/README.md):
 
 ## Supported Chains
 
-Conduit Wallet currently supports two chains:
+Guardrail currently supports two chains:
 
 | Chain        | Chain ID | Status    |
 | ------------ | -------- | --------- |
@@ -112,7 +112,7 @@ Useful local URLs:
 
 For the full local flow, required environment variables, and testing commands, see [Local development](docs/local-development.md).
 
-Before starting the backend, fill the per-chain RPC and bundler variables in `.env.local`. The backend only requires URLs for chains listed in `CONDUIT_SUPPORTED_CHAIN_IDS`, and it fails fast if any enabled chain is missing its runtime URLs.
+Before starting the backend, fill the per-chain RPC and bundler variables in `.env.local`. The backend only requires URLs for chains listed in `GUARDRAIL_SUPPORTED_CHAIN_IDS`, and it fails fast if any enabled chain is missing its runtime URLs.
 
 Coverage across the workspace test suites is available with:
 
@@ -133,17 +133,18 @@ pnpm check
 ## Repository Layout
 
 - `apps/backend`: Fastify backend, wallet lifecycle, runtime policy enforcement, backend signing
-- `apps/frontend`: public homepage and provisioning UI for passkey setup
+- `apps/frontend`: public Guard Labs homepage and Guardrail provisioning UI
 - `apps/cli`: CLI used by the agent to create, await, and use wallets
-- `packages/shared`: shared contracts, schemas, chain metadata, and wallet config helpers
-- `packages/zerodev`: ZeroDev and Kernel runtime helpers
+- `packages/shared`: shared contracts, schemas, chain metadata, and Guardrail config helpers
+- `packages/zerodev`: Kernel and ZeroDev runtime helpers used by Guardrail
 
 ## Status
 
 This repository is still pre-deployment:
 
-- the hosted URLs in examples are placeholders
-- the CLI package name is `@conduit-wallet/cli`
+- the CLI package name is `@guardlabs/guardrail-cli`
+- the official hosted frontend domain is `https://guardlabs.ai`
+- the intended official backend domain is `https://api.guardlabs.ai`
 - Base and Base Sepolia are supported
 - runtime policy is intentionally narrow and deny-by-default on the agent runtime path
 
@@ -158,5 +159,5 @@ This repository is still pre-deployment:
 - the human passkey is the durable owner path
 - the local agent key alone is not enough to use the runtime path
 - the backend signer key alone is not enough to use the runtime path
-- the `agent + backend` runtime path is where Conduit enforces policy
+- the `agent + backend` runtime path is where Guardrail enforces policy
 - the backend operator is trusted for policy enforcement and service availability

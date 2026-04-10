@@ -3,11 +3,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  PROJECT_WALLET_MODE,
+  GUARDRAIL_WALLET_MODE,
   buildDefaultWalletConfig,
   getSupportedChainById,
   x402PaymentPayloadSchema,
-} from "@conduit/shared";
+} from "@guardlabs/guardrail-core";
 import {
   hydrateReadyWalletRequest,
   callReadyWalletTransaction,
@@ -51,12 +51,12 @@ describe("cli commands mode B", () => {
   let tempStoreDirectory = "";
 
   beforeEach(async () => {
-    tempStoreDirectory = await mkdtemp(join(tmpdir(), "conduit-wallet-cli-"));
-    process.env.CONDUIT_LOCAL_STORE_DIR = tempStoreDirectory;
+    tempStoreDirectory = await mkdtemp(join(tmpdir(), "guardrail-cli-"));
+    process.env.GUARDRAIL_LOCAL_STORE_DIR = tempStoreDirectory;
   });
 
   afterEach(() => {
-    delete process.env.CONDUIT_LOCAL_STORE_DIR;
+    delete process.env.GUARDRAIL_LOCAL_STORE_DIR;
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -100,7 +100,7 @@ describe("cli commands mode B", () => {
       return {
         ok: true,
         json: async () => ({
-          walletMode: PROJECT_WALLET_MODE,
+          walletMode: GUARDRAIL_WALLET_MODE,
           walletId: "wal_123",
           status: "created",
           agentAddress: requestBody.agentAddress,
@@ -110,24 +110,22 @@ describe("cli commands mode B", () => {
           deployment: {
             status: "undeployed",
           },
-          provisioningUrl:
-            "http://127.0.0.1:5173/?walletId=wal_123&token=abc",
+          provisioningUrl: "http://127.0.0.1:5173/?walletId=wal_123&token=abc",
           expiresAt: "2026-03-30T12:00:00.000Z",
           nextSteps: {
             recommendedPollIntervalMs: 5000,
             walletAddressStatus: "owner_bound",
-            humanActionUrl:
-              "http://127.0.0.1:5173/?walletId=wal_123&token=abc",
+            humanActionUrl: "http://127.0.0.1:5173/?walletId=wal_123&token=abc",
             humanAction:
-              "Ask the human to open the provisioning URL and create the passkey owner for the Conduit Wallet.",
+              "Ask the human to open the provisioning URL and create the owner passkey for Guardrail.",
             walletAddressCommand:
-              "conduit-wallet status wal_123 --backend-url http://127.0.0.1:3000",
+              "guardrail status wal_123 --backend-url http://127.0.0.1:3000",
             statusCommand:
-              "conduit-wallet status wal_123 --backend-url http://127.0.0.1:3000",
+              "guardrail status wal_123 --backend-url http://127.0.0.1:3000",
             awaitCommand:
-              "conduit-wallet await wal_123 --backend-url http://127.0.0.1:3000",
+              "guardrail await wal_123 --backend-url http://127.0.0.1:3000",
             guidance: [
-              "Ask the human to open the provisioning URL and create the Conduit Wallet passkey owner.",
+              "Ask the human to open the provisioning URL and create the owner passkey for Guardrail.",
               "Wait for the wallet address to appear once the owner is bound.",
               "Fund the wallet on the target chain.",
               "Continue waiting until the request reaches ready.",
@@ -156,7 +154,7 @@ describe("cli commands mode B", () => {
     expect(result.walletConfig.regularValidator.threshold).toBe(2);
 
     const persistedRequest = await readLocalWalletRequest("wal_123");
-    expect(persistedRequest.walletMode).toBe(PROJECT_WALLET_MODE);
+    expect(persistedRequest.walletMode).toBe(GUARDRAIL_WALLET_MODE);
     expect(persistedRequest.agentAddress).toBe(result.agentAddress);
     expect(persistedRequest.backendAddress).toBe(
       "0x1111111111111111111111111111111111111111",
@@ -169,7 +167,7 @@ describe("cli commands mode B", () => {
     expect(
       JSON.parse(String((createInit as RequestInit | undefined)?.body)),
     ).toMatchObject({
-      walletMode: PROJECT_WALLET_MODE,
+      walletMode: GUARDRAIL_WALLET_MODE,
       chainId: 84532,
       agentAddress: result.agentAddress,
       policy: expectedPolicy,
@@ -213,7 +211,7 @@ describe("cli commands mode B", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
-          walletMode: PROJECT_WALLET_MODE,
+          walletMode: GUARDRAIL_WALLET_MODE,
           walletId: "wal_123",
           status: "created",
           walletConfig,
@@ -241,7 +239,7 @@ describe("cli commands mode B", () => {
 
     expect(result.walletId).toBe("wal_123");
     expect(result.status).toBe("created");
-    expect(result.walletMode).toBe(PROJECT_WALLET_MODE);
+    expect(result.walletMode).toBe(GUARDRAIL_WALLET_MODE);
   });
 
   it("waits until the backend returns a ready weighted wallet and persists the wallet address", async () => {
@@ -251,7 +249,7 @@ describe("cli commands mode B", () => {
       backendAddress: "0x1111111111111111111111111111111111111111",
     });
     await saveLocalWalletRequest({
-      walletMode: PROJECT_WALLET_MODE,
+      walletMode: GUARDRAIL_WALLET_MODE,
       walletId: "wal_123",
       backendBaseUrl: "http://127.0.0.1:3000",
       provisioningUrl: "http://127.0.0.1:5173/?walletId=wal_123&token=abc",
@@ -274,7 +272,7 @@ describe("cli commands mode B", () => {
       vi.fn().mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          walletMode: PROJECT_WALLET_MODE,
+          walletMode: GUARDRAIL_WALLET_MODE,
           walletId: "wal_123",
           status: "ready",
           walletConfig,
@@ -345,7 +343,7 @@ describe("cli commands mode B", () => {
       backendAddress: "0x1111111111111111111111111111111111111111",
     });
     await saveLocalWalletRequest({
-      walletMode: PROJECT_WALLET_MODE,
+      walletMode: GUARDRAIL_WALLET_MODE,
       walletId: "wal_123",
       backendBaseUrl: "http://127.0.0.1:3000",
       provisioningUrl: "http://127.0.0.1:5173/?walletId=wal_123&token=abc",
@@ -372,7 +370,7 @@ describe("cli commands mode B", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
-          walletMode: PROJECT_WALLET_MODE,
+          walletMode: GUARDRAIL_WALLET_MODE,
           walletId: "wal_123",
           status: "ready",
           walletConfig,
@@ -446,7 +444,7 @@ describe("cli commands mode B", () => {
       backendAddress: "0x1111111111111111111111111111111111111111",
     });
     await saveLocalWalletRequest({
-      walletMode: PROJECT_WALLET_MODE,
+      walletMode: GUARDRAIL_WALLET_MODE,
       walletId: "wal_123",
       backendBaseUrl: "http://127.0.0.1:3000",
       provisioningUrl: "http://127.0.0.1:5173/?walletId=wal_123&token=abc",
@@ -479,7 +477,7 @@ describe("cli commands mode B", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
-          walletMode: PROJECT_WALLET_MODE,
+          walletMode: GUARDRAIL_WALLET_MODE,
           walletId: "wal_123",
           status: "ready",
           walletConfig,
@@ -595,7 +593,7 @@ describe("cli commands mode B", () => {
       backendAddress: "0x1111111111111111111111111111111111111111",
     });
     await saveLocalWalletRequest({
-      walletMode: PROJECT_WALLET_MODE,
+      walletMode: GUARDRAIL_WALLET_MODE,
       walletId: "wal_123",
       backendBaseUrl: "http://127.0.0.1:3000",
       provisioningUrl: "http://127.0.0.1:5173/?walletId=wal_123&token=abc",
@@ -636,7 +634,7 @@ describe("cli commands mode B", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
-          walletMode: PROJECT_WALLET_MODE,
+          walletMode: GUARDRAIL_WALLET_MODE,
           walletId: "wal_123",
           status: "ready",
           walletConfig,
@@ -734,7 +732,7 @@ describe("cli commands mode B", () => {
       backendAddress: "0x1111111111111111111111111111111111111111",
     });
     await saveLocalWalletRequest({
-      walletMode: PROJECT_WALLET_MODE,
+      walletMode: GUARDRAIL_WALLET_MODE,
       walletId: "wal_123",
       backendBaseUrl: "http://127.0.0.1:3000",
       provisioningUrl: "http://127.0.0.1:5173/?walletId=wal_123&token=abc",
@@ -767,7 +765,7 @@ describe("cli commands mode B", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
-          walletMode: PROJECT_WALLET_MODE,
+          walletMode: GUARDRAIL_WALLET_MODE,
           walletId: "wal_123",
           status: "ready",
           walletConfig,

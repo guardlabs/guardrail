@@ -1,7 +1,9 @@
-import { PROJECT_DEFAULT_BACKEND_URL } from "@conduit/shared";
+import { GUARDRAIL_DEFAULT_BACKEND_URL } from "@guardlabs/guardrail-core";
 
 export function resolveBackendUrl(override?: string) {
   return (
-    override ?? process.env.CONDUIT_BACKEND_URL ?? PROJECT_DEFAULT_BACKEND_URL
+    override ??
+    process.env.GUARDRAIL_BACKEND_URL ??
+    GUARDRAIL_DEFAULT_BACKEND_URL
   );
 }

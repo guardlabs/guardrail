@@ -3,7 +3,7 @@ import {
   type OwnerPublicArtifacts,
   type RegularValidatorInitArtifact,
   type WalletConfig,
-} from "@conduit/shared";
+} from "@guardlabs/guardrail-core";
 import {
   createKernelAccount,
   toKernelPluginManager,

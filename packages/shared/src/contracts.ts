@@ -2,15 +2,15 @@ import { keccak256, toBytes } from "viem";
 import { z } from "zod";
 import { getSupportedChainById } from "./chains.js";
 
-export const PROJECT_DEFAULT_BACKEND_URL = "http://127.0.0.1:3000";
-export const PROJECT_DEFAULT_FRONTEND_URL = "http://127.0.0.1:5173";
-export const PROJECT_WALLET_MODE = "kernel_weighted_multisig_v1" as const;
-export const PROJECT_KERNEL_VERSION = "3.1" as const;
-export const PROJECT_ENTRY_POINT_VERSION = "0.7" as const;
-export const PROJECT_PASSKEY_VALIDATOR_ADDRESS =
+export const GUARDRAIL_DEFAULT_BACKEND_URL = "http://127.0.0.1:3000";
+export const GUARDRAIL_DEFAULT_FRONTEND_URL = "http://127.0.0.1:5173";
+export const GUARDRAIL_WALLET_MODE = "kernel_weighted_multisig_v1" as const;
+export const GUARDRAIL_KERNEL_VERSION = "3.1" as const;
+export const GUARDRAIL_ENTRY_POINT_VERSION = "0.7" as const;
+export const GUARDRAIL_PASSKEY_VALIDATOR_ADDRESS =
   "0xbA45a2BFb8De3D24cA9D7F1B551E14dFF5d690Fd" as const;
 
-export const walletModeSchema = z.literal(PROJECT_WALLET_MODE);
+export const walletModeSchema = z.literal(GUARDRAIL_WALLET_MODE);
 
 export const walletRequestStatusSchema = z.enum([
   "created",
@@ -37,8 +37,8 @@ export const evmAddressSchema = z
   .string()
   .regex(/^0x[a-fA-F0-9]{40}$/, "Expected a 20-byte EVM address");
 
-export const kernelVersionSchema = z.literal(PROJECT_KERNEL_VERSION);
-export const entryPointVersionSchema = z.literal(PROJECT_ENTRY_POINT_VERSION);
+export const kernelVersionSchema = z.literal(GUARDRAIL_KERNEL_VERSION);
+export const entryPointVersionSchema = z.literal(GUARDRAIL_ENTRY_POINT_VERSION);
 
 export const weightedSignerRoleSchema = z.enum(["agent", "backend"]);
 
@@ -564,13 +564,13 @@ export function buildDefaultWalletConfig(input: {
   backendAddress: string;
 }) {
   return walletConfigSchema.parse({
-    walletMode: PROJECT_WALLET_MODE,
+    walletMode: GUARDRAIL_WALLET_MODE,
     chainId: input.chainId,
-    kernelVersion: PROJECT_KERNEL_VERSION,
-    entryPointVersion: PROJECT_ENTRY_POINT_VERSION,
+    kernelVersion: GUARDRAIL_KERNEL_VERSION,
+    entryPointVersion: GUARDRAIL_ENTRY_POINT_VERSION,
     sudoValidator: {
       type: "passkey",
-      address: PROJECT_PASSKEY_VALIDATOR_ADDRESS,
+      address: GUARDRAIL_PASSKEY_VALIDATOR_ADDRESS,
     },
     regularValidator: {
       type: "weighted-ecdsa",
@@ -652,7 +652,7 @@ export function getBackendSignerAuthorizationTypedData(
 ) {
   return {
     domain: {
-      name: "Conduit Wallet Backend Signer",
+      name: "Guardrail Backend Signer",
       version: "1",
     },
     primaryType: "BackendSignerAuthorization" as const,

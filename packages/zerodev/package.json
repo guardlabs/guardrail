@@ -1,5 +1,5 @@
 {
-  "name": "@conduit/zerodev",
+  "name": "@guardlabs/guardrail-kernel",
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
@@ -17,7 +17,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@conduit/shared": "workspace:*",
+    "@guardlabs/guardrail-core": "workspace:*",
     "@zerodev/passkey-validator": "5.6.0",
     "@zerodev/sdk": "5.5.8",
     "@zerodev/webauthn-key": "^5.4.2",

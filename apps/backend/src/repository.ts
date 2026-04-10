@@ -4,7 +4,7 @@ import type {
   RegularValidatorInitArtifact,
   WalletContext,
   WalletRequest,
-} from "@conduit/shared";
+} from "@guardlabs/guardrail-core";
 
 export type RuntimePolicyState = {
   usdc: {
@@ -64,8 +64,7 @@ export type WalletRequestRepository = {
     consumption?: RuntimePolicyConsumption;
     handler: () => Promise<T>;
   }): Promise<
-    | { status: "ok"; result: T }
-    | { status: "duplicate" | "not_found" }
+    { status: "ok"; result: T } | { status: "duplicate" | "not_found" }
   >;
   updateRuntimePolicyState(input: {
     walletId: string;

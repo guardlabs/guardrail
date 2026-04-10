@@ -10,7 +10,7 @@ import {
   type BackendTypedDataSignaturePayload,
   type BackendSignerTypedDataPayload,
   type BackendUserOperationSignaturePayload,
-} from "@conduit/shared";
+} from "@guardlabs/guardrail-core";
 import type {
   Address,
   Hex,
