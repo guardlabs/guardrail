@@ -76,45 +76,28 @@ Default rule:
 - do not pass `--backend-url` unless you were told you earlier in the conversation not to use the official hosted backend,
 - otherwise use the hosted default and omit the parameter entirely.
 
-## Environment Checks
+## How To Start The Conversation
 
-Before creating a wallet, check these conditions.
+At the beginning of the setup, ask only for the information that is actually needed to create the wallet request.
 
-### 1. Run On The User's Real Machine
+If any of these were not already specified earlier, ask the human for:
 
-Guardrail stores local wallet state on disk, including the local agent key.
+- the target chain,
+- the desired wallet policy.
 
-If your shell is running in an ephemeral remote sandbox rather than on the user's real machine:
+Do not ask the human to confirm in advance that they are on their machine, have a browser, have a passkey, or have funds ready for gas.
 
-- do not create the wallet there unless the user explicitly wants a temporary setup,
-- explain that the local wallet state and agent key need to live on the real machine,
-- then move the setup to the user's machine or stop.
+Instead, once the chain and policy are clear, explain the flow briefly (be assertive):
 
-### 2. Confirm Browser And Passkey Access
-
-Provisioning requires a browser flow and a WebAuthn / passkey prompt.
-
-The passkey creation step must always be completed by the human owner.
-
-Do not create the passkey yourself.
-Do not attempt to automate the owner approval step.
-
-Instead:
-
-- provide the provisioning URL to the user,
-- tell the user to complete the passkey creation themselves,
-- wait until the passkey step is complete,
-- then continue with funding and readiness checks.
-
-### 3. Choose The Right Chain
+- you will create the wallet request,
+- then you will send them a provisioning link,
+- they will need to open it themselves and secure the wallet with a passkey, effectively becoming owner of the wallet,
+- after that they will need to fund the wallet with the native gas token,
+- then you will wait for the wallet to become ready.
 
 Do not choose a default chain yourself.
 
-If the chain was explicitly specified earlier, use that exact chain.
-
-If the chain was not specified, ask the human which supported chain to use before creating the wallet.
-
-Get the currently supported chains from the live CLI help you just checked, and present those exact supported choices to the human.
+If the chain was not specified, get the currently supported chains from the live CLI help you just checked, and present those exact supported choices to the human.
 
 ## Backend Pairing Rule
 
@@ -152,6 +135,12 @@ You must get the missing policy details from the human first, including whicheve
 - what USDC budget window and limit should apply.
 
 Do not create the wallet until that policy has been made explicit.
+
+While discussing the policy, explain that after the wallet request is created:
+
+- the human will receive a provisioning link,
+- the human must complete the passkey step themselves,
+- the human will then need to fund the wallet with the native gas token on the chosen chain.
 
 Common policy patterns to discuss with the human:
 
