@@ -8,6 +8,12 @@ Published package: `@guardlabs/guardrail-cli`
 
 Installed binary: `guardrail`
 
+Default backend: `https://api.guardlabs.ai`
+
+Use `--backend-url` only when you want to target a local or self-hosted backend.
+
+Examples in this guide omit `--backend-url` for the hosted path and only add it back when illustrating local development or custom deployments.
+
 ## Main Commands
 
 Create a wallet request:

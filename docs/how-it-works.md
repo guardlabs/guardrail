@@ -24,6 +24,8 @@ The backend signer is still signing material, but in this model it is not meant 
 4. Once the wallet is ready, the agent can trigger actions autonomously.
 5. Each runtime action still requires backend approval under the configured policy.
 
+On the hosted path, the CLI talks to `https://api.guardlabs.ai` by default. `--backend-url` is only needed for local or self-hosted backends.
+
 ## Technical Shape
 
 Guardrail currently builds on [Kernel](https://github.com/zerodevapp/kernel), the modular ERC-4337 smart account, and uses [ZeroDev](https://zerodev.app/) plus the [ZeroDev SDK](https://docs.zerodev.app/).

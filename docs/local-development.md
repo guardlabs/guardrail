@@ -56,6 +56,8 @@ Useful local URLs:
 - frontend: `http://localhost:5173`
 - backend: `http://localhost:3000`
 
+For local development, override the hosted CLI default by passing `--backend-url http://localhost:3000` or by setting `GUARDRAIL_BACKEND_URL=http://localhost:3000`.
+
 Run apps individually if needed:
 
 ```bash

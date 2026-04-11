@@ -4,6 +4,25 @@
 
 Keep the root `README.md`, the Markdown docs under `docs/`, and the frontend homepage accurate whenever the repository changes in a way that affects external understanding or day-to-day developer usage.
 
+Keep `docs/product.md` accurate as the concrete description of what Guardrail currently does as a product. Update it whenever changes affect:
+
+- the product boundary or service we provide,
+- the human / agent / backend responsibility split,
+- the wallet lifecycle or provisioning flow,
+- the runtime policy surface,
+- the trust model,
+- the primary supported use cases,
+- what is intentionally out of scope in the current product shape.
+
+Keep `apps/frontend/public/skill.md` accurate as the public agent-readable onboarding skill for Guardrail. Update it whenever changes affect:
+
+- how an agent should create a wallet request,
+- which chains or backend pairing rules are supported,
+- how provisioning and passkey setup work,
+- how funding and readiness checks work,
+- required CLI commands, flags, or environment variables,
+- any gotchas or limitations that would cause an agent following the skill to fail.
+
 Update the `README.md`, the relevant files in `docs/`, and the frontend homepage when you change:
 
 - the purpose or positioning of the project,

@@ -19,6 +19,11 @@ guardrail --help
 
 The installed command name is `guardrail`.
 
+By default, the CLI targets the hosted Guard Labs backend at `https://api.guardlabs.ai`.
+Use `--backend-url` only when you want to target a local or self-hosted backend.
+
+Examples in this README omit `--backend-url` for the hosted path. Add it back only for custom deployments.
+
 ## Quickstart
 
 Create a wallet request with an official USDC budget limited to `$10` per trailing 24 hours:

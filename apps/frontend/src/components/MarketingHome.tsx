@@ -32,6 +32,9 @@ export function MarketingHome() {
             >
               Docs
             </a>
+            <a className="cw-secondary-button" href="/skill.md">
+              Agent Skill
+            </a>
             <a
               className="cw-secondary-button"
               href="https://github.com/guardlabs/guardrail"
@@ -54,8 +57,9 @@ export function MarketingHome() {
             Run the CLI with <code>npx @guardlabs/guardrail-cli ...</code>. The
             official hosted frontend lives at <code>guardlabs.ai</code>. Start
             with the GitHub docs for installation, policy examples, the CLI
-            flow, and the hosted deployment model. If you self-host the backend,
-            self-host the frontend too.
+            flow, and the hosted deployment model. Agents can also fetch the
+            public onboarding skill at <code>/skill.md</code>. If you self-host
+            the backend, self-host the frontend too.
           </p>
         </div>
       </div>

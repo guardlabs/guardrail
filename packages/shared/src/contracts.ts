@@ -2,7 +2,7 @@ import { keccak256, toBytes } from "viem";
 import { z } from "zod";
 import { getSupportedChainById } from "./chains.js";
 
-export const GUARDRAIL_DEFAULT_BACKEND_URL = "http://127.0.0.1:3000";
+export const GUARDRAIL_DEFAULT_BACKEND_URL = "https://api.guardlabs.ai";
 export const GUARDRAIL_DEFAULT_FRONTEND_URL = "http://127.0.0.1:5173";
 export const GUARDRAIL_WALLET_MODE = "kernel_weighted_multisig_v1" as const;
 export const GUARDRAIL_KERNEL_VERSION = "3.1" as const;

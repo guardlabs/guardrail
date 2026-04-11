@@ -18,6 +18,10 @@ The human stays the owner through a passkey. The agent can still act autonomousl
 
 The hosted frontend at `https://guardlabs.ai` serves both as the public homepage and the provisioning surface. The official hosted frontend is pinned to the official backend. If you deploy your own backend, deploy your own frontend with it.
 
+The hosted frontend also publishes a public agent-readable onboarding skill at `https://guardlabs.ai/skill.md`.
+
+The CLI defaults to the hosted backend at `https://api.guardlabs.ai`. Pass `--backend-url` only when you want to target a local or self-hosted backend.
+
 ## Quickstart
 
 > These commands use the published package name and the official Guard Labs domain shape.
@@ -69,6 +73,7 @@ In this example, Guardrail counts the authorized USDC amount for official USDC `
 Detailed documentation lives under [`docs/`](docs/README.md):
 
 - [Documentation index](docs/README.md)
+- [What the product does](docs/product.md)
 - [Quickstart](docs/quickstart.md)
 - [Runtime policy](docs/runtime-policy.md)
 - [Use cases](docs/use-cases.md)
@@ -76,6 +81,10 @@ Detailed documentation lives under [`docs/`](docs/README.md):
 - [How it works](docs/how-it-works.md)
 - [CLI reference](docs/cli.md)
 - [Local development](docs/local-development.md)
+
+Public agent skill:
+
+- [Hosted `skill.md`](https://guardlabs.ai/skill.md)
 
 ## Supported Chains
 

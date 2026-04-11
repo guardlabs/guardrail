@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
+  GUARDRAIL_DEFAULT_BACKEND_URL,
   GUARDRAIL_WALLET_MODE,
   backendDeployWalletRequestSchema,
   backendSignResponseSchema,
@@ -133,15 +134,20 @@ function buildNextSteps(
   backendUrl: string,
   provisioningUrl: string,
 ) {
+  const backendFlag =
+    backendUrl.replace(/\/+$/, "") === GUARDRAIL_DEFAULT_BACKEND_URL
+      ? ""
+      : ` --backend-url ${backendUrl}`;
+
   return {
     recommendedPollIntervalMs: 5000,
     walletAddressStatus: "owner_bound" as const,
     humanActionUrl: provisioningUrl,
     humanAction:
       "Ask the human to open the provisioning URL and create the owner passkey for Guardrail.",
-    walletAddressCommand: `guardrail status ${walletId} --backend-url ${backendUrl}`,
-    statusCommand: `guardrail status ${walletId} --backend-url ${backendUrl}`,
-    awaitCommand: `guardrail await ${walletId} --backend-url ${backendUrl}`,
+    walletAddressCommand: `guardrail status ${walletId}${backendFlag}`,
+    statusCommand: `guardrail status ${walletId}${backendFlag}`,
+    awaitCommand: `guardrail await ${walletId}${backendFlag}`,
     guidance: [
       "Ask the human to open the provisioning URL and create the owner passkey for Guardrail.",
       "Wait for the wallet address to appear once the passkey owner is bound.",

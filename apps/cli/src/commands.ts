@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import type { Command } from "commander";
 import {
+  GUARDRAIL_DEFAULT_BACKEND_URL,
   GUARDRAIL_WALLET_MODE,
   bytes4HexSchema,
   bytes32HexSchema,
@@ -60,15 +61,20 @@ function buildNextSteps(
   backendUrl: string,
   provisioningUrl: string,
 ) {
+  const backendFlag =
+    backendUrl.replace(/\/+$/, "") === GUARDRAIL_DEFAULT_BACKEND_URL
+      ? ""
+      : ` --backend-url ${backendUrl}`;
+
   return {
     recommendedPollIntervalMs: DEFAULT_AWAIT_INTERVAL_MS,
     walletAddressStatus: "owner_bound" as const,
     humanActionUrl: provisioningUrl,
     humanAction:
       "Ask the human to open the provisioning URL and create the owner passkey for Guardrail.",
-    walletAddressCommand: `guardrail status ${walletId} --backend-url ${backendUrl}`,
-    statusCommand: `guardrail status ${walletId} --backend-url ${backendUrl}`,
-    awaitCommand: `guardrail await ${walletId} --backend-url ${backendUrl}`,
+    walletAddressCommand: `guardrail status ${walletId}${backendFlag}`,
+    statusCommand: `guardrail status ${walletId}${backendFlag}`,
+    awaitCommand: `guardrail await ${walletId}${backendFlag}`,
     guidance: [
       "Ask the human to open the provisioning URL and create the owner passkey for Guardrail.",
       "Wait for the wallet address to appear once the owner is bound.",

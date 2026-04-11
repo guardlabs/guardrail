@@ -2,7 +2,10 @@
 import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { Command, Option } from "commander";
-import { supportedChains } from "@guardlabs/guardrail-core";
+import {
+  GUARDRAIL_DEFAULT_BACKEND_URL,
+  supportedChains,
+} from "@guardlabs/guardrail-core";
 import {
   registerAwaitCommand,
   registerCallCommand,
@@ -20,7 +23,7 @@ function addBackendOption(command: Command) {
   command.addOption(
     new Option(
       "--backend-url <url>",
-      "override the default orchestrator backend URL",
+      `override the default orchestrator backend URL (default: ${GUARDRAIL_DEFAULT_BACKEND_URL})`,
     ),
   );
 }
@@ -74,7 +77,7 @@ export function buildProgram() {
       "after",
       `
 Example:
-  guardrail create --chain-id 84532 --allow-call 0x1111111111111111111111111111111111111111:transfer(address,uint256) --backend-url http://127.0.0.1:3000
+  guardrail create --chain-id 84532 --allow-call 0x1111111111111111111111111111111111111111:transfer(address,uint256)
       `.trimEnd(),
     );
   addBackendOption(createCommand);
@@ -88,7 +91,7 @@ Example:
       "after",
       `
 Example:
-  guardrail status wal_123 --backend-url http://127.0.0.1:3000
+  guardrail status wal_123
       `.trimEnd(),
     );
   addBackendOption(statusCommand);
@@ -103,7 +106,7 @@ Example:
       "after",
       `
 Example:
-  guardrail await wal_123 --interval-ms 3000 --backend-url http://127.0.0.1:3000
+  guardrail await wal_123 --interval-ms 3000
       `.trimEnd(),
     );
   addBackendOption(awaitCommand);

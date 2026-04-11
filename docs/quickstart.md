@@ -6,6 +6,8 @@ These examples use the published package name and the official Guard Labs domain
 
 The official hosted frontend is paired with the official backend. If you deploy your own backend, deploy your own frontend too.
 
+The CLI defaults to the hosted backend at `https://api.guardlabs.ai`, so the examples below do not pass `--backend-url`. Add `--backend-url <your-backend>` only when you want to target a local or self-hosted deployment.
+
 The examples below use Base Sepolia (`84532`) for safe testing. Base Mainnet (`8453`) is also supported by the same flow once production endpoints are configured.
 
 ## 1. Create A Wallet Request
