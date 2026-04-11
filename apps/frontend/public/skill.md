@@ -85,6 +85,22 @@ If any of these were not already specified earlier, ask the human for:
 - the target chain,
 - the desired wallet policy.
 
+When asking about the policy, do not ask in abstract terms only.
+
+Explain the policy surface Guardrail currently supports, in plain language:
+
+- an official USDC budget with a limit over a sliding window (`daily`, `weekly`, or `monthly`),
+- the specific official USDC operations to allow,
+- and/or an allowlist of contract addresses plus the exact methods the agent is allowed to call.
+
+The human should understand from your question that Guardrail currently supports:
+
+- "a $X budget per day / week / month for official USDC",
+- "a list of allowed contracts and methods",
+- or a combination of both.
+
+Prefer asking for the policy in that concrete form instead of just saying "what policy do you want?".
+
 Do not ask the human to confirm in advance that they are on their machine, have a browser, have a passkey, or have funds ready for gas.
 
 Instead, once the chain and policy are clear, explain the flow briefly (be assertive):
