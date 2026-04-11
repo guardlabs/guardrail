@@ -42,6 +42,12 @@ Wait for readiness:
 npx @guardlabs/guardrail-cli await wal_xxx
 ```
 
+Check the wallet's official USDC balance on its configured chain:
+
+```bash
+npx @guardlabs/guardrail-cli usdc-balance wal_xxx
+```
+
 Use the ready wallet:
 
 ```bash
@@ -50,6 +56,8 @@ npx @guardlabs/guardrail-cli call wal_xxx \
   --data 0xa9059cbb \
   --value-wei 0
 ```
+
+If the smart wallet is still undeployed, `call` deploys it automatically first.
 
 ## Supported Chains
 

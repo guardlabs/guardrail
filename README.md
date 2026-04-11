@@ -57,6 +57,12 @@ Wait for readiness:
 npx @guardlabs/guardrail-cli await wal_xxx
 ```
 
+Check the wallet's official USDC balance on its configured chain:
+
+```bash
+npx @guardlabs/guardrail-cli usdc-balance wal_xxx
+```
+
 Use the ready wallet:
 
 ```bash
@@ -65,6 +71,8 @@ npx @guardlabs/guardrail-cli call wal_xxx \
   --data 0xa9059cbb \
   --value-wei 0
 ```
+
+If the smart wallet has not been deployed onchain yet, the CLI deploys it automatically before the call.
 
 In this example, Guardrail counts the authorized USDC amount for official USDC `transfer`, `approve`, `increaseAllowance`, `Permit`, and `TransferWithAuthorization`. A `4` USDC transfer plus a `6` USDC permit fills the budget. Another `1` USDC action is denied until enough prior usage falls out of the trailing 24-hour window.
 

@@ -25,6 +25,7 @@ describe("cli help", () => {
     expect(help).toContain("status");
     expect(help).toContain("await");
     expect(help).toContain("call");
+    expect(help).toContain("usdc-balance");
     expect(help).toContain("sign-typed-data");
     expect(help).toContain("x402-sign");
     expect(help).toContain("x402-fetch");
@@ -63,6 +64,18 @@ describe("cli help", () => {
     expect(callCommand?.helpInformation()).toContain("<wallet-id>");
     expect(callCommand?.helpInformation()).toContain("--to");
     expect(callCommand?.helpInformation()).toContain("--data");
+  });
+
+  it("documents official USDC balance reads for a wallet", () => {
+    const usdcBalanceCommand = buildProgram().commands.find(
+      (command) => command.name() === "usdc-balance",
+    );
+
+    expect(usdcBalanceCommand?.helpInformation()).toContain("<wallet-id>");
+    expect(usdcBalanceCommand?.helpInformation()).toContain("--backend-url");
+    expect(usdcBalanceCommand?.helpInformation()).toContain(
+      "read the official USDC balance for a wallet on its chain",
+    );
   });
 
   it("documents typed data signing usage for a ready wallet", () => {

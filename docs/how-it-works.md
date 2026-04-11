@@ -26,6 +26,8 @@ The backend signer is still signing material, but in this model it is not meant 
 
 On the hosted path, the CLI talks to `https://api.guardlabs.ai` by default. `--backend-url` is only needed for local or self-hosted backends.
 
+`ready` means the owner is attached and the minimum native-token funding check passed. The smart wallet may still be undeployed onchain at that point, and the CLI deploys it automatically on the first supported runtime action that needs it.
+
 ## Technical Shape
 
 Guardrail currently builds on [Kernel](https://github.com/zerodevapp/kernel), the modular ERC-4337 smart account, and uses [ZeroDev](https://zerodev.app/) plus the [ZeroDev SDK](https://docs.zerodev.app/).

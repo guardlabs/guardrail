@@ -83,7 +83,7 @@ In the current implementation, the externally visible statuses are:
 
 - `created`: wallet request exists, owner not yet bound,
 - `owner_bound`: passkey owner is attached, funding or final readiness still pending,
-- `ready`: wallet can be used on the runtime path,
+- `ready`: wallet can be used on the runtime path, even if the smart wallet has not yet been deployed onchain,
 - `failed`: reserved in the model, but not a major exercised path in the current implementation.
 
 ## What Runtime Access Means

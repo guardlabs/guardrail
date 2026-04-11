@@ -22,6 +22,9 @@ import {
 } from "@guardlabs/guardrail-core";
 import {
   bytesToHex,
+  createPublicClient,
+  formatUnits,
+  http,
   parseUnits,
   toFunctionSelector,
   type TypedData,
@@ -44,6 +47,15 @@ import {
 const DEFAULT_AWAIT_INTERVAL_MS = 5000;
 const OFFICIAL_USDC_EIP712_DOMAIN_NAME = "USDC";
 const OFFICIAL_USDC_EIP712_DOMAIN_VERSION = "2";
+const erc20BalanceOfAbi = [
+  {
+    type: "function",
+    name: "balanceOf",
+    stateMutability: "view",
+    inputs: [{ name: "owner", type: "address" }],
+    outputs: [{ name: "balance", type: "uint256" }],
+  },
+] as const;
 
 const transferWithAuthorizationTypes = {
   TransferWithAuthorization: [
@@ -592,7 +604,7 @@ async function persistWalletProgress(walletId: string, current: WalletRequest) {
   });
 }
 
-async function loadReadyRuntimeLocalRequest(options: {
+async function syncLocalWalletRequest(options: {
   walletId: string;
   backendUrl?: string;
 }) {
@@ -612,15 +624,53 @@ async function loadReadyRuntimeLocalRequest(options: {
     await persistWalletProgress(options.walletId, current);
   }
 
+  localRequest = await readLocalWalletRequest(options.walletId);
+
+  return {
+    localRequest,
+    current,
+  };
+}
+
+async function loadReadyRuntimeLocalRequest(options: {
+  walletId: string;
+  backendUrl?: string;
+}) {
+  const { localRequest, current } = await syncLocalWalletRequest(options);
+
   if (current.status !== "ready") {
     throw new Error(
       `Wallet ${options.walletId} is not ready for runtime operations.`,
     );
   }
 
-  localRequest = await readLocalWalletRequest(options.walletId);
-
   return localRequest;
+}
+
+async function readOfficialUsdcBalance(input: {
+  chainId: number;
+  backendBaseUrl: string;
+  walletAddress: `0x${string}`;
+}) {
+  const supportedChain = getSupportedChainById(input.chainId);
+
+  if (!supportedChain) {
+    throw new Error(`Unsupported chain ${input.chainId}.`);
+  }
+
+  const publicClient = createPublicClient({
+    chain: supportedChain.viemChain,
+    transport: http(
+      `${input.backendBaseUrl.replace(/\/+$/, "")}/v1/chains/${input.chainId}/rpc`,
+    ),
+  });
+
+  return publicClient.readContract({
+    address: supportedChain.officialUsdcAddress as `0x${string}`,
+    abi: erc20BalanceOfAbi,
+    functionName: "balanceOf",
+    args: [input.walletAddress],
+  });
 }
 
 export async function executeAwait(options: {
@@ -703,13 +753,23 @@ export async function executeCall(options: {
   data: string;
   valueWei: string;
 }) {
-  const localRequest = await loadReadyRuntimeLocalRequest({
+  let localRequest = await loadReadyRuntimeLocalRequest({
     walletId: options.walletId,
   });
   const to = evmAddressSchema.parse(options.to);
   const data = hexStringSchema.parse(options.data) as `0x${string}`;
   const valueWei = options.valueWei.trim();
   BigInt(valueWei);
+
+  await ensureReadyWalletDeployed({
+    localRequest,
+  });
+  const refreshedBeforeCall = await executeRefreshFunding({
+    walletId: options.walletId,
+    backendUrl: localRequest.backendBaseUrl,
+  });
+  await persistWalletProgress(options.walletId, refreshedBeforeCall);
+  localRequest = await readLocalWalletRequest(options.walletId);
 
   const result = await callReadyWalletTransaction({
     localRequest,
@@ -743,6 +803,50 @@ export async function executeCall(options: {
     data,
     valueWei,
     transactionHash: result.transactionHash,
+  };
+}
+
+export async function executeUsdcBalance(options: {
+  walletId: string;
+  backendUrl?: string;
+}) {
+  const { localRequest, current } = await syncLocalWalletRequest({
+    walletId: options.walletId,
+    backendUrl: options.backendUrl,
+  });
+  const supportedChain = getSupportedChainById(localRequest.chainId);
+
+  if (!supportedChain) {
+    throw new Error(`Unsupported chain ${localRequest.chainId}.`);
+  }
+
+  const walletAddress =
+    localRequest.walletAddress ??
+    current.walletContext?.walletAddress ??
+    current.counterfactualWalletAddress;
+
+  if (!walletAddress) {
+    throw new Error(
+      `Wallet ${options.walletId} does not have a wallet address yet. Complete owner provisioning first.`,
+    );
+  }
+
+  const balanceMinor = await readOfficialUsdcBalance({
+    chainId: localRequest.chainId,
+    backendBaseUrl: options.backendUrl ?? localRequest.backendBaseUrl,
+    walletAddress: walletAddress as `0x${string}`,
+  });
+
+  return {
+    walletId: options.walletId,
+    walletStatus: current.status,
+    chainId: supportedChain.id,
+    chainName: supportedChain.name,
+    walletAddress,
+    officialUsdcAddress: supportedChain.officialUsdcAddress,
+    officialUsdcDecimals: supportedChain.officialUsdcDecimals,
+    balanceMinor: balanceMinor.toString(),
+    balanceUsdc: formatUnits(balanceMinor, supportedChain.officialUsdcDecimals),
   };
 }
 
@@ -973,6 +1077,17 @@ export function registerCallCommand(command: Command) {
         to: options.to,
         data: options.data,
         valueWei: options.valueWei,
+      }),
+    );
+  });
+}
+
+export function registerUsdcBalanceCommand(command: Command) {
+  command.action(async (walletId, options) => {
+    printJson(
+      await executeUsdcBalance({
+        walletId,
+        backendUrl: resolveCommandBackendUrl(command, options),
       }),
     );
   });

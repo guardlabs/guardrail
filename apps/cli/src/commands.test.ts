@@ -23,6 +23,7 @@ import {
   executeAwait,
   executeCall,
   executeCreate,
+  executeUsdcBalance,
   executeX402Fetch,
   executeSignTypedData,
   executeStatus,
@@ -424,7 +425,21 @@ describe("cli commands mode B", () => {
       valueWei: "0",
     });
 
-    expect(vi.mocked(callReadyWalletTransaction)).toHaveBeenCalled();
+    expect(vi.mocked(ensureReadyWalletDeployed)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(callReadyWalletTransaction)).toHaveBeenCalledWith({
+      localRequest: expect.objectContaining({
+        walletId: "wal_123",
+        lastKnownStatus: "ready",
+        deployment: {
+          status: "deployed",
+        },
+      }),
+      call: {
+        to: "0x1111111111111111111111111111111111111111",
+        data: "0xa9059cbb",
+        valueWei: "0",
+      },
+    });
     expect(result).toEqual({
       walletId: "wal_123",
       walletAddress: "0x2222222222222222222222222222222222222222",
@@ -435,6 +450,220 @@ describe("cli commands mode B", () => {
     });
     const persistedRequest = await readLocalWalletRequest("wal_123");
     expect(persistedRequest.deployment.status).toBe("deployed");
+  });
+
+  it("reads the official USDC balance for the wallet on its configured chain", async () => {
+    const walletConfig = buildDefaultWalletConfig({
+      chainId: 84532,
+      agentAddress: "0x95b4d8f3a9f0ac9d4d7f9ef42fb0f4f6e11d1111",
+      backendAddress: "0x1111111111111111111111111111111111111111",
+    });
+    await saveLocalWalletRequest({
+      walletMode: GUARDRAIL_WALLET_MODE,
+      walletId: "wal_123",
+      backendBaseUrl: "http://127.0.0.1:3000",
+      provisioningUrl: "http://127.0.0.1:5173/?walletId=wal_123&token=abc",
+      chainId: 84532,
+      walletConfig,
+      policy: createRuntimePolicy(),
+      agentAddress: walletConfig.regularValidator.signers[0]?.address ?? "",
+      agentPrivateKey:
+        "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      backendAddress: walletConfig.regularValidator.signers[1]?.address ?? "",
+      createdAt: "2026-03-29T12:00:00.000Z",
+      lastKnownStatus: "created",
+      deployment: {
+        status: "undeployed",
+      },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL, init?: RequestInit) => {
+        const url = String(input);
+
+        if (
+          url === "http://127.0.0.1:3000/v1/wallets/wal_123" &&
+          init?.method === "GET"
+        ) {
+          return new Response(
+            JSON.stringify({
+              walletMode: GUARDRAIL_WALLET_MODE,
+              walletId: "wal_123",
+              status: "owner_bound",
+              walletConfig,
+              policy: createRuntimePolicy(),
+              agentAddress: walletConfig.regularValidator.signers[0]?.address,
+              backendAddress: walletConfig.regularValidator.signers[1]?.address,
+              counterfactualWalletAddress:
+                "0x2222222222222222222222222222222222222222",
+              funding: {
+                status: "unverified",
+                minimumRequiredWei: "500000000000000",
+              },
+              deployment: {
+                status: "undeployed",
+              },
+              createdAt: "2026-03-29T12:00:00.000Z",
+              updatedAt: "2026-03-29T12:05:00.000Z",
+              expiresAt: "2026-03-30T12:00:00.000Z",
+            }),
+            {
+              status: 200,
+              headers: {
+                "content-type": "application/json",
+              },
+            },
+          );
+        }
+
+        if (
+          url === "http://127.0.0.1:3000/v1/wallets/wal_123/refresh-funding" &&
+          init?.method === "POST"
+        ) {
+          return new Response(
+            JSON.stringify({
+              walletMode: GUARDRAIL_WALLET_MODE,
+              walletId: "wal_123",
+              status: "owner_bound",
+              walletConfig,
+              policy: createRuntimePolicy(),
+              agentAddress: walletConfig.regularValidator.signers[0]?.address,
+              backendAddress: walletConfig.regularValidator.signers[1]?.address,
+              counterfactualWalletAddress:
+                "0x2222222222222222222222222222222222222222",
+              funding: {
+                status: "insufficient",
+                minimumRequiredWei: "500000000000000",
+                balanceWei: "0",
+                checkedAt: "2026-03-29T12:06:00.000Z",
+              },
+              deployment: {
+                status: "undeployed",
+              },
+              createdAt: "2026-03-29T12:00:00.000Z",
+              updatedAt: "2026-03-29T12:06:00.000Z",
+              expiresAt: "2026-03-30T12:00:00.000Z",
+            }),
+            {
+              status: 200,
+              headers: {
+                "content-type": "application/json",
+              },
+            },
+          );
+        }
+
+        if (
+          url === "http://127.0.0.1:3000/v1/chains/84532/rpc" &&
+          init?.method === "POST"
+        ) {
+          return new Response(
+            JSON.stringify({
+              jsonrpc: "2.0",
+              id: 0,
+              result:
+                "0x000000000000000000000000000000000000000000000000000000000012d687",
+            }),
+            {
+              status: 200,
+              headers: {
+                "content-type": "application/json",
+              },
+            },
+          );
+        }
+
+        throw new Error(`Unexpected fetch: ${url}`);
+      }),
+    );
+
+    const result = await executeUsdcBalance({
+      walletId: "wal_123",
+      backendUrl: "http://127.0.0.1:3000",
+    });
+
+    expect(result).toEqual({
+      walletId: "wal_123",
+      walletStatus: "owner_bound",
+      chainId: 84532,
+      chainName: "Base Sepolia",
+      walletAddress: "0x2222222222222222222222222222222222222222",
+      officialUsdcAddress: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+      officialUsdcDecimals: 6,
+      balanceMinor: "1234567",
+      balanceUsdc: "1.234567",
+    });
+
+    const persistedRequest = await readLocalWalletRequest("wal_123");
+    expect(persistedRequest.walletAddress).toBe(
+      "0x2222222222222222222222222222222222222222",
+    );
+    expect(persistedRequest.lastKnownStatus).toBe("owner_bound");
+  });
+
+  it("rejects official USDC balance reads before the wallet address exists", async () => {
+    const walletConfig = buildDefaultWalletConfig({
+      chainId: 84532,
+      agentAddress: "0x95b4d8f3a9f0ac9d4d7f9ef42fb0f4f6e11d1111",
+      backendAddress: "0x1111111111111111111111111111111111111111",
+    });
+    await saveLocalWalletRequest({
+      walletMode: GUARDRAIL_WALLET_MODE,
+      walletId: "wal_123",
+      backendBaseUrl: "http://127.0.0.1:3000",
+      provisioningUrl: "http://127.0.0.1:5173/?walletId=wal_123&token=abc",
+      chainId: 84532,
+      walletConfig,
+      policy: createRuntimePolicy(),
+      agentAddress: walletConfig.regularValidator.signers[0]?.address ?? "",
+      agentPrivateKey:
+        "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      backendAddress: walletConfig.regularValidator.signers[1]?.address ?? "",
+      createdAt: "2026-03-29T12:00:00.000Z",
+      lastKnownStatus: "created",
+      deployment: {
+        status: "undeployed",
+      },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            walletMode: GUARDRAIL_WALLET_MODE,
+            walletId: "wal_123",
+            status: "created",
+            walletConfig,
+            policy: createRuntimePolicy(),
+            agentAddress: walletConfig.regularValidator.signers[0]?.address,
+            backendAddress: walletConfig.regularValidator.signers[1]?.address,
+            funding: {
+              status: "unverified",
+              minimumRequiredWei: "500000000000000",
+            },
+            deployment: {
+              status: "undeployed",
+            },
+            createdAt: "2026-03-29T12:00:00.000Z",
+            updatedAt: "2026-03-29T12:05:00.000Z",
+            expiresAt: "2026-03-30T12:00:00.000Z",
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json",
+            },
+          },
+        ),
+      ),
+    );
+
+    await expect(
+      executeUsdcBalance({
+        walletId: "wal_123",
+        backendUrl: "http://127.0.0.1:3000",
+      }),
+    ).rejects.toThrow(/does not have a wallet address yet/i);
   });
 
   it("signs generic typed data and covers the USDC transferWithAuthorization shape", async () => {

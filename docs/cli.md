@@ -40,6 +40,14 @@ Execute a call:
 guardrail call wal_123 --to 0x1111111111111111111111111111111111111111 --data 0xa9059cbb --value-wei 0
 ```
 
+If the smart wallet is still undeployed, `guardrail call` deploys it automatically first.
+
+Read the official USDC balance:
+
+```bash
+guardrail usdc-balance wal_123
+```
+
 Sign typed data:
 
 ```bash
@@ -54,6 +62,27 @@ guardrail x402-fetch wal_123 https://api.example.com/premium-data
 ```
 
 See [x402 payments](x402.md) for the end-to-end flow and what these commands are doing.
+
+## Official USDC Balance
+
+Use `usdc-balance` to read the balance of the official USDC contract for the wallet's configured chain.
+
+```bash
+guardrail usdc-balance wal_123
+```
+
+What it does:
+
+- reads the wallet's chain from local Guardrail state
+- refreshes the wallet state with the backend so the wallet address is up to date
+- queries `balanceOf` on the official USDC contract for that chain
+- returns both the raw minor-unit balance and the human-readable USDC amount
+
+Constraints:
+
+- the wallet must already have a wallet address, so the owner provisioning step must be complete
+- the command follows the wallet's configured chain and official USDC address automatically
+- use `--backend-url` only when you need to target a local or self-hosted backend instead of the hosted default
 
 ## Create Command Policy Options
 

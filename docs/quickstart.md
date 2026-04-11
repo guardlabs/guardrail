@@ -47,7 +47,15 @@ npx @guardlabs/guardrail-cli await wal_xxx
 
 This waits until the wallet is ready for runtime use.
 
-## 4. Use The Wallet
+## 4. Check Official USDC Balance
+
+```bash
+npx @guardlabs/guardrail-cli usdc-balance wal_xxx
+```
+
+This reads `balanceOf` on the official USDC contract for the wallet's configured chain.
+
+## 5. Use The Wallet
 
 ```bash
 npx @guardlabs/guardrail-cli call wal_xxx \
@@ -64,6 +72,12 @@ Check status:
 
 ```bash
 npx @guardlabs/guardrail-cli status wal_xxx
+```
+
+Check the official USDC balance:
+
+```bash
+npx @guardlabs/guardrail-cli usdc-balance wal_xxx
 ```
 
 Sign typed data:

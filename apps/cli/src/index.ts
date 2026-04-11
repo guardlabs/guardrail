@@ -12,6 +12,7 @@ import {
   registerCreateCommand,
   registerSignTypedDataCommand,
   registerStatusCommand,
+  registerUsdcBalanceCommand,
   registerX402FetchCommand,
   registerX402SignCommand,
 } from "./commands.js";
@@ -127,6 +128,20 @@ Example:
       `.trimEnd(),
     );
   registerCallCommand(callCommand);
+
+  const usdcBalanceCommand = program
+    .command("usdc-balance")
+    .description("read the official USDC balance for a wallet on its chain")
+    .argument("<wallet-id>", "wallet id")
+    .addHelpText(
+      "after",
+      `
+Example:
+  guardrail usdc-balance wal_123
+      `.trimEnd(),
+    );
+  addBackendOption(usdcBalanceCommand);
+  registerUsdcBalanceCommand(usdcBalanceCommand);
 
   const signTypedDataCommand = program
     .command("sign-typed-data")
