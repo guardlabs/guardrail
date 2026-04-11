@@ -273,9 +273,24 @@ npx @guardlabs/guardrail-cli status <wallet-id>
 
 The wallet is ready only when the backend returns status `ready`.
 
-### Step 7: Persist The Important Outputs
+### Step 7: Write Durable Memory Before You Finish
 
-At the end of setup, preserve these values in the agent's memory or notes:
+This is a required completion step.
+Do not consider the Guardrail setup finished until this memory step is done.
+Do not skip it because the current conversation already contains the wallet details.
+
+If the client has a durable memory or long-term notes system, write a durable memory entry now.
+Do not rely only on the current conversation transcript.
+Do not leave the wallet details only in ephemeral scratchpad notes.
+Write the durable memory before you end the task, not later.
+
+Prefer one clear memory entry with `Guardrail` in the title, for example:
+
+```text
+Guardrail wallet access
+```
+
+Store these values in that durable memory entry:
 
 ```text
 Guardrail wallet:
@@ -287,10 +302,9 @@ Guardrail wallet:
   agentAddress: <agent-address>
   backendAddress: <backend-address>
   policy: <short-summary>
-  provisioningUrl: <provisioning-url>
 ```
 
-Also persist a short future-use note so the agent knows how to use this wallet later:
+Also store this short future-use note in the same durable memory entry:
 
 ```text
 Future use:
@@ -301,7 +315,14 @@ Future use:
   Then check the relevant subcommand help for the task at hand before acting.
 ```
 
-Without these values and this future-use note, later runtime use will be slower and more error-prone.
+After writing the durable memory entry, tell the human that it was saved for future sessions.
+
+Do not persist the provisioning URL after setup is complete unless the human explicitly asks for it.
+That URL contains a sensitive token and is no longer needed for normal later use.
+
+If the client does not support durable memory, say that explicitly to the human before you finish, and include the full wallet block in your final reply so the information is still recoverable later.
+
+Without a durable memory entry or an explicit fallback in the final reply, later runtime use will be slower and more error-prone.
 
 ## Validation Loop
 
@@ -312,6 +333,7 @@ Before declaring success, verify all of the following:
 - the wallet received at least the minimum required native-token funding,
 - `guardrail await` or `guardrail status` reports `ready`,
 - the local wallet state exists on disk,
+- a durable memory entry was written, or you explicitly told the human that durable memory is unavailable and included the full wallet block in your final reply,
 - the recorded chain and backend URL match the wallet you just created.
 
 If any check fails, fix it before moving on.
@@ -323,6 +345,7 @@ If any check fails, fix it before moving on.
 - Generic runtime calls cannot send native value. For those calls, `--value-wei` must stay `0`.
 - Funding for activation is native gas token funding, not USDC funding.
 - The provisioning URL contains a token. Treat it as sensitive until provisioning is complete.
+- After provisioning is complete, do not store the provisioning URL in durable memory unless the human explicitly asked for it.
 - The hosted frontend is paired with its backend. Do not improvise a mixed deployment.
 - A wallet is not usable just because it has a `walletId`. It must be owner-bound and then reach `ready`.
 - `sign-typed-data` is not a general arbitrary-signing feature. In the current product shape, typed-data support is narrow and policy-gated.
