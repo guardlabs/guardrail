@@ -34,6 +34,8 @@ Wait until a wallet is ready:
 guardrail await wal_123 --interval-ms 3000
 ```
 
+When a wallet reaches `ready`, `guardrail await` includes `localStatePath` plus an `agentMemoryReminder` field in its JSON output so agent runtimes can persist the wallet details into durable client memory. This means persistent cross-session memory, not a day-only log.
+
 Execute a call:
 
 ```bash

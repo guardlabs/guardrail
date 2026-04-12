@@ -40,6 +40,7 @@ import {
   signReadyWalletTypedData,
 } from "./kernel.js";
 import {
+  getLocalWalletRequestPath,
   readLocalWalletRequest,
   saveLocalWalletRequest,
 } from "./local-store.js";
@@ -558,10 +559,14 @@ export async function executeCreate(options: {
 export async function executeStatus(options: {
   walletId: string;
   backendUrl?: string;
-}) {
+}): Promise<
+  WalletRequest & {
+    localStatePath?: string;
+    agentMemoryReminder?: string;
+  }
+> {
   const backendUrl = resolveBackendUrl(options.backendUrl);
-
-  return getWalletRequestResponseSchema.parse(
+  const current = getWalletRequestResponseSchema.parse(
     await fetchJson<WalletRequest>(
       `${backendUrl}/v1/wallets/${options.walletId}`,
       {
@@ -569,6 +574,29 @@ export async function executeStatus(options: {
       },
     ),
   );
+  const localRequest = await readLocalWalletRequest(options.walletId).catch(
+    () => null,
+  );
+  const localStatePath = localRequest
+    ? getLocalWalletRequestPath(options.walletId)
+    : undefined;
+
+  return {
+    ...current,
+    localStatePath,
+    agentMemoryReminder:
+      current.status === "ready"
+        ? buildAgentMemoryReminder({
+            walletId: current.walletId,
+            walletAddress:
+              current.walletContext?.walletAddress ??
+              current.counterfactualWalletAddress,
+            chainId: current.walletConfig.chainId,
+            backendUrl,
+            localStatePath,
+          })
+        : undefined,
+  };
 }
 
 export async function executeRefreshFunding(options: {
@@ -602,6 +630,24 @@ async function persistWalletProgress(walletId: string, current: WalletRequest) {
     lastKnownStatus: current.status,
     deployment: current.deployment,
   });
+}
+
+function buildAgentMemoryReminder(input: {
+  walletId: string;
+  walletAddress?: string;
+  chainId: number;
+  backendUrl: string;
+  localStatePath?: string;
+}) {
+  const pathLine = input.localStatePath
+    ? `localStatePath=${input.localStatePath}`
+    : "localStatePath=<persisted local wallet state path>";
+
+  return [
+    "Write durable client memory for later sessions now.",
+    `Store walletId=${input.walletId}, walletAddress=${input.walletAddress ?? "<wallet-address>"}, chainId=${input.chainId}, backendUrl=${input.backendUrl}, ${pathLine}.`,
+    "Do not rely only on the current conversation transcript or day memory.",
+  ].join(" ");
 }
 
 async function syncLocalWalletRequest(options: {
@@ -709,6 +755,13 @@ export async function executeAwait(options: {
       return {
         ...current,
         localStatePath,
+        agentMemoryReminder: buildAgentMemoryReminder({
+          walletId: current.walletId,
+          walletAddress: hydratedWallet.walletAddress,
+          chainId: current.walletConfig.chainId,
+          backendUrl: options.backendUrl ?? localRequest.backendBaseUrl,
+          localStatePath,
+        }),
       };
     }
 
@@ -737,6 +790,13 @@ export async function executeAwait(options: {
         return {
           ...current,
           localStatePath,
+          agentMemoryReminder: buildAgentMemoryReminder({
+            walletId: current.walletId,
+            walletAddress: hydratedWallet.walletAddress,
+            chainId: current.walletConfig.chainId,
+            backendUrl: options.backendUrl ?? localRequest.backendBaseUrl,
+            localStatePath,
+          }),
         };
       }
     }

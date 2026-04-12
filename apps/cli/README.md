@@ -42,6 +42,8 @@ Wait for readiness:
 npx @guardlabs/guardrail-cli await wal_xxx
 ```
 
+When the wallet reaches `ready`, the JSON output includes `localStatePath` and an `agentMemoryReminder` hint so agent runtimes can persist the wallet details into durable client memory. This means persistent cross-session memory, not a day-only log.
+
 Check the wallet's official USDC balance on its configured chain:
 
 ```bash

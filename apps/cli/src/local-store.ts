@@ -27,6 +27,10 @@ function getWalletFilePath(walletId: string) {
   return join(resolveStoreDirectory(), `${walletId}.json`);
 }
 
+export function getLocalWalletRequestPath(walletId: string) {
+  return getWalletFilePath(walletId);
+}
+
 export async function saveLocalWalletRequest(request: LocalWalletRequest) {
   const normalizedRequest = localWalletRequestSchema.parse(request);
 

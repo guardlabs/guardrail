@@ -241,6 +241,8 @@ describe("cli commands mode B", () => {
     expect(result.walletId).toBe("wal_123");
     expect(result.status).toBe("created");
     expect(result.walletMode).toBe(GUARDRAIL_WALLET_MODE);
+    expect(result.localStatePath).toBeUndefined();
+    expect(result.agentMemoryReminder).toBeUndefined();
   });
 
   it("waits until the backend returns a ready weighted wallet and persists the wallet address", async () => {
@@ -329,6 +331,9 @@ describe("cli commands mode B", () => {
     expect(result).toMatchObject({
       status: "ready",
       localStatePath: expect.stringContaining("wal_123.json"),
+      agentMemoryReminder: expect.stringContaining(
+        "Write durable client memory for later sessions now.",
+      ),
     });
     expect(persistedRequest.walletAddress).toBe(
       "0x2222222222222222222222222222222222222222",

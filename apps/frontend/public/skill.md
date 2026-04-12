@@ -279,10 +279,14 @@ This is a required completion step.
 Do not consider the Guardrail setup finished until this memory step is done.
 Do not skip it because the current conversation already contains the wallet details.
 
-If the client has a durable memory or long-term notes system, write a durable memory entry now.
+Write the wallet details into the client's durable memory mechanism now, if one exists.
+If the client has a durable memory or long-term notes system, use that actual mechanism now.
 Do not rely only on the current conversation transcript.
 Do not leave the wallet details only in ephemeral scratchpad notes.
 Write the durable memory before you end the task, not later.
+Do not write this only into a day-scoped memory log.
+Use the persistent memory surface for future sessions.
+For example, in OpenClaw this means `MEMORY.md`, not a day file under `memory/`.
 
 Prefer one clear memory entry with `Guardrail` in the title, for example:
 
@@ -316,6 +320,7 @@ Future use:
 ```
 
 After writing the durable memory entry, tell the human that it was saved for future sessions.
+Be precise: say that it was saved to persistent client memory, not only to a day memory log.
 
 Do not persist the provisioning URL after setup is complete unless the human explicitly asks for it.
 That URL contains a sensitive token and is no longer needed for normal later use.
