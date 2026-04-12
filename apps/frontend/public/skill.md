@@ -1,7 +1,7 @@
 ---
 name: guardrail-wallet-setup
-description: Set up a Guardrail wallet end to end for an agent, including wallet creation, provisioning through the frontend, funding with the native gas token, readiness checks, and persistence of the resulting wallet details. Use when an agent needs to onboard onto Guardrail or recover the exact Guardrail setup flow.
-compatibility: Requires shell access on the user's machine, browser access for the provisioning URL, WebAuthn/passkey support for owner setup, internet access, and a funding source on Base or Base Sepolia.
+description: Set up a Guardrail wallet end to end for an agent, including wallet creation, provisioning through the frontend, funding with the native gas token, readiness checks, and persistence of the resulting wallet details in durable client memory for future sessions. Use when an agent needs to onboard onto Guardrail or recover the exact Guardrail setup flow.
+compatibility: Requires shell access on the user's machine plus a setup flow where the human can later open the provisioning URL, complete WebAuthn/passkey owner setup, and fund the wallet with the native gas token on Base or Base Sepolia.
 metadata:
   version: "1"
   homepage: "https://guardlabs.ai"
@@ -10,6 +10,9 @@ metadata:
 # Guardrail Wallet Setup
 
 Guardrail gives an agent a usable onchain wallet without giving it a fully privileged hot key.
+
+The goal of this skill is not only to set up a Guardrail wallet.
+The goal is to set up a usable Guardrail wallet and persist its key details into the client's durable memory so the wallet is still discoverable in a fresh later session.
 
 The setup flow always combines:
 
@@ -25,8 +28,17 @@ When this skill is fetched because the user wants a Guardrail wallet, do the set
 Do not stop after reading the file.
 Do not just summarize the flow.
 Do not ask the user to manually run the CLI if you can run commands on their machine directly.
+The task is incomplete if the wallet reaches `ready` but is not written into persistent client memory.
 
 Your job is to carry the setup through to a ready wallet, including funding, unless the environment blocks one of the required steps.
+Your job also includes writing the resulting wallet details into durable client memory before you finish.
+Do not leave the wallet usable only inside the current conversation.
+
+The `compatibility` line above is not a checklist of questions to ask the human up front.
+Do not turn it into "can you use a browser?", "can you do passkey?", or "do you already have gas?" questions.
+Use it only as background context for how the setup works.
+Do not ask the human to save, persist, copy, or remember the wallet details for you.
+Persisting the wallet into durable client memory is your responsibility, not the human's.
 
 ## Check For Updates
 
@@ -102,6 +114,8 @@ The human should understand from your question that Guardrail currently supports
 Prefer asking for the policy in that concrete form instead of just saying "what policy do you want?".
 
 Do not ask the human to confirm in advance that they are on their machine, have a browser, have a passkey, or have funds ready for gas.
+Do not ask them for their "preference" between you running the CLI and them opening the provisioning page.
+That is the default flow: you run the CLI, then they open the provisioning page themselves.
 
 Instead, once the chain and policy are clear, explain the flow briefly (be assertive):
 
@@ -114,6 +128,21 @@ Instead, once the chain and policy are clear, explain the flow briefly (be asser
 Do not choose a default chain yourself.
 
 If the chain was not specified, get the currently supported chains from the live CLI help you just checked, and present those exact supported choices to the human.
+
+Good opening pattern:
+
+- ask for the missing chain and policy details only,
+- then say you will create the wallet request,
+- then say the human will need to open the provisioning link in their browser and validate ownership with a passkey,
+- then say the human will need to fund the wallet with the native gas token,
+- then say you will wait for `ready`.
+
+Bad opening pattern:
+
+- asking whether the human can use a browser,
+- asking whether the human can do passkey/WebAuthn,
+- asking whether the human already has gas before you have even created the wallet request,
+- asking whether the human prefers that you run the CLI locally.
 
 ## Backend Pairing Rule
 
@@ -278,6 +307,9 @@ The wallet is ready only when the backend returns status `ready`.
 This is a required completion step.
 Do not consider the Guardrail setup finished until this memory step is done.
 Do not skip it because the current conversation already contains the wallet details.
+Do not ask the human to store these details in memory for you.
+Do not frame this as "here is the local state for you to persist" or "please save this somewhere".
+You must do the durable memory write yourself using the client's memory mechanism.
 
 Write the wallet details into the client's durable memory mechanism now, if one exists.
 If the client has a durable memory or long-term notes system, use that actual mechanism now.
@@ -326,6 +358,7 @@ Do not persist the provisioning URL after setup is complete unless the human exp
 That URL contains a sensitive token and is no longer needed for normal later use.
 
 If the client does not support durable memory, say that explicitly to the human before you finish, and include the full wallet block in your final reply so the information is still recoverable later.
+Use this fallback only if the client truly has no persistent memory mechanism or if the persistent memory write failed.
 
 Without a durable memory entry or an explicit fallback in the final reply, later runtime use will be slower and more error-prone.
 
@@ -338,7 +371,7 @@ Before declaring success, verify all of the following:
 - the wallet received at least the minimum required native-token funding,
 - `guardrail await` or `guardrail status` reports `ready`,
 - the local wallet state exists on disk,
-- a durable memory entry was written, or you explicitly told the human that durable memory is unavailable and included the full wallet block in your final reply,
+- a persistent cross-session memory write was completed in the client's actual long-term memory surface, or you explicitly told the human that durable memory is unavailable and included the full wallet block in your final reply,
 - the recorded chain and backend URL match the wallet you just created.
 
 If any check fails, fix it before moving on.
