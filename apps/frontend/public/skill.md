@@ -236,7 +236,8 @@ Tell the human to:
 
 1. open the provisioning page,
 2. create the passkey,
-3. confirm once the page shows the wallet address or the owner-bound state.
+3. approve the ownership signature prompt after the passkey is saved,
+4. confirm once the page shows the wallet address or the owner-bound state.
 
 Wait until the human confirms this step is complete before continuing.
 
@@ -255,7 +256,7 @@ You need these values:
 - `funding.minimumRequiredWei`,
 - the target chain.
 
-If the wallet is still `created`, the passkey step is not complete yet.
+If the wallet is still `created`, the passkey or ownership approval step is not complete yet.
 
 If the wallet is `owner_bound`, continue to funding.
 

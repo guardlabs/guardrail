@@ -72,6 +72,7 @@ export function getProvisioningContentModel(input: {
   status: WalletRequestStatus;
   fundingStatus: FundingStatus;
   policy: WalletPolicy;
+  isAwaitingOwnerConfirmation?: boolean;
 }): ProvisioningContentModel {
   const technicalPolicySummary = describeRuntimePolicy(input.policy);
   const usdcPermission = input.policy.usdcPolicy
@@ -158,6 +159,26 @@ export function getProvisioningContentModel(input: {
       };
     case "created":
     default:
+      if (input.isAwaitingOwnerConfirmation) {
+        return {
+          statusEyebrow: "Provisioning",
+          statusTitle: "Approve wallet ownership",
+          statusBody:
+            "Your passkey is saved. Approve one signature with it to attach the wallet owner.",
+          reassurance:
+            "This confirms wallet ownership only. It does not expand the agent policy.",
+          statusLabel: "Needs approval",
+          actionTitle: "Confirm the owner signature",
+          actionBody:
+            "Use the passkey you just created to approve the Kernel ownership signature.",
+          primaryActionLabel: "Approve ownership signature",
+          permissionItems,
+          fundingLabel: formatFundingLabel(input.fundingStatus),
+          fundingGuidance: null,
+          technicalPolicySummary,
+        };
+      }
+
       return {
         statusEyebrow: "Provisioning",
         statusTitle: "Create the passkey",

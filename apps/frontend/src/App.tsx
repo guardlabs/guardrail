@@ -3,6 +3,7 @@ import type {
   ResolveProvisioningResponse,
   WalletRequest,
 } from "@guardlabs/guardrail-core";
+import type { WebAuthnKey } from "@guardlabs/guardrail-kernel";
 import {
   getSupportedChainById,
   GUARDRAIL_DEFAULT_BACKEND_URL,
@@ -89,6 +90,9 @@ export function App({ search, api = browserApi, passkeyClient }: AppProps) {
   const [request, setRequest] = useState<
     ResolveProvisioningResponse | WalletRequest | null
   >(null);
+  const [pendingPasskey, setPendingPasskey] = useState<WebAuthnKey | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRefreshingFunding, setIsRefreshingFunding] = useState(false);
@@ -138,6 +142,12 @@ export function App({ search, api = browserApi, passkeyClient }: AppProps) {
       cancelled = true;
     };
   }, [api, query]);
+
+  useEffect(() => {
+    if (request?.status !== "created") {
+      setPendingPasskey(null);
+    }
+  }, [request?.status]);
 
   useEffect(() => {
     if (!query || request?.status !== "owner_bound") {
@@ -196,10 +206,21 @@ export function App({ search, api = browserApi, passkeyClient }: AppProps) {
 
       const resolvedPasskeyClient =
         passkeyClient ?? (await loadBrowserPasskeyClient());
+      const registeredPasskey =
+        pendingPasskey ??
+        (await resolvedPasskeyClient.registerPasskey({
+          displayName: "Guardrail",
+        }));
+
+      if (!pendingPasskey) {
+        setPendingPasskey(registeredPasskey);
+        return;
+      }
+
       const provisioningArtifacts =
         await resolvedPasskeyClient.createProvisioningArtifacts({
-          displayName: "Guardrail",
           walletConfig: request.walletConfig,
+          webAuthnKey: registeredPasskey,
         });
 
       const updatedRequest = await api.publishOwnerArtifacts({
@@ -212,6 +233,7 @@ export function App({ search, api = browserApi, passkeyClient }: AppProps) {
           provisioningArtifacts.regularValidatorInitArtifact,
       });
 
+      setPendingPasskey(null);
       setRequest(updatedRequest);
     } catch (nextError) {
       setError(
@@ -231,6 +253,7 @@ export function App({ search, api = browserApi, passkeyClient }: AppProps) {
         status,
         fundingStatus: funding?.status ?? "unverified",
         policy: request.policy,
+        isAwaitingOwnerConfirmation: pendingPasskey !== null,
       })
     : null;
   const chainLabel = request
@@ -385,7 +408,9 @@ export function App({ search, api = browserApi, passkeyClient }: AppProps) {
           type="button"
         >
           {isSubmitting
-            ? "Creating passkey..."
+            ? pendingPasskey
+              ? "Approving ownership..."
+              : "Creating passkey..."
             : contentModel.primaryActionLabel}
         </button>
 

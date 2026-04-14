@@ -20,7 +20,7 @@ The backend signer is still signing material, but in this model it is not meant 
 
 1. The CLI creates a wallet request and generates an agent key locally.
 2. The backend creates a matching Guardrail co-signer and returns a provisioning link.
-3. A human opens the hosted frontend, creates a passkey, and becomes the wallet owner.
+3. A human opens the hosted frontend, creates a passkey, approves the ownership signature, and becomes the wallet owner.
 4. Once the wallet is ready, the agent can trigger actions autonomously.
 5. Each runtime action still requires backend approval under the configured policy.
 

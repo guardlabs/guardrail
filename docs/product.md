@@ -18,7 +18,7 @@ The product is the full flow that combines:
 
 - a CLI that an agent or operator uses to create and use wallets,
 - a backend that provisions wallet requests, enforces runtime policy, and co-signs allowed actions,
-- a provisioning frontend where the human creates the owner passkey,
+- a provisioning frontend where the human creates the owner passkey and approves the ownership signature,
 - a public `skill.md` endpoint on the main frontend for agent-readable onboarding instructions,
 - a smart-account configuration that splits owner control from runtime agent access.
 
@@ -37,7 +37,7 @@ The human is the durable owner.
 Today that means:
 
 - the human opens the provisioning link,
-- the human creates a passkey,
+- the human creates a passkey and approves the ownership signature,
 - that passkey becomes the owner path for the wallet.
 
 The human is not required for each runtime action after provisioning, but the human remains the admin path.
@@ -73,7 +73,7 @@ The current wallet lifecycle is:
 
 1. The CLI creates a wallet request with a policy.
 2. The backend creates the matching wallet configuration and returns a provisioning link.
-3. The human opens the provisioning frontend and creates the owner passkey.
+3. The human opens the provisioning frontend, creates the owner passkey, and approves the ownership signature.
 4. The backend binds the owner artifacts and computes the counterfactual wallet address.
 5. The wallet is funded onchain with the minimum activation balance.
 6. The backend marks the wallet as ready.

@@ -1,9 +1,12 @@
 import {
   getSupportedChainById,
-  type RegularValidatorInitArtifact,
   type WalletConfig,
 } from "@guardlabs/guardrail-core";
-import { createProvisioningArtifacts } from "@guardlabs/guardrail-kernel";
+import {
+  createProvisioningArtifacts as createKernelProvisioningArtifacts,
+  type ProvisioningArtifacts,
+  type WebAuthnKey,
+} from "@guardlabs/guardrail-kernel";
 import { toWebAuthnKey, WebAuthnMode } from "@zerodev/permissions/signers";
 import { createPublicClient, http } from "viem";
 
@@ -35,24 +38,34 @@ function getChain(chainId: number) {
 }
 
 export type PasskeyClient = {
-  createProvisioningArtifacts(input: {
+  registerPasskey(input: {
     displayName: string;
+  }): Promise<WebAuthnKey>;
+  createProvisioningArtifacts(input: {
     walletConfig: WalletConfig;
-  }): Promise<{
-    owner: { credentialId: string; publicKey: string };
-    counterfactualWalletAddress: string;
-    regularValidatorInitArtifact: RegularValidatorInitArtifact;
-  }>;
+    webAuthnKey: WebAuthnKey;
+  }): Promise<ProvisioningArtifacts>;
 };
 
 export const browserPasskeyClient: PasskeyClient = {
-  async createProvisioningArtifacts({ displayName, walletConfig }) {
+  async registerPasskey({ displayName }) {
     if (!__PASSKEY_SERVER_URL__) {
       throw new Error(
         "Missing GUARDRAIL_PASSKEY_SERVER_URL in frontend build.",
       );
     }
 
+    return toWebAuthnKey({
+      passkeyName: displayName,
+      passkeyServerUrl: __PASSKEY_SERVER_URL__,
+      mode: WebAuthnMode.Register,
+      rpID: window.location.hostname,
+      passkeyServerHeaders: {},
+    });
+  },
+
+  async createProvisioningArtifacts({ walletConfig, webAuthnKey }) {
+    
     const rpcUrl = getPublicRpcUrl(walletConfig.chainId);
 
     if (!rpcUrl) {
@@ -66,15 +79,7 @@ export const browserPasskeyClient: PasskeyClient = {
       transport: http(rpcUrl),
     });
 
-    const webAuthnKey = await toWebAuthnKey({
-      passkeyName: displayName,
-      passkeyServerUrl: __PASSKEY_SERVER_URL__,
-      mode: WebAuthnMode.Register,
-      rpID: window.location.hostname,
-      passkeyServerHeaders: {},
-    });
-
-    return createProvisioningArtifacts(publicClient, {
+    return createKernelProvisioningArtifacts(publicClient, {
       walletConfig,
       webAuthnKey,
     });

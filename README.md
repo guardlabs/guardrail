@@ -45,7 +45,7 @@ This returns:
 - local wallet state on disk
 - the agent signer address
 
-Share the provisioning URL with the human:
+Share the provisioning URL with the human (they create the passkey and approve the ownership signature in the browser):
 
 ```text
 https://guardlabs.ai/?walletId=wal_xxx&token=token_xxx

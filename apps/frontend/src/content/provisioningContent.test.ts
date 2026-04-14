@@ -39,6 +39,18 @@ describe("getProvisioningContentModel", () => {
     );
   });
 
+  it("shows the approval copy when a passkey was registered", () => {
+    const model = getProvisioningContentModel({
+      status: "created",
+      fundingStatus: "unverified",
+      policy: createPolicy(),
+      isAwaitingOwnerConfirmation: true,
+    });
+
+    expect(model.statusTitle).toBe("Approve wallet ownership");
+    expect(model.primaryActionLabel).toBe("Approve ownership signature");
+  });
+
   it("adjusts the primary message when funding is still required", () => {
     const model = getProvisioningContentModel({
       status: "owner_bound",

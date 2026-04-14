@@ -14,6 +14,7 @@ import {
   type WalletPolicy,
   type WalletRequest,
 } from "@guardlabs/guardrail-core";
+import type { WebAuthnKey } from "@guardlabs/guardrail-kernel";
 import { App } from "./App.js";
 
 const walletConfig = buildDefaultWalletConfig({
@@ -26,6 +27,14 @@ const regularValidatorInitArtifact = {
   enableData: "0x1234",
   pluginEnableSignature: "0x5678",
 } as const;
+const registeredPasskey: WebAuthnKey = {
+  pubX: 1n,
+  pubY: 2n,
+  authenticatorId: "credential-id",
+  authenticatorIdHash:
+    "0x1111111111111111111111111111111111111111111111111111111111111111",
+  rpID: "localhost",
+};
 
 function createRuntimePolicy(): WalletPolicy {
   return {
@@ -126,6 +135,9 @@ describe("frontend app mode B", () => {
     const loadProvisioningRequest = vi
       .fn<() => Promise<ResolveProvisioningResponse>>()
       .mockResolvedValue(buildProvisioningResponse());
+    const registerPasskey = vi
+      .fn<() => Promise<WebAuthnKey>>()
+      .mockResolvedValue(registeredPasskey);
     const createProvisioningArtifacts = vi
       .fn<
         () => Promise<{
@@ -157,6 +169,7 @@ describe("frontend app mode B", () => {
           refreshFunding,
         }}
         passkeyClient={{
+          registerPasskey,
           createProvisioningArtifacts,
         }}
       />,
@@ -179,9 +192,24 @@ describe("frontend app mode B", () => {
     fireEvent.click(screen.getByRole("button", { name: /create passkey/i }));
 
     await waitFor(() => {
-      expect(createProvisioningArtifacts).toHaveBeenCalledWith({
+      expect(registerPasskey).toHaveBeenCalledWith({
         displayName: "Guardrail",
+      });
+    });
+
+    expect(
+      await screen.findByRole("heading", { name: /approve wallet ownership/i }),
+    ).toBeInTheDocument();
+    expect(createProvisioningArtifacts).not.toHaveBeenCalled();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /approve ownership signature/i }),
+    );
+
+    await waitFor(() => {
+      expect(createProvisioningArtifacts).toHaveBeenCalledWith({
         walletConfig,
+        webAuthnKey: registeredPasskey,
       });
     });
 
@@ -276,6 +304,9 @@ describe("frontend app mode B", () => {
     const loadProvisioningRequest = vi
       .fn<() => Promise<ResolveProvisioningResponse>>()
       .mockResolvedValue(buildProvisioningResponse());
+    const registerPasskey = vi
+      .fn<() => Promise<WebAuthnKey>>()
+      .mockResolvedValue(registeredPasskey);
     const createProvisioningArtifacts = vi
       .fn<
         () => Promise<{
@@ -319,6 +350,7 @@ describe("frontend app mode B", () => {
           refreshFunding,
         }}
         passkeyClient={{
+          registerPasskey,
           createProvisioningArtifacts,
         }}
       />,
@@ -326,6 +358,9 @@ describe("frontend app mode B", () => {
 
     fireEvent.click(
       await screen.findByRole("button", { name: /create passkey/i }),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: /approve ownership signature/i }),
     );
 
     await waitFor(() => {
@@ -385,6 +420,7 @@ describe("frontend app mode B", () => {
             ),
         }}
         passkeyClient={{
+          registerPasskey: vi.fn(),
           createProvisioningArtifacts: vi.fn(),
         }}
       />,
@@ -405,6 +441,9 @@ describe("frontend app mode B", () => {
     const loadProvisioningRequest = vi
       .fn<() => Promise<ResolveProvisioningResponse>>()
       .mockResolvedValue(buildProvisioningResponse());
+    const registerPasskey = vi
+      .fn<() => Promise<WebAuthnKey>>()
+      .mockResolvedValue(registeredPasskey);
     const createProvisioningArtifacts = vi
       .fn<
         () => Promise<{
@@ -435,6 +474,7 @@ describe("frontend app mode B", () => {
           refreshFunding: vi.fn(),
         }}
         passkeyClient={{
+          registerPasskey,
           createProvisioningArtifacts,
         }}
       />,
@@ -443,12 +483,15 @@ describe("frontend app mode B", () => {
     fireEvent.click(
       await screen.findByRole("button", { name: /create passkey/i }),
     );
+    fireEvent.click(
+      await screen.findByRole("button", { name: /approve ownership signature/i }),
+    );
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       /unable to save passkey owner/i,
     );
     expect(
-      screen.getByRole("heading", { name: /create the passkey/i }),
+      screen.getByRole("heading", { name: /approve wallet ownership/i }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("region", { name: /wallet permissions/i }),

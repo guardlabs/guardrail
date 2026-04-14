@@ -37,7 +37,7 @@ Send the provisioning URL to the human operator:
 https://guardlabs.ai/?walletId=wal_xxx&token=token_xxx
 ```
 
-The human opens the hosted frontend, creates the passkey, and becomes the durable wallet owner.
+The human opens the hosted frontend, creates the passkey, approves the ownership signature, and becomes the durable wallet owner.
 
 ## 3. Wait For Readiness
 
