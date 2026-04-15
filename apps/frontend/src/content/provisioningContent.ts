@@ -114,7 +114,7 @@ export function getProvisioningContentModel(input: {
           input.fundingStatus === "verified"
             ? "No extra approval is needed right now. Keep this page open while the final check completes."
             : "Transfer the minimum amount to the wallet address below. This page keeps checking automatically.",
-        primaryActionLabel: "Passkey already created",
+        primaryActionLabel: "Ownership confirmed",
         permissionItems,
         fundingLabel: formatFundingLabel(input.fundingStatus),
         fundingGuidance:
@@ -134,7 +134,7 @@ export function getProvisioningContentModel(input: {
         actionTitle: "Setup complete",
         actionBody:
           "Nothing else is required on this page unless you want to review the technical details.",
-        primaryActionLabel: "Passkey already created",
+        primaryActionLabel: "Setup complete",
         permissionItems,
         fundingLabel: formatFundingLabel(input.fundingStatus),
         fundingGuidance: null,

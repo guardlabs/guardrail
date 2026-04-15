@@ -433,7 +433,7 @@ describe("frontend app mode B", () => {
       screen.getByRole("button", { name: /technical details/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /passkey already created/i }),
+      screen.getByRole("button", { name: /ownership confirmed/i }),
     ).toBeDisabled();
   });
 
