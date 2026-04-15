@@ -633,6 +633,82 @@ describe("backend app mode B", () => {
     await app.close();
   });
 
+  it("logs bundler relay request and response summaries for validation errors", async () => {
+    const app = buildApp({
+      config: testConfig,
+      repository: createTestRepository(),
+      chainRelayService: {
+        async relay() {
+          return {
+            jsonrpc: "2.0",
+            id: 1,
+            error: {
+              code: -32500,
+              message: "validation reverted: [reason]: AA23 reverted",
+              data: {
+                reason: "AA23 reverted",
+                revertData: "0xc48cf8ee",
+              },
+            },
+          };
+        },
+      },
+    });
+    const debugSpy = vi.spyOn(app.log, "debug");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/chains/84532/bundler",
+      payload: {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "eth_estimateUserOperationGas",
+        params: [
+          {
+            sender: "0x5aB9A3e7AAf66611c30907ebf5cA86AC775490CF",
+            nonce: "0x01",
+            factory: "0xd703aaE79538628d27099B8c4f621bE4CCd142d5",
+            factoryData: "0xc5265d5d1234",
+            callData: "0xe9ae5c531234",
+            signature: `0x${"11".repeat(65)}`,
+          },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expectLogEvent(debugSpy, "chain_relay_forwarded", {
+      route: "bundler-relay",
+      chainId: 84532,
+      target: "bundler",
+      methods: ["eth_estimateUserOperationGas"],
+      requestSummary: [
+        expect.objectContaining({
+          id: 1,
+          method: "eth_estimateUserOperationGas",
+          sender: "0x5aB9A3e7AAf66611c30907ebf5cA86AC775490CF",
+          nonce: "0x01",
+          factory: "0xd703aaE79538628d27099B8c4f621bE4CCd142d5",
+          factoryDataSelector: "0xc5265d5d",
+          callDataSelector: "0xe9ae5c53",
+          signatureBytes: 65,
+        }),
+      ],
+      responseSummary: [
+        expect.objectContaining({
+          id: 1,
+          kind: "error",
+          errorCode: -32500,
+          errorMessage: "validation reverted: [reason]: AA23 reverted",
+          errorReason: "AA23 reverted",
+          errorRevertData: "0xc48cf8ee",
+        }),
+      ],
+    });
+
+    await app.close();
+  });
+
   it("rejects malformed relay payloads without a JSON-RPC method", async () => {
     const chainRelay = createTestChainRelayService();
     const app = buildApp({

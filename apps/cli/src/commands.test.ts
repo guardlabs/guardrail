@@ -1125,6 +1125,156 @@ describe("cli commands mode B", () => {
     expect(decodedPayload.payload.signature).toBe(`0x${"ab".repeat(96)}`);
   });
 
+  it("ignores incompatible accepts entries when signing x402 payments", async () => {
+    const walletConfig = buildDefaultWalletConfig({
+      chainId: 84532,
+      agentAddress: "0xFCAd0B19bB29D4674531d6f115237E16AfCE377c",
+      backendAddress: "0x1111111111111111111111111111111111111111",
+    });
+    await saveLocalWalletRequest({
+      walletMode: GUARDRAIL_WALLET_MODE,
+      walletId: "wal_123",
+      backendBaseUrl: "https://api.guardlabs.ai",
+      provisioningUrl: "http://127.0.0.1:5173/?walletId=wal_123&token=abc",
+      chainId: 84532,
+      walletConfig,
+      policy: createRuntimePolicy(),
+      agentAddress: walletConfig.regularValidator.signers[0]?.address,
+      agentPrivateKey: `0x${"11".repeat(32)}`,
+      backendAddress: walletConfig.regularValidator.signers[1]?.address,
+      ownerPublicArtifacts: {
+        credentialId: "credential-id",
+        publicKey: "0x1234",
+      },
+      regularValidatorInitArtifact: {
+        validatorAddress: "0x3333333333333333333333333333333333333333",
+        enableData: "0x1234",
+        pluginEnableSignature: "0x5678",
+      },
+      walletAddress: "0x2222222222222222222222222222222222222222",
+      createdAt: "2026-03-29T12:00:00.000Z",
+      lastKnownStatus: "ready",
+      deployment: {
+        status: "undeployed",
+      },
+    });
+    vi.mocked(ensureReadyWalletDeployed).mockResolvedValue({
+      walletAddress: "0x2222222222222222222222222222222222222222",
+      deployed: true,
+      deployedByThisCall: true,
+      transactionHash: "0xdeploymenthash",
+    });
+    vi.mocked(signReadyWalletTypedData).mockResolvedValue({
+      walletAddress: "0x2222222222222222222222222222222222222222",
+      signature: `0x${"ab".repeat(96)}`,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          walletMode: GUARDRAIL_WALLET_MODE,
+          walletId: "wal_123",
+          status: "ready",
+          walletConfig,
+          policy: createRuntimePolicy(),
+          agentAddress: walletConfig.regularValidator.signers[0]?.address,
+          backendAddress: walletConfig.regularValidator.signers[1]?.address,
+          ownerPublicArtifacts: {
+            credentialId: "credential-id",
+            publicKey: "0x1234",
+          },
+          regularValidatorInitArtifact: {
+            validatorAddress: "0x3333333333333333333333333333333333333333",
+            enableData: "0x1234",
+            pluginEnableSignature: "0x5678",
+          },
+          counterfactualWalletAddress:
+            "0x2222222222222222222222222222222222222222",
+          funding: {
+            status: "verified",
+            minimumRequiredWei: "500000000000000",
+            balanceWei: "700000000000000",
+            checkedAt: "2026-03-29T12:05:00.000Z",
+          },
+          deployment: {
+            status: "deployed",
+          },
+          walletContext: {
+            walletAddress: "0x2222222222222222222222222222222222222222",
+            chainId: 84532,
+            kernelVersion: "3.1",
+            entryPointVersion: "0.7",
+            owner: {
+              credentialId: "credential-id",
+              publicKey: "0x1234",
+            },
+            agentAddress: walletConfig.regularValidator.signers[0]?.address,
+            backendAddress: walletConfig.regularValidator.signers[1]?.address,
+            weightedValidator: walletConfig.regularValidator,
+          },
+          createdAt: "2026-03-29T12:00:00.000Z",
+          updatedAt: "2026-03-29T12:05:00.000Z",
+          expiresAt: "2026-03-30T12:00:00.000Z",
+        }),
+      }),
+    );
+
+    const paymentRequiredHeader = Buffer.from(
+      JSON.stringify({
+        x402Version: 2,
+        error: "PAYMENT-SIGNATURE header is required",
+        resource: {
+          url: "http://127.0.0.1:4010/premium-data",
+          description: "Premium test payload",
+          mimeType: "application/json",
+        },
+        accepts: [
+          {
+            scheme: "exact",
+            network: "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z",
+            amount: "250000",
+            asset:
+              "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            payTo:
+              "6WJ9u3P2W1wqYJ7JpM6tQx3Vh2f2sQ2wM7sM4Z9hV6qR",
+            maxTimeoutSeconds: 60,
+            extra: {
+              assetTransferMethod: "eip3009",
+            },
+          },
+          {
+            scheme: "exact",
+            network: "eip155:84532",
+            amount: "250000",
+            asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+            payTo: "0x3333333333333333333333333333333333333333",
+            maxTimeoutSeconds: 60,
+            extra: {
+              assetTransferMethod: "eip3009",
+              name: "USDC",
+              version: "2",
+            },
+          },
+        ],
+      }),
+      "utf8",
+    ).toString("base64");
+
+    const result = await executeX402Sign({
+      walletId: "wal_123",
+      paymentRequiredHeader,
+    });
+
+    expect(result.paymentRequired.accepts).toEqual([
+      expect.objectContaining({
+        network: "eip155:84532",
+        amount: "250000",
+      }),
+    ]);
+    expect(result.paymentPayload.accepted.network).toBe("eip155:84532");
+  });
+
   it("fetches an unprotected resource without attempting x402 payment", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ ok: true, resource: "public" }), {
@@ -1292,6 +1442,124 @@ describe("cli commands mode B", () => {
         ok: true,
         resource: "premium",
       },
+    });
+  });
+
+  it("fetches a protected resource with mixed accepts and keeps only supported x402 entries", async () => {
+    const paymentRequiredHeader = Buffer.from(
+      JSON.stringify({
+        x402Version: 2,
+        error: "PAYMENT-SIGNATURE header is required",
+        resource: {
+          url: "http://127.0.0.1:4010/premium",
+          description: "Premium payload",
+          mimeType: "application/json",
+        },
+        accepts: [
+          {
+            scheme: "exact",
+            network: "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z",
+            amount: "250000",
+            asset:
+              "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            payTo:
+              "6WJ9u3P2W1wqYJ7JpM6tQx3Vh2f2sQ2wM7sM4Z9hV6qR",
+            maxTimeoutSeconds: 60,
+            extra: {
+              assetTransferMethod: "eip3009",
+            },
+          },
+          {
+            scheme: "exact",
+            network: "eip155:84532",
+            amount: "250000",
+            asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+            payTo: "0x3333333333333333333333333333333333333333",
+            maxTimeoutSeconds: 60,
+            extra: {
+              assetTransferMethod: "eip3009",
+              name: "USDC",
+              version: "2",
+            },
+          },
+        ],
+      }),
+      "utf8",
+    ).toString("base64");
+    const paymentResponseHeader = Buffer.from(
+      JSON.stringify({
+        success: true,
+        transaction: `0x${"11".repeat(32)}`,
+        network: "eip155:84532",
+        payer: "0x2222222222222222222222222222222222222222",
+        amount: "250000",
+      }),
+      "utf8",
+    ).toString("base64");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: "PAYMENT-SIGNATURE header is required",
+          }),
+          {
+            status: 402,
+            headers: {
+              "content-type": "application/json",
+              "payment-required": paymentRequiredHeader,
+            },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            ok: true,
+            resource: "premium",
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json",
+              "payment-response": paymentResponseHeader,
+            },
+          },
+        ),
+      );
+    const x402Signer = vi.fn().mockResolvedValue({
+      walletId: "wal_123",
+      walletAddress: "0x2222222222222222222222222222222222222222",
+      payerAddress: "0x2222222222222222222222222222222222222222",
+      paymentRequired: {
+        x402Version: 2,
+      },
+      paymentPayload: {
+        x402Version: 2,
+      },
+      paymentSignatureHeader: "signed-header",
+    });
+
+    const result = await executeX402Fetch(
+      {
+        walletId: "wal_123",
+        url: "http://127.0.0.1:4010/premium",
+      },
+      {
+        fetchImpl: fetchMock,
+        x402Signer: x402Signer as never,
+      },
+    );
+
+    expect(result.paymentRequired?.accepts).toEqual([
+      expect.objectContaining({
+        network: "eip155:84532",
+        amount: "250000",
+      }),
+    ]);
+    expect(x402Signer).toHaveBeenCalledWith({
+      walletId: "wal_123",
+      paymentRequiredHeader,
     });
   });
 });

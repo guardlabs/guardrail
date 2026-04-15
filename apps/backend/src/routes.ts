@@ -216,6 +216,149 @@ function isAllowedRelayMethod(target: RelayTarget, method: string) {
   return ALLOWED_BUNDLER_RELAY_METHODS.has(method);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function summarizeHexSelector(value: unknown) {
+  if (typeof value !== "string" || !value.startsWith("0x")) {
+    return null;
+  }
+
+  return value.slice(0, Math.min(value.length, 10));
+}
+
+function summarizeHexBytes(value: unknown) {
+  if (typeof value !== "string" || !value.startsWith("0x")) {
+    return null;
+  }
+
+  return Math.max(0, (value.length - 2) / 2);
+}
+
+function summarizeUserOperationCandidate(value: unknown) {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const summary: Record<string, unknown> = {};
+
+  if (typeof value.sender === "string") {
+    summary.sender = value.sender;
+  }
+
+  if (
+    typeof value.nonce === "string" ||
+    (typeof value.nonce === "number" && Number.isFinite(value.nonce))
+  ) {
+    summary.nonce = String(value.nonce);
+  }
+
+  if (typeof value.factory === "string") {
+    summary.factory = value.factory;
+  }
+
+  const factoryDataSelector = summarizeHexSelector(value.factoryData);
+  if (factoryDataSelector && factoryDataSelector !== "0x") {
+    summary.factoryDataSelector = factoryDataSelector;
+  }
+
+  const initCodeSelector = summarizeHexSelector(value.initCode);
+  if (initCodeSelector && initCodeSelector !== "0x") {
+    summary.initCodeSelector = initCodeSelector;
+  }
+
+  const callDataSelector = summarizeHexSelector(value.callData);
+  if (callDataSelector && callDataSelector !== "0x") {
+    summary.callDataSelector = callDataSelector;
+  }
+
+  const signatureBytes = summarizeHexBytes(value.signature);
+  if (signatureBytes !== null) {
+    summary.signatureBytes = signatureBytes;
+  }
+
+  return Object.keys(summary).length > 0 ? summary : null;
+}
+
+function summarizeRelayRequestPayload(payload: unknown) {
+  const requests = Array.isArray(payload) ? payload : [payload];
+
+  return requests.flatMap((request) => {
+    if (!isRecord(request)) {
+      return [];
+    }
+
+    const summary: Record<string, unknown> = {};
+
+    if ("id" in request) {
+      summary.id = request.id;
+    }
+
+    if (typeof request.method === "string") {
+      summary.method = request.method;
+    }
+
+    const params = Array.isArray(request.params) ? request.params : [];
+    const userOperationSummary = summarizeUserOperationCandidate(params[0]);
+
+    if (userOperationSummary) {
+      Object.assign(summary, userOperationSummary);
+    }
+
+    return [summary];
+  });
+}
+
+function summarizeRelayResponsePayload(payload: unknown) {
+  const responses = Array.isArray(payload) ? payload : [payload];
+
+  return responses.flatMap((response) => {
+    if (!isRecord(response)) {
+      return [];
+    }
+
+    const summary: Record<string, unknown> = {};
+
+    if ("id" in response) {
+      summary.id = response.id;
+    }
+
+    if (isRecord(response.error)) {
+      summary.kind = "error";
+
+      if ("code" in response.error) {
+        summary.errorCode = response.error.code;
+      }
+
+      if (typeof response.error.message === "string") {
+        summary.errorMessage = response.error.message;
+      }
+
+      if (isRecord(response.error.data)) {
+        if (typeof response.error.data.reason === "string") {
+          summary.errorReason = response.error.data.reason;
+        }
+
+        if (typeof response.error.data.revertData === "string") {
+          summary.errorRevertData = response.error.data.revertData;
+        }
+      }
+    } else {
+      summary.kind = "result";
+
+      if (isRecord(response.result)) {
+        summary.resultKeys = Object.keys(response.result).slice(0, 5);
+      } else if ("result" in response) {
+        summary.resultType =
+          response.result === null ? "null" : typeof response.result;
+      }
+    }
+
+    return [summary];
+  });
+}
+
 async function verifyBackendSignerAuthorization(input: {
   request: StoredWalletRequest;
   auth: {
@@ -484,6 +627,7 @@ export function registerRoutes(
     const params = request.params as { chainId: string };
     const chainId = Number(params.chainId);
     const methods = extractRelayMethods(request.body);
+    const route = target === "rpc" ? "rpc-relay" : "bundler-relay";
 
     if (
       !Number.isInteger(chainId) ||
@@ -512,6 +656,8 @@ export function registerRoutes(
       });
     }
 
+    const requestSummary = summarizeRelayRequestPayload(request.body);
+
     try {
       const payload = await chainRelayService.relay({
         chainId,
@@ -524,15 +670,26 @@ export function registerRoutes(
         "chain_relay_forwarded",
         "Forwarded allowed chain relay request.",
         {
-          route: target === "rpc" ? "rpc-relay" : "bundler-relay",
+          route,
           chainId,
           target,
           methods,
+          requestSummary,
+          responseSummary: summarizeRelayResponsePayload(payload),
         },
       );
 
       return reply.send(payload);
     } catch (error) {
+      logDebug(app, "chain_relay_failed", "Chain relay request failed.", {
+        route,
+        chainId,
+        target,
+        methods,
+        requestSummary,
+        relayError: error instanceof Error ? error.message : String(error),
+      });
+
       return reply.status(502).send({
         error: `${target}_relay_failed`,
         message:

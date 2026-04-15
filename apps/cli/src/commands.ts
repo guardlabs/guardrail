@@ -356,6 +356,36 @@ function decodeBase64Json(raw: string) {
   ) as unknown;
 }
 
+function parseX402PaymentRequiredHeader(raw: string) {
+  const decoded = decodeBase64Json(raw);
+  const parsed = x402PaymentRequiredSchema.safeParse(decoded);
+
+  if (parsed.success) {
+    return parsed.data;
+  }
+
+  if (!decoded || typeof decoded !== "object" || Array.isArray(decoded)) {
+    throw parsed.error;
+  }
+
+  const accepts = Reflect.get(decoded, "accepts");
+
+  if (!Array.isArray(accepts)) {
+    throw parsed.error;
+  }
+
+  const compatibleAccepts = accepts.flatMap((candidate) => {
+    const result = x402PaymentRequirementsSchema.safeParse(candidate);
+
+    return result.success ? [result.data] : [];
+  });
+
+  return x402PaymentRequiredSchema.parse({
+    ...decoded,
+    accepts: compatibleAccepts,
+  });
+}
+
 async function parseResponseBody(response: Response) {
   const contentType = response.headers.get("content-type") ?? "";
   const raw = await response.text();
@@ -956,8 +986,8 @@ export async function executeX402Sign(options: {
   let localRequest = await loadReadyRuntimeLocalRequest({
     walletId: options.walletId,
   });
-  const paymentRequired = x402PaymentRequiredSchema.parse(
-    decodeBase64Json(options.paymentRequiredHeader),
+  const paymentRequired = parseX402PaymentRequiredHeader(
+    options.paymentRequiredHeader,
   );
   const accepted = selectX402ExactEip3009Requirement(
     paymentRequired.accepts,
@@ -1054,9 +1084,7 @@ export async function executeX402Fetch(
     };
   }
 
-  const paymentRequired = x402PaymentRequiredSchema.parse(
-    decodeBase64Json(paymentRequiredHeader),
-  );
+  const paymentRequired = parseX402PaymentRequiredHeader(paymentRequiredHeader);
   const signatureResult = await x402Signer({
     walletId: options.walletId,
     paymentRequiredHeader,
