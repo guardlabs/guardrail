@@ -20,6 +20,7 @@ import {
   type BackendUserOperationSignaturePayload,
   type CreateWalletRequestInput,
 } from "@guardlabs/guardrail-core";
+import { validateProvisioningArtifacts } from "@guardlabs/guardrail-kernel/validation";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { verifyTypedData, type Address, type Hex } from "viem";
 import type { AppConfig } from "./config.js";
@@ -1316,6 +1317,33 @@ export function registerRoutes(
       ) {
         return reply.status(409).send({
           error: "invalid_status_transition",
+        });
+      }
+
+      const provisioningArtifactsValidation = validateProvisioningArtifacts({
+        walletAddress: body.counterfactualWalletAddress as Address,
+        walletConfig: existingRequest.walletConfig,
+        owner: body.owner,
+        regularValidatorInitArtifact: body.regularValidatorInitArtifact,
+        expectedOrigin: new URL(config.frontendBaseUrl).origin,
+      });
+
+      if (!provisioningArtifactsValidation.ok) {
+        logInfo(
+          app,
+          "owner_artifacts_rejected",
+          "Rejected invalid owner artifacts during provisioning.",
+          {
+            walletId: existingRequest.walletId,
+            status: existingRequest.status,
+            validationCode: provisioningArtifactsValidation.code,
+          },
+        );
+
+        return reply.status(400).send({
+          error: "invalid_owner_artifacts",
+          code: provisioningArtifactsValidation.code,
+          message: provisioningArtifactsValidation.message,
         });
       }
 

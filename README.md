@@ -51,6 +51,8 @@ Share the provisioning URL with the human (they create the passkey and approve t
 https://guardlabs.ai/?walletId=wal_xxx&token=token_xxx
 ```
 
+If the provisioning frontend submits inconsistent passkey artifacts, the backend now rejects them immediately during owner binding instead of letting the wallet fail later during first deployment.
+
 Wait for readiness:
 
 ```bash

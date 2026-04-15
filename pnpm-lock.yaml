@@ -50,6 +50,9 @@ importers:
       '@guardlabs/guardrail-core':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@guardlabs/guardrail-kernel':
+        specifier: workspace:*
+        version: link:../../packages/zerodev
       dotenv:
         specifier: ^16.6.1
         version: 16.6.1

@@ -239,6 +239,8 @@ Tell the human to:
 3. approve the ownership signature prompt after the passkey is saved,
 4. confirm once the page shows the wallet address or the owner-bound state.
 
+If the provisioning page fails while saving owner artifacts, treat that as a provisioning failure, not as a wallet that can still become usable later. Do not keep waiting for `ready` on that wallet request. Start a fresh wallet request instead.
+
 Wait until the human confirms this step is complete before continuing.
 
 ### Step 4: Read The Wallet Address And Funding Requirement

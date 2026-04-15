@@ -10,6 +10,7 @@ import {
   type RegularValidatorInitArtifact,
   type WalletContext,
 } from "@guardlabs/guardrail-core";
+import { validateProvisioningArtifacts } from "@guardlabs/guardrail-kernel/validation";
 import { hashTypedData } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { buildApp } from "./app.js";
@@ -20,6 +21,12 @@ import type {
   WalletRequestRepository,
 } from "./repository.js";
 import type { WalletProvisioningService } from "./wallet.js";
+
+vi.mock("@guardlabs/guardrail-kernel/validation", () => ({
+  validateProvisioningArtifacts: vi.fn(() => ({
+    ok: true,
+  })),
+}));
 
 const testConfig: AppConfig = {
   port: 3000,
@@ -837,6 +844,66 @@ describe("backend app mode B", () => {
     expect(ownerArtifactsResponse.json()).toMatchObject({
       error: "provisioning_token_expired",
     });
+
+    await app.close();
+  });
+
+  it("rejects invalid owner artifacts before provisioning is finalized", async () => {
+    const agentAccount = privateKeyToAccount(generatePrivateKey());
+    const finalizeProvisioning = vi.fn();
+    const app = buildApp({
+      config: testConfig,
+      repository: createTestRepository(),
+      walletProvisioningService: {
+        finalizeProvisioning,
+        refreshFunding: vi.fn(),
+      },
+    });
+
+    vi.mocked(validateProvisioningArtifacts).mockReturnValueOnce({
+      ok: false,
+      code: "plugin_enable_signature_invalid",
+      message:
+        "Stored plugin enable signature does not verify against the stored owner passkey public key.",
+    });
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/v1/wallets",
+      payload: {
+        walletMode: GUARDRAIL_WALLET_MODE,
+        chainId: 84532,
+        agentAddress: agentAccount.address,
+        policy: createRuntimePolicy(),
+      },
+    });
+
+    const createdWallet = createResponse.json() as {
+      walletId: string;
+      provisioningUrl: string;
+    };
+    const token = extractProvisioningToken(createdWallet.provisioningUrl);
+
+    const ownerArtifactsResponse = await app.inject({
+      method: "POST",
+      url: `/v1/provisioning/${createdWallet.walletId}/owner-artifacts?t=${encodeURIComponent(token)}`,
+      payload: {
+        owner: {
+          credentialId: "credential-id",
+          publicKey: "0x1234",
+        },
+        counterfactualWalletAddress:
+          "0x2222222222222222222222222222222222222222",
+        regularValidatorInitArtifact: createRegularValidatorInitArtifact(),
+      },
+    });
+
+    expect(ownerArtifactsResponse.statusCode).toBe(400);
+    expect(ownerArtifactsResponse.json()).toMatchObject({
+      error: "invalid_owner_artifacts",
+      code: "plugin_enable_signature_invalid",
+    });
+    expect(finalizeProvisioning).not.toHaveBeenCalled();
 
     await app.close();
   });

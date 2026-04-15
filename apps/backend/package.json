@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@guardlabs/guardrail-core": "workspace:*",
+    "@guardlabs/guardrail-kernel": "workspace:*",
     "@fastify/cors": "^10.0.1",
     "dotenv": "^16.6.1",
     "drizzle-orm": "^0.43.1",

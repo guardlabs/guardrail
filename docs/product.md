@@ -62,6 +62,7 @@ Today it:
 
 - creates a backend co-signer per wallet request,
 - stores wallet requests and provisioning state,
+- rejects malformed or internally inconsistent provisioning artifacts before they are stored,
 - checks whether a requested runtime action fits policy,
 - records policy consumption for budgeted actions,
 - co-signs only the actions it allows,
@@ -74,7 +75,7 @@ The current wallet lifecycle is:
 1. The CLI creates a wallet request with a policy.
 2. The backend creates the matching wallet configuration and returns a provisioning link.
 3. The human opens the provisioning frontend, creates the owner passkey, and approves the ownership signature.
-4. The backend binds the owner artifacts and computes the counterfactual wallet address.
+4. The backend validates that the submitted owner artifacts are coherent, then binds them and computes the counterfactual wallet address.
 5. The wallet is funded onchain with the minimum activation balance.
 6. The backend marks the wallet as ready.
 7. The agent can use the wallet through the policy-gated runtime path.

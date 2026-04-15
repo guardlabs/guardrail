@@ -6,6 +6,7 @@ import {
   type WalletRequest,
 } from "@guardlabs/guardrail-core";
 import { createWeightedKernelRuntime } from "@guardlabs/guardrail-kernel";
+import { validateProvisioningArtifacts } from "@guardlabs/guardrail-kernel/validation";
 import {
   callReadyWalletTransaction,
   ensureReadyWalletDeployed,
@@ -15,6 +16,12 @@ import {
 
 vi.mock("@guardlabs/guardrail-kernel", () => ({
   createWeightedKernelRuntime: vi.fn(),
+}));
+
+vi.mock("@guardlabs/guardrail-kernel/validation", () => ({
+  validateProvisioningArtifacts: vi.fn(() => ({
+    ok: true,
+  })),
 }));
 
 function createRuntimePolicy() {
@@ -342,5 +349,29 @@ describe("kernel runtime mode B", () => {
       deployedByThisCall: true,
       transactionHash: "0xdeploymenthash",
     });
+  });
+
+  it("fails fast when stored provisioning artifacts are invalid", async () => {
+    vi.mocked(createWeightedKernelRuntime).mockClear();
+    vi.mocked(validateProvisioningArtifacts).mockReturnValueOnce({
+      ok: false,
+      code: "plugin_enable_signature_invalid",
+      message:
+        "Stored plugin enable signature does not verify against the stored owner passkey public key.",
+    });
+
+    await expect(
+      ensureReadyWalletDeployed({
+        localRequest: buildLocalWalletRequest({
+          walletAddress: "0x2222222222222222222222222222222222222222",
+          lastKnownStatus: "ready",
+          ownerPublicArtifacts: {
+            credentialId: "credential-id",
+            publicKey: "0x1234",
+          },
+        }),
+      }),
+    ).rejects.toThrow(/stored provisioning artifacts are invalid/i);
+    expect(createWeightedKernelRuntime).not.toHaveBeenCalled();
   });
 });

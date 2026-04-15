@@ -5,6 +5,7 @@ import {
   type WalletRequest,
 } from "@guardlabs/guardrail-core";
 import { createWeightedKernelRuntime } from "@guardlabs/guardrail-kernel";
+import { validateProvisioningArtifacts } from "@guardlabs/guardrail-kernel/validation";
 import type { Chain, Hex, TypedData, TypedDataDefinition } from "viem";
 
 function getChain(chainId: number): Chain {
@@ -32,10 +33,38 @@ function resolveRuntimeConfiguration(chainId: number, backendBaseUrl: string) {
   };
 }
 
+function assertLocalProvisioningArtifactsAreValid(
+  localRequest: LocalWalletRequest,
+) {
+  if (
+    !localRequest.walletAddress ||
+    !localRequest.ownerPublicArtifacts ||
+    !localRequest.regularValidatorInitArtifact
+  ) {
+    return;
+  }
+
+  const validation = validateProvisioningArtifacts({
+    walletAddress: localRequest.walletAddress as `0x${string}`,
+    walletConfig: localRequest.walletConfig,
+    owner: localRequest.ownerPublicArtifacts,
+    regularValidatorInitArtifact: localRequest.regularValidatorInitArtifact,
+    expectedOrigin: new URL(localRequest.provisioningUrl).origin,
+  });
+
+  if (!validation.ok) {
+    throw new Error(
+      `Stored provisioning artifacts are invalid: ${validation.message} Re-provision the wallet before retrying deployment or signing.`,
+    );
+  }
+}
+
 async function hydrateKernelRuntime(localRequest: LocalWalletRequest) {
   if (!localRequest.walletAddress) {
     throw new Error("Local wallet state is missing the wallet address.");
   }
+
+  assertLocalProvisioningArtifactsAreValid(localRequest);
 
   const chain = getChain(localRequest.chainId);
   const { rpcUrl, bundlerUrl } = resolveRuntimeConfiguration(

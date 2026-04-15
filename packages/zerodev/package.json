@@ -8,6 +8,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./validation": {
+      "types": "./dist/provisioning-validation.d.ts",
+      "default": "./dist/provisioning-validation.js"
     }
   },
   "scripts": {
