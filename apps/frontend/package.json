@@ -13,6 +13,7 @@
   "dependencies": {
     "@guardlabs/guardrail-core": "workspace:*",
     "@guardlabs/guardrail-kernel": "workspace:*",
+    "@simplewebauthn/browser": "9.0.1",
     "@zerodev/permissions": "5.6.3",
     "@zerodev/webauthn-key": "^5.4.2",
     "react": "^19.0.0",
