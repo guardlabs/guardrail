@@ -239,7 +239,6 @@ export const getWalletRequestResponseSchema = walletRequestSchema;
 
 export const resolveProvisioningRequestSchema = z.object({
   walletId: z.string().min(1),
-  token: z.string().min(1),
 });
 
 export const resolveProvisioningResponseSchema = z.object({

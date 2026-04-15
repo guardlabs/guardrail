@@ -26,7 +26,6 @@ export const walletsTable = pgTable(
     agentAddress: text("agent_address").notNull(),
     backendAddress: text("backend_address").notNull(),
     backendPrivateKey: text("backend_private_key").notNull(),
-    provisioningTokenHash: text("provisioning_token_hash").notNull(),
     ownerPublicArtifacts: jsonb(
       "owner_public_artifacts",
     ).$type<OwnerPublicArtifacts>(),

@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   GUARDRAIL_DEFAULT_BACKEND_URL,
@@ -43,14 +43,6 @@ function createWalletId() {
   return `wal_${randomUUID().replaceAll("-", "")}`;
 }
 
-function createProvisioningToken() {
-  return randomBytes(24).toString("hex");
-}
-
-function hashProvisioningToken(token: string) {
-  return createHash("sha256").update(token).digest("hex");
-}
-
 function createExpiresAt(now: Date, ttlHours: number) {
   return new Date(now.getTime() + ttlHours * 60 * 60 * 1000).toISOString();
 }
@@ -62,11 +54,9 @@ function isExpired(expiresAt: string) {
 function createProvisioningUrl(input: {
   frontendBaseUrl: string;
   walletId: string;
-  token: string;
 }) {
   const url = new URL(input.frontendBaseUrl);
   url.searchParams.set("walletId", input.walletId);
-  url.searchParams.set("token", input.token);
   return url.toString();
 }
 
@@ -89,9 +79,8 @@ function createBackendSignerAccount(agentAddress: string) {
 function buildInitialRequest(
   payload: CreateWalletRequestInput,
   config: AppConfig,
-): { request: StoredWalletRequest; provisioningToken: string } {
+): { request: StoredWalletRequest } {
   const now = new Date();
-  const provisioningToken = createProvisioningToken();
   const walletId = createWalletId();
   const timestamp = now.toISOString();
   const { backendPrivateKey, backendAccount } = createBackendSignerAccount(
@@ -104,7 +93,6 @@ function buildInitialRequest(
   });
 
   return {
-    provisioningToken,
     request: {
       walletId,
       walletMode: GUARDRAIL_WALLET_MODE,
@@ -114,7 +102,6 @@ function buildInitialRequest(
       agentAddress: payload.agentAddress,
       backendAddress: backendAccount.address,
       backendPrivateKey,
-      provisioningTokenHash: hashProvisioningToken(provisioningToken),
       funding: {
         status: "unverified",
         minimumRequiredWei: config.minFundingWei,
@@ -721,7 +708,7 @@ export function registerRoutes(
       });
     }
 
-    const { request: nextRequest, provisioningToken } = buildInitialRequest(
+    const { request: nextRequest } = buildInitialRequest(
       payload,
       config,
     );
@@ -731,7 +718,6 @@ export function registerRoutes(
     const provisioningUrl = createProvisioningUrl({
       frontendBaseUrl: config.frontendBaseUrl,
       walletId: nextRequest.walletId,
-      token: provisioningToken,
     });
 
     const response = createWalletRequestResponseSchema.parse({
@@ -1233,18 +1219,8 @@ export function registerRoutes(
 
   app.get("/v1/provisioning/:walletId", async (request, reply) => {
     const params = request.params as { walletId: string };
-    const query = request.query as { t?: string };
 
-    if (!query.t) {
-      return reply.status(400).send({
-        error: "missing_token",
-      });
-    }
-
-    const walletRequest = await repository.findByIdAndTokenHash(
-      params.walletId,
-      hashProvisioningToken(query.t),
-    );
+    const walletRequest = await repository.findById(params.walletId);
 
     if (!walletRequest) {
       return reply.status(404).send({
@@ -1254,8 +1230,8 @@ export function registerRoutes(
 
     if (isExpired(walletRequest.expiresAt)) {
       return reply.status(410).send({
-        error: "provisioning_token_expired",
-        message: "The provisioning token has expired.",
+        error: "provisioning_request_expired",
+        message: "The provisioning request has expired.",
       });
     }
 
@@ -1284,19 +1260,9 @@ export function registerRoutes(
     "/v1/provisioning/:walletId/owner-artifacts",
     async (request, reply) => {
       const params = request.params as { walletId: string };
-      const query = request.query as { t?: string };
-
-      if (!query.t) {
-        return reply.status(400).send({
-          error: "missing_token",
-        });
-      }
 
       const body = publishOwnerArtifactsInputSchema.parse(request.body);
-      const existingRequest = await repository.findByIdAndTokenHash(
-        params.walletId,
-        hashProvisioningToken(query.t),
-      );
+      const existingRequest = await repository.findById(params.walletId);
 
       if (!existingRequest) {
         return reply.status(404).send({
@@ -1306,8 +1272,8 @@ export function registerRoutes(
 
       if (isExpired(existingRequest.expiresAt)) {
         return reply.status(410).send({
-          error: "provisioning_token_expired",
-          message: "The provisioning token has expired.",
+          error: "provisioning_request_expired",
+          message: "The provisioning request has expired.",
         });
       }
 
@@ -1359,7 +1325,6 @@ export function registerRoutes(
 
       const updatedRequest = await repository.updateProvisioning({
         walletId: params.walletId,
-        provisioningTokenHash: hashProvisioningToken(query.t),
         ownerPublicArtifacts: preparedWallet.ownerPublicArtifacts,
         regularValidatorInitArtifact:
           preparedWallet.regularValidatorInitArtifact,

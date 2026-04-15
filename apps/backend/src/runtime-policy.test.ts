@@ -87,7 +87,6 @@ function buildStoredWalletRequest(
       backendAddress: walletConfig.regularValidator.signers[1]!.address,
       weightedValidator: walletConfig.regularValidator,
     },
-    provisioningTokenHash: "token-hash",
     backendPrivateKey: "0x1234",
     runtimePolicyState: createInitialRuntimePolicyState(),
     createdAt: "2026-03-29T12:00:00.000Z",

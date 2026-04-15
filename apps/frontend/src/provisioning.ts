@@ -2,7 +2,6 @@ import { resolveProvisioningRequestSchema } from "@guardlabs/guardrail-core";
 
 export type ProvisioningQuery = {
   walletId: string;
-  token: string;
 };
 
 export function parseProvisioningQuery(search: string): ProvisioningQuery {
@@ -10,6 +9,5 @@ export function parseProvisioningQuery(search: string): ProvisioningQuery {
 
   return resolveProvisioningRequestSchema.parse({
     walletId: params.get("walletId"),
-    token: params.get("token"),
   });
 }

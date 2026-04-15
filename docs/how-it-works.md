@@ -47,7 +47,7 @@ The provisioning frontend shows the attached runtime policy before the human cre
 
 ## Deployment Pairing
 
-The official hosted frontend is intentionally paired with the official backend. Provisioning links only carry the wallet request and token. They do not carry a backend override.
+The official hosted frontend is intentionally paired with the official backend. Provisioning links only carry the wallet ID. They do not carry a backend override.
 
 If you deploy your own backend, deploy your own frontend with the matching backend URL and origin settings.
 

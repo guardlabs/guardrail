@@ -358,7 +358,7 @@ After writing the durable memory entry, tell the human that it was saved for fut
 Be precise: say that it was saved to persistent client memory, not only to a day memory log.
 
 Do not persist the provisioning URL after setup is complete unless the human explicitly asks for it.
-That URL contains a sensitive token and is no longer needed for normal later use.
+That URL is no longer needed for normal later use.
 
 If the client does not support durable memory, say that explicitly to the human before you finish, and include the full wallet block in your final reply so the information is still recoverable later.
 Use this fallback only if the client truly has no persistent memory mechanism or if the persistent memory write failed.
@@ -385,7 +385,7 @@ If any check fails, fix it before moving on.
 - Official USDC is handled through the dedicated USDC policy, not the generic contract allowlist.
 - Generic runtime calls cannot send native value. For those calls, `--value-wei` must stay `0`.
 - Funding for activation is native gas token funding, not USDC funding.
-- The provisioning URL contains a token. Treat it as sensitive until provisioning is complete.
+- The provisioning URL contains only the wallet ID. It is safe to share with the human owner.
 - After provisioning is complete, do not store the provisioning URL in durable memory unless the human explicitly asked for it.
 - The hosted frontend is paired with its backend. Do not improvise a mixed deployment.
 - A wallet is not usable just because it has a `walletId`. It must be owner-bound and then reach `ready`.

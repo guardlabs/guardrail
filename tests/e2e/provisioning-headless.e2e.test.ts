@@ -446,12 +446,10 @@ describe("headless provisioning e2e", () => {
       );
       const walletId = String(createResult.walletId);
       const provisioningUrl = new URL(String(createResult.provisioningUrl));
-      const token = provisioningUrl.searchParams.get("token");
       const provisioningBackendUrl =
         provisioningUrl.searchParams.get("backendUrl");
 
       expect(walletId).toMatch(/^wal_/);
-      expect(token).toBeTruthy();
       expect(provisioningBackendUrl).toBeNull();
       const createdWallet = await getWalletPersistenceState(
         databaseUrl,
@@ -464,7 +462,6 @@ describe("headless provisioning e2e", () => {
 
       const published = await publishHeadlessOwnerArtifacts({
         walletId,
-        token: token ?? "",
         backendUrl,
       });
 

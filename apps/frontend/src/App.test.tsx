@@ -162,7 +162,7 @@ describe("frontend app mode B", () => {
 
     render(
       <App
-        search="?walletId=wal_test&token=token_123&backendUrl=https://malicious.example"
+        search="?walletId=wal_test&backendUrl=https://malicious.example"
         api={{
           loadProvisioningRequest,
           publishOwnerArtifacts,
@@ -179,7 +179,6 @@ describe("frontend app mode B", () => {
     expect(loadProvisioningRequest).toHaveBeenCalledWith(
       expect.objectContaining({
         walletId: "wal_test",
-        token: "token_123",
         backendUrl: expect.stringMatching(
           /^http:\/\/(127\.0\.0\.1|localhost):3000$/,
         ),
@@ -216,7 +215,6 @@ describe("frontend app mode B", () => {
     expect(publishOwnerArtifacts).toHaveBeenCalledWith(
       expect.objectContaining({
         walletId: "wal_test",
-        token: "token_123",
         backendUrl: expect.stringMatching(
           /^http:\/\/(127\.0\.0\.1|localhost):3000$/,
         ),
@@ -260,7 +258,7 @@ describe("frontend app mode B", () => {
   });
 
   it("shows a clear error when the provisioning link is incomplete", () => {
-    render(<App search="?walletId=wal_test" />);
+    render(<App search="?walletId=" />);
 
     expect(screen.getByText(/invalid provisioning link/i)).toBeInTheDocument();
     expect(
@@ -343,7 +341,7 @@ describe("frontend app mode B", () => {
 
     render(
       <App
-        search="?walletId=wal_test&token=token_123"
+        search="?walletId=wal_test"
         api={{
           loadProvisioningRequest,
           publishOwnerArtifacts,
@@ -401,7 +399,7 @@ describe("frontend app mode B", () => {
 
     render(
       <App
-        search="?walletId=wal_test&token=token_123"
+        search="?walletId=wal_test"
         api={{
           loadProvisioningRequest,
           publishOwnerArtifacts: vi.fn(),
@@ -467,7 +465,7 @@ describe("frontend app mode B", () => {
 
     render(
       <App
-        search="?walletId=wal_test&token=token_123"
+        search="?walletId=wal_test"
         api={{
           loadProvisioningRequest,
           publishOwnerArtifacts,

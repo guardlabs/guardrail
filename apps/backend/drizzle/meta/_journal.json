@@ -8,6 +8,13 @@
       "when": 1775055743099,
       "tag": "0000_flippant_puppet_master",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1776251302097,
+      "tag": "0001_flippant_gravity",
+      "breakpoints": true
     }
   ]
 }

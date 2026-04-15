@@ -58,7 +58,7 @@ function buildLocalWalletRequest(
     walletMode: GUARDRAIL_WALLET_MODE,
     walletId: "wal_123",
     backendBaseUrl: "http://127.0.0.1:3000",
-    provisioningUrl: "http://127.0.0.1:5173/?walletId=wal_123&token=token_123",
+    provisioningUrl: "http://127.0.0.1:5173/?walletId=wal_123",
     chainId: 84532,
     walletConfig,
     policy: createRuntimePolicy(),

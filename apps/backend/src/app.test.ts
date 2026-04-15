@@ -62,16 +62,8 @@ function createTestRepository(): WalletRequestRepository {
     async findById(walletId) {
       return requests.get(walletId) ?? null;
     },
-    async findByIdAndTokenHash(walletId, provisioningTokenHash) {
-      const request = requests.get(walletId);
-      if (!request || request.provisioningTokenHash !== provisioningTokenHash) {
-        return null;
-      }
-      return request;
-    },
     async updateProvisioning({
       walletId,
-      provisioningTokenHash,
       ownerPublicArtifacts,
       regularValidatorInitArtifact,
       counterfactualWalletAddress,
@@ -82,7 +74,7 @@ function createTestRepository(): WalletRequestRepository {
       updatedAt,
     }) {
       const request = requests.get(walletId);
-      if (!request || request.provisioningTokenHash !== provisioningTokenHash) {
+      if (!request) {
         return null;
       }
 
@@ -304,17 +296,6 @@ function createTestChainRelayService() {
   };
 }
 
-function extractProvisioningToken(provisioningUrl: string) {
-  const url = new URL(provisioningUrl);
-  const token = url.searchParams.get("token");
-
-  if (!token) {
-    throw new Error("Missing provisioning token in test URL.");
-  }
-
-  return token;
-}
-
 function createRegularValidatorInitArtifact(): RegularValidatorInitArtifact {
   return {
     validatorAddress: "0x3333333333333333333333333333333333333333",
@@ -497,11 +478,10 @@ describe("backend app mode B", () => {
       walletId: string;
       provisioningUrl: string;
     };
-    const token = extractProvisioningToken(createdWallet.provisioningUrl);
 
     const ownerArtifactsResponse = await app.inject({
       method: "POST",
-      url: `/v1/provisioning/${createdWallet.walletId}/owner-artifacts?t=${encodeURIComponent(token)}`,
+      url: `/v1/provisioning/${createdWallet.walletId}/owner-artifacts`,
       payload: {
         owner: {
           credentialId: "credential-id",
@@ -776,16 +756,15 @@ describe("backend app mode B", () => {
       walletId: string;
       provisioningUrl: string;
     };
-    const token = extractProvisioningToken(createdWallet.provisioningUrl);
 
     const provisioningResponse = await app.inject({
       method: "GET",
-      url: `/v1/provisioning/${createdWallet.walletId}?t=${encodeURIComponent(token)}`,
+      url: `/v1/provisioning/${createdWallet.walletId}`,
     });
 
     expect(provisioningResponse.statusCode).toBe(410);
     expect(provisioningResponse.json()).toMatchObject({
-      error: "provisioning_token_expired",
+      error: "provisioning_request_expired",
     });
 
     await app.close();
@@ -824,11 +803,10 @@ describe("backend app mode B", () => {
       walletId: string;
       provisioningUrl: string;
     };
-    const token = extractProvisioningToken(createdWallet.provisioningUrl);
 
     const ownerArtifactsResponse = await app.inject({
       method: "POST",
-      url: `/v1/provisioning/${createdWallet.walletId}/owner-artifacts?t=${encodeURIComponent(token)}`,
+      url: `/v1/provisioning/${createdWallet.walletId}/owner-artifacts`,
       payload: {
         owner: {
           credentialId: "credential-id",
@@ -842,7 +820,7 @@ describe("backend app mode B", () => {
 
     expect(ownerArtifactsResponse.statusCode).toBe(410);
     expect(ownerArtifactsResponse.json()).toMatchObject({
-      error: "provisioning_token_expired",
+      error: "provisioning_request_expired",
     });
 
     await app.close();
@@ -882,11 +860,10 @@ describe("backend app mode B", () => {
       walletId: string;
       provisioningUrl: string;
     };
-    const token = extractProvisioningToken(createdWallet.provisioningUrl);
 
     const ownerArtifactsResponse = await app.inject({
       method: "POST",
-      url: `/v1/provisioning/${createdWallet.walletId}/owner-artifacts?t=${encodeURIComponent(token)}`,
+      url: `/v1/provisioning/${createdWallet.walletId}/owner-artifacts`,
       payload: {
         owner: {
           credentialId: "credential-id",
@@ -941,11 +918,10 @@ describe("backend app mode B", () => {
       provisioningUrl: string;
       backendAddress: string;
     };
-    const token = extractProvisioningToken(createdWallet.provisioningUrl);
 
     const ownerArtifactsResponse = await app.inject({
       method: "POST",
-      url: `/v1/provisioning/${createdWallet.walletId}/owner-artifacts?t=${encodeURIComponent(token)}`,
+      url: `/v1/provisioning/${createdWallet.walletId}/owner-artifacts`,
       payload: {
         owner: {
           credentialId: "credential-id",
@@ -1129,11 +1105,10 @@ describe("backend app mode B", () => {
       provisioningUrl: string;
       backendAddress: string;
     };
-    const token = extractProvisioningToken(createdWallet.provisioningUrl);
 
     const ownerArtifactsResponse = await app.inject({
       method: "POST",
-      url: `/v1/provisioning/${createdWallet.walletId}/owner-artifacts?t=${encodeURIComponent(token)}`,
+      url: `/v1/provisioning/${createdWallet.walletId}/owner-artifacts`,
       payload: {
         owner: {
           credentialId: "credential-id",

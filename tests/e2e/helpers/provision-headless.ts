@@ -13,7 +13,6 @@ type FetchLike = typeof fetch;
 
 export type ProvisioningTarget = {
   walletId: string;
-  token: string;
   backendUrl: string;
 };
 
@@ -22,7 +21,7 @@ export async function loadProvisioningRequest(
   fetchImpl: FetchLike = fetch,
 ): Promise<ResolveProvisioningResponse> {
   const response = await fetchImpl(
-    `${input.backendUrl}/v1/provisioning/${input.walletId}?t=${encodeURIComponent(input.token)}`,
+    `${input.backendUrl}/v1/provisioning/${input.walletId}`,
   );
 
   if (!response.ok) {
@@ -71,7 +70,7 @@ export async function publishHeadlessOwnerArtifacts(
     webAuthnKey,
   });
   const response = await fetchImpl(
-    `${input.backendUrl}/v1/provisioning/${input.walletId}/owner-artifacts?t=${encodeURIComponent(input.token)}`,
+    `${input.backendUrl}/v1/provisioning/${input.walletId}/owner-artifacts`,
     {
       method: "POST",
       headers: {

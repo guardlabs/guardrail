@@ -75,7 +75,6 @@ describe("frontend api mode B", () => {
 
     await browserApi.publishOwnerArtifacts({
       walletId: "wal_test",
-      token: "token_123",
       backendUrl: "http://127.0.0.1:3000",
       owner: {
         credentialId: "credential-id",
@@ -90,7 +89,7 @@ describe("frontend api mode B", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://127.0.0.1:3000/v1/provisioning/wal_test/owner-artifacts?t=token_123",
+      "http://127.0.0.1:3000/v1/provisioning/wal_test/owner-artifacts",
       expect.objectContaining({
         method: "POST",
       }),

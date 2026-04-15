@@ -23,7 +23,6 @@ function serialize(row: WalletRow): StoredWalletRequest {
     policy: row.policy,
     agentAddress: row.agentAddress,
     backendAddress: row.backendAddress,
-    provisioningTokenHash: row.provisioningTokenHash,
     backendPrivateKey: row.backendPrivateKey,
     ownerPublicArtifacts: row.ownerPublicArtifacts ?? undefined,
     regularValidatorInitArtifact: row.regularValidatorInitArtifact ?? undefined,
@@ -72,7 +71,6 @@ export function createPostgresWalletRequestRepository(
         agentAddress: request.agentAddress,
         backendAddress: request.backendAddress,
         backendPrivateKey: request.backendPrivateKey,
-        provisioningTokenHash: request.provisioningTokenHash,
         ownerPublicArtifacts: request.ownerPublicArtifacts,
         regularValidatorInitArtifact: request.regularValidatorInitArtifact,
         counterfactualWalletAddress: request.counterfactualWalletAddress,
@@ -100,26 +98,8 @@ export function createPostgresWalletRequestRepository(
       return row ? serialize(row) : null;
     },
 
-    async findByIdAndTokenHash(walletId, provisioningTokenHash) {
-      const rows = await db
-        .select()
-        .from(walletsTable)
-        .where(
-          and(
-            eq(walletsTable.walletId, walletId),
-            eq(walletsTable.provisioningTokenHash, provisioningTokenHash),
-          ),
-        )
-        .limit(1);
-
-      const row = rows[0];
-
-      return row ? serialize(row) : null;
-    },
-
     async updateProvisioning({
       walletId,
-      provisioningTokenHash,
       ownerPublicArtifacts,
       regularValidatorInitArtifact,
       counterfactualWalletAddress,
@@ -141,12 +121,7 @@ export function createPostgresWalletRequestRepository(
           walletContext,
           updatedAt: new Date(updatedAt),
         })
-        .where(
-          and(
-            eq(walletsTable.walletId, walletId),
-            eq(walletsTable.provisioningTokenHash, provisioningTokenHash),
-          ),
-        )
+        .where(eq(walletsTable.walletId, walletId))
         .returning();
 
       const row = rows[0];

@@ -100,7 +100,7 @@ export function App({ search, api = browserApi, passkeyClient }: AppProps) {
     search ?? (typeof window !== "undefined" ? window.location.search : "");
   const hasProvisioningIntent = useMemo(() => {
     const params = new URLSearchParams(currentSearch);
-    return params.has("walletId") || params.has("token");
+    return params.has("walletId");
   }, [currentSearch]);
 
   const query = useMemo(() => {
@@ -120,7 +120,7 @@ export function App({ search, api = browserApi, passkeyClient }: AppProps) {
 
     void api
       .loadProvisioningRequest({
-        ...query,
+        walletId: query.walletId,
         backendUrl: resolvedBackendUrl,
       })
       .then((nextRequest) => {
@@ -224,7 +224,7 @@ export function App({ search, api = browserApi, passkeyClient }: AppProps) {
         });
 
       const updatedRequest = await api.publishOwnerArtifacts({
-        ...query,
+        walletId: query.walletId,
         backendUrl: resolvedBackendUrl,
         owner: provisioningArtifacts.owner,
         counterfactualWalletAddress:

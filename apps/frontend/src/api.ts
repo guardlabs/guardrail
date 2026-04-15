@@ -32,12 +32,10 @@ async function fetchJson<T>(url: string, init: RequestInit): Promise<T> {
 export type FrontendApi = {
   loadProvisioningRequest(input: {
     walletId: string;
-    token: string;
     backendUrl: string;
   }): Promise<ResolveProvisioningResponse>;
   publishOwnerArtifacts(input: {
     walletId: string;
-    token: string;
     backendUrl: string;
     owner: OwnerPublicArtifacts;
     counterfactualWalletAddress: string;
@@ -53,7 +51,7 @@ export const browserApi: FrontendApi = {
   async loadProvisioningRequest(input) {
     return resolveProvisioningResponseSchema.parse(
       await fetchJson<ResolveProvisioningResponse>(
-        `${input.backendUrl}/v1/provisioning/${input.walletId}?t=${encodeURIComponent(input.token)}`,
+        `${input.backendUrl}/v1/provisioning/${input.walletId}`,
         {
           method: "GET",
         },
@@ -64,7 +62,7 @@ export const browserApi: FrontendApi = {
   async publishOwnerArtifacts(input) {
     return walletRequestSchema.parse(
       await fetchJson<WalletRequest>(
-        `${input.backendUrl}/v1/provisioning/${input.walletId}/owner-artifacts?t=${encodeURIComponent(input.token)}`,
+        `${input.backendUrl}/v1/provisioning/${input.walletId}/owner-artifacts`,
         {
           method: "POST",
           body: JSON.stringify(

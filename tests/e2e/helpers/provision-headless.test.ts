@@ -109,7 +109,6 @@ describe("headless provisioning helper", () => {
     const result = await publishHeadlessOwnerArtifacts(
       {
         walletId: "wal_test",
-        token: "token_test",
         backendUrl: "http://127.0.0.1:3000",
       },
       {
@@ -121,7 +120,7 @@ describe("headless provisioning helper", () => {
 
     expect(fetchImpl).toHaveBeenNthCalledWith(
       1,
-      "http://127.0.0.1:3000/v1/provisioning/wal_test?t=token_test",
+      "http://127.0.0.1:3000/v1/provisioning/wal_test",
     );
     expect(artifactBuilder).toHaveBeenCalledWith(
       expect.anything(),
@@ -134,7 +133,7 @@ describe("headless provisioning helper", () => {
     );
     expect(fetchImpl).toHaveBeenNthCalledWith(
       2,
-      "http://127.0.0.1:3000/v1/provisioning/wal_test/owner-artifacts?t=token_test",
+      "http://127.0.0.1:3000/v1/provisioning/wal_test/owner-artifacts",
       expect.objectContaining({
         method: "POST",
       }),

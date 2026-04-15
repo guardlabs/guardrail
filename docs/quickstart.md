@@ -34,7 +34,7 @@ The command returns:
 Send the provisioning URL to the human operator:
 
 ```text
-https://guardlabs.ai/?walletId=wal_xxx&token=token_xxx
+https://guardlabs.ai/?walletId=wal_xxx
 ```
 
 The human opens the hosted frontend, creates the passkey, approves the ownership signature, and becomes the durable wallet owner.
