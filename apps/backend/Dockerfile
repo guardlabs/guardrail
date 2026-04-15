@@ -12,11 +12,14 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
 COPY apps/backend/package.json apps/backend/package.json
 COPY packages/shared/package.json packages/shared/package.json
+COPY packages/zerodev/package.json packages/zerodev/package.json
 COPY apps/backend apps/backend
 COPY packages/shared packages/shared
+COPY packages/zerodev packages/zerodev
 
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @guardlabs/guardrail-core build
+RUN pnpm --filter @guardlabs/guardrail-kernel build
 RUN pnpm --filter @guardlabs/guardrail-backend build
 RUN pnpm --filter @guardlabs/guardrail-backend deploy --legacy --prod /prod/backend
 
